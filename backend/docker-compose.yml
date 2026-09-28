@@ -39,6 +39,23 @@ services:
       retries: 15
       start_period: 30s
 
+  api:
+    # Opt-in: `docker compose --profile app up` (or `make docker-up`).
+    profiles: ["app"]
+    build: .
+    image: mentoragent-api
+    container_name: mentoragent-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Inside the compose network MongoDB is reachable by service name.
+      MONGO_URI: mongodb://${MONGO_USER:-mentor_user}:${MONGO_PASSWORD:-mentor_password}@mongo:27017/?directConnection=true
+    ports:
+      - "${PORT:-8000}:8000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
 volumes:
   mongo_data:
   mongo_config:

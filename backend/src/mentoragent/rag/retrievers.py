@@ -1,43 +1,63 @@
-from .embeddings import Embeddings
+"""Hybrid (vector + full-text) retrieval over the long-term memory collection."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from langchain_mongodb import MongoDBAtlasVectorSearch
-from langchain_mongodb.retrievers import (
-    MongoDBAtlasHybridSearchRetriever,
-)
-from loguru import logger  
-from mentoragents.core.config import settings 
+from langchain_mongodb.retrievers import MongoDBAtlasHybridSearchRetriever
 
-class Retriever:
+from mentoragent.core.config import settings
+from mentoragent.db.client import get_mongo_client
+from mentoragent.rag.embeddings import build_embedding_model
+
+if TYPE_CHECKING:
+    from langchain_core.embeddings import Embeddings
+    from pymongo import MongoClient
+
+# Field names inside each long-term memory document.
+TEXT_KEY = "chunk"
+EMBEDDING_KEY = "embedding"
+
+
+def build_vector_store(
+    embedding: Embeddings | None = None, client: MongoClient | None = None
+) -> MongoDBAtlasVectorSearch:
+    """Return the vector store over ``MONGO_LONG_TERM_MEMORY_COLLECTION``.
+
+    Uses the shared MongoDB client, so building it is cheap and opens no new
+    connection pool.
     """
-    A class that retrieves documents from the MongoDB Atlas vector search.
+    client = client or get_mongo_client()
+    collection = client[settings.mongo.DB_NAME][settings.mongo.LONG_TERM_MEMORY_COLLECTION]
+    return MongoDBAtlasVectorSearch(
+        collection=collection,
+        embedding=embedding or build_embedding_model(),
+        index_name=settings.rag.VECTOR_INDEX_NAME,
+        text_key=TEXT_KEY,
+        embedding_key=EMBEDDING_KEY,
+        relevance_score_fn="dotProduct",
+    )
+
+
+def build_hybrid_retriever(
+    vectorstore: MongoDBAtlasVectorSearch,
+    mentor_id: str | None = None,
+    k: int | None = None,
+) -> MongoDBAtlasHybridSearchRetriever:
+    """Return a hybrid retriever, optionally restricted to one mentor's documents.
+
+    Args:
+        vectorstore: The long-term memory vector store.
+        mentor_id: Only return documents extracted for this mentor. Without
+            it, results can mix every mentor's sources.
+        k: Number of documents returned. Defaults to ``RAG_TOP_K``.
     """
-    def __init__(self, embedding_model_id : str, k : int = 3, device : str = "cpu") -> None:
-        """
-        Initializes the Retriever with an embedding model and a k value.
-        """
-        self.k = k
-        self.embedding_model_id = embedding_model_id
-        self.embeddings_model = Embeddings(embedding_model_id, device).get_hf_model()
-
-    def get_hybrid_search_mongodb_retriever(self) -> MongoDBAtlasHybridSearchRetriever:
-        """
-        Returns a MongoDBAtlasVectorSearchRetriever object that retrieves documents from the MongoDB Atlas vector search.
-        """
-        logger.info(f"Initializing MongoDBAtlasVectorSearchRetriever with embedding model: {self.embedding_model_id} and k: {self.k}")
-        vector_store = MongoDBAtlasVectorSearch.from_connection_string(
-            connection_string=settings.MONGO_URI,
-            embedding=self.embeddings_model,
-            namespace=f"{settings.MONGO_DB_NAME}.{settings.MONGO_LONG_TERM_MEMORY_COLLECTION}",
-            text_key="chunk",
-            embedding_key="embedding",
-            relevance_score_fn="dotProduct",
-        )
-
-        retriever = MongoDBAtlasHybridSearchRetriever(
-            vectorstore=vector_store,
-            search_index_name="hybrid_search_index",
-            top_k=self.k,
-            vector_penalty=50,
-            fulltext_penalty=50,
-        )
-        
-        return retriever
+    return MongoDBAtlasHybridSearchRetriever(
+        vectorstore=vectorstore,
+        search_index_name=settings.rag.FULLTEXT_INDEX_NAME,
+        k=k or settings.rag.TOP_K,
+        pre_filter={"mentor_id": {"$eq": mentor_id}} if mentor_id else None,
+        vector_penalty=50,
+        fulltext_penalty=50,
+    )

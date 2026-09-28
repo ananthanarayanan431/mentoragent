@@ -18,6 +18,8 @@ class RagSettings(BaseSettings):
         TOP_K: Number of documents returned per query.
         CHUNK_SIZE: Size of each document chunk.
         CHUNK_OVERLAP: Overlap between consecutive chunks.
+        VECTOR_INDEX_NAME: Atlas vector search index name.
+        FULLTEXT_INDEX_NAME: Atlas Search (full-text) index name.
     """
 
     model_config = settings_config("RAG_")
@@ -27,6 +29,8 @@ class RagSettings(BaseSettings):
     TOP_K: int = Field(default=3, gt=0)
     CHUNK_SIZE: int = Field(default=256, gt=0)
     CHUNK_OVERLAP: int = Field(default=10, ge=0)
+    VECTOR_INDEX_NAME: str = "vector_index"
+    FULLTEXT_INDEX_NAME: str = "hybrid_search_index"
 
     @model_validator(mode="after")
     def check_overlap_smaller_than_chunk(self) -> Self:

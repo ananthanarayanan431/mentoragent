@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
-from mentoragent.core.config.base import settings_config
+from mentoragent.core.config.base import OptionalSecret, settings_config
 
 Environment = Literal["local", "dev", "test", "staging", "prod"]
 
@@ -22,6 +22,8 @@ class AppSettings(BaseSettings):
         LOG_LEVEL: Minimum level emitted by the logger.
         LOG_JSON: Emit one JSON object per line (for log shippers) instead of
             the coloured human-readable format.
+        API_KEY: When set, every API call must send it in the ``X-API-Key``
+            header (WebSocket: ``api_key`` query parameter).
     """
 
     model_config = settings_config()
@@ -33,6 +35,7 @@ class AppSettings(BaseSettings):
     DEBUG: bool = False
     LOG_LEVEL: Literal["TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     LOG_JSON: bool = False
+    API_KEY: OptionalSecret = None
 
     @property
     def is_production(self) -> bool:

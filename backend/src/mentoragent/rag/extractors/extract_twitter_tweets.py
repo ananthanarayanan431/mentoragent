@@ -34,17 +34,24 @@ def extract_twitter_tweets(
         One document per tweet, or an empty list if the fetch fails.
     """
     log = logger.bind(mentor_id=mentor_extract.id, source=Source.TWITTER)
-    client = client or Arcade(api_key=settings.arcade.API_KEY.get_secret_value())
+    handle = mentor_extract.twitter_handle
+    if not handle:
+        return []
+    if client is None:
+        if not settings.arcade.is_configured or settings.arcade.API_KEY is None:
+            log.warning("Arcade is not configured; skipping tweets for @{}", handle)
+            return []
+        client = Arcade(api_key=settings.arcade.API_KEY.get_secret_value())
 
     try:
         tweets = get_all_tweets(
             client,
-            username=mentor_extract.twitter_handle,
-            user_id=settings.arcade.USER_ID,
+            username=handle,
+            user_id=settings.arcade.USER_ID or "",
             max_tweets=max_tweets,
         )
     except Exception:
-        log.exception("Failed to fetch tweets for @{}", mentor_extract.twitter_handle)
+        log.exception("Failed to fetch tweets for @{}", handle)
         return []
 
     documents = [

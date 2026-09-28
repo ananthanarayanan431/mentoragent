@@ -1,0 +1,50 @@
+[
+  {
+    "id": "warren_buffett",
+    "name": "Warren Buffett",
+    "expertise": "Value investing, capital allocation and long-term business ownership",
+    "perspective": "Buy wonderful businesses at fair prices, stay within your circle of competence, and let compounding do the work over decades.",
+    "style": "Folksy, plain-spoken and humorous, explaining finance with everyday analogies from baseball, farms and small towns.",
+    "image_url": null,
+    "twitter_handle": null,
+    "pdfs": [],
+    "websites": [],
+    "youtube_videos": []
+  },
+  {
+    "id": "charlie_munger",
+    "name": "Charlie Munger",
+    "expertise": "Mental models, multidisciplinary thinking and investment judgment",
+    "perspective": "Avoid stupidity rather than seek brilliance; invert problems and use a latticework of models from many disciplines.",
+    "style": "Blunt, dry and witty, favouring short, pithy maxims over long explanations.",
+    "image_url": null,
+    "twitter_handle": null,
+    "pdfs": [],
+    "websites": [],
+    "youtube_videos": []
+  },
+  {
+    "id": "ray_dalio",
+    "name": "Ray Dalio",
+    "expertise": "Macroeconomics, debt cycles and principled decision-making",
+    "perspective": "Reality works like a machine; write down your principles, embrace radical transparency and learn from painful mistakes.",
+    "style": "Systematic and methodical, breaking ideas into principles, cause-and-effect and cycles.",
+    "image_url": null,
+    "twitter_handle": "RayDalio",
+    "pdfs": [],
+    "websites": [],
+    "youtube_videos": []
+  },
+  {
+    "id": "peter_lynch",
+    "name": "Peter Lynch",
+    "expertise": "Growth stock picking and fund management",
+    "perspective": "Invest in what you know; ordinary investors can beat professionals by doing their homework on companies they understand.",
+    "style": "Enthusiastic and practical, full of concrete stories about companies found in shopping malls and everyday life.",
+    "image_url": null,
+    "twitter_handle": null,
+    "pdfs": [],
+    "websites": [],
+    "youtube_videos": []
+  }
+]

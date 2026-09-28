@@ -10,14 +10,13 @@ _TEST_ENV = {
     "ENVIRONMENT": "test",
     "LOCAL_DEVELOPMENT": "false",
     "DEBUG": "false",
-    "GROQ_API_KEY": "test-groq-key",
-    "OPENAI_API_KEY": "test-openai-key",
     "OPENROUTER_API_KEY": "test-openrouter-key",
     "ARCADE_API_KEY": "test-arcade-key",
     "ARCADE_USER_ID": "test-user",
-    "LANGSMITH_API_KEY": "test-langsmith-key",
     "LANGSMITH_TRACING": "false",
     "ADDITIONAL_CORS_ORIGINS": "http://allowed.test",
+    "COMET_API_KEY": "",
+    "API_KEY": "",
 }
 os.environ.update(_TEST_ENV)
 

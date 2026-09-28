@@ -4,13 +4,13 @@ import time
 from typing import TYPE_CHECKING
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_groq import ChatGroq
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from loguru import logger
 
 from mentoragent.core.config import settings
 from mentoragent.models.evaluation import EvaluationDataset, EvaluationDatasetSample
 from mentoragent.rag.extractor import Extractor
+from mentoragent.workflow.llm import build_chat_model
 from mentoragent.workflow.prompt import EVALUATE_DATASET_GENERATION_PROMPT
 
 if TYPE_CHECKING:
@@ -88,11 +88,7 @@ class EvaluationDatasetGenerator:
 
     def _build_chain(self) -> Runnable[dict[str, object], EvaluationDatasetSample]:
         """Build the prompt -> LLM chain that emits one structured sample."""
-        model = ChatGroq(
-            api_key=settings.groq.API_KEY,
-            model_name=settings.groq.LLM_MODEL,
-            temperature=self.temperature,
-        )
+        model = build_chat_model(temperature=self.temperature)
 
         prompt = ChatPromptTemplate.from_messages(
             [("system", EVALUATE_DATASET_GENERATION_PROMPT.prompt)],

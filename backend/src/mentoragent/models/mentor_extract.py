@@ -22,8 +22,10 @@ class MentorExtract(BaseModel):
     expertise: str = Field(description="Expertise of the mentor")
     perspective: str = Field(description="Perspective of the mentor")
     style: str = Field(description="Style of the mentor")
-    image_url: str = Field(description="Image URL of the mentor")
-    twitter_handle: str = Field(description="Twitter handle of the mentor")
+    image_url: str | None = Field(default=None, description="Image URL of the mentor")
+    twitter_handle: str | None = Field(
+        default=None, description="X/Twitter handle of the mentor, without the @"
+    )
     pdfs: list[str] = Field(
         default_factory=list, description="PDF URLs with information about the mentor"
     )

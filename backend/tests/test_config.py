@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from mentoragent.core.config import CorsSettings, GroqSettings, PathSettings, RagSettings
+from mentoragent.core.config import CorsSettings, OpenRouterSettings, PathSettings, RagSettings
 from mentoragent.core.config.base import BACKEND_DIR
 
 
@@ -30,9 +30,9 @@ def test_rag_rejects_overlap_not_smaller_than_chunk() -> None:
 
 
 def test_api_keys_are_masked_in_repr() -> None:
-    groq = GroqSettings()
-    assert "test-groq-key" not in repr(groq)
-    assert groq.API_KEY.get_secret_value() == "test-groq-key"
+    openrouter = OpenRouterSettings()
+    assert "test-openrouter-key" not in repr(openrouter)
+    assert openrouter.API_KEY.get_secret_value() == "test-openrouter-key"
 
 
 def test_relative_paths_resolve_against_backend_dir() -> None:

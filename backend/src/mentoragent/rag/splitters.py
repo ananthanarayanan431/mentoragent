@@ -1,24 +1,24 @@
-from langchain.text_splitter import RecursiveCharacterTextSplitter 
-from loguru import logger 
+"""Document chunking."""
 
-class TextSplitter:
-    """
-    A class that splits text into chunks of a given size.
-    """
-    def __init__(self, chunk_size : int):
-        """
-        Initializes the TextSplitter with a given chunk size.
-        """
-        self.chunk_size = chunk_size 
-        self.chunk_overlap = int(0.15 * chunk_size)
+from __future__ import annotations
 
-    def get_splitter(self) -> RecursiveCharacterTextSplitter:
-        """
-        Returns a RecursiveCharacterTextSplitter object that splits text into chunks of a given size.
-        """
-        logger.info(f"Initializing TextSplitter with chunk size: {self.chunk_size} and chunk overlap: {self.chunk_overlap}")
-        return RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-            chunk_size = self.chunk_size,
-            chunk_overlap = self.chunk_overlap,
-            encoding_name = "cl100k_base",
-        )
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+from mentoragent.core.config import settings
+
+
+def build_text_splitter(
+    chunk_size: int | None = None, chunk_overlap: int | None = None
+) -> RecursiveCharacterTextSplitter:
+    """Return a token-based splitter (sizes are in ``cl100k_base`` tokens).
+
+    Args:
+        chunk_size: Tokens per chunk. Defaults to ``RAG_CHUNK_SIZE``.
+        chunk_overlap: Tokens shared by consecutive chunks. Defaults to
+            ``RAG_CHUNK_OVERLAP``.
+    """
+    return RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+        encoding_name="cl100k_base",
+        chunk_size=chunk_size or settings.rag.CHUNK_SIZE,
+        chunk_overlap=settings.rag.CHUNK_OVERLAP if chunk_overlap is None else chunk_overlap,
+    )

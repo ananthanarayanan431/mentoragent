@@ -31,14 +31,23 @@ from typing import TYPE_CHECKING
 from loguru import logger
 
 if TYPE_CHECKING:
+    from loguru import Record
+
     from mentoragent.core.config.app import AppSettings
 
 _HUMAN_FORMAT = (
     "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
     "<level>{level: <8}</level> | "
     "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
-    "<level>{message}</level> | {extra}"
+    "<level>{message}</level>"
 )
+
+
+def _human_format(record: Record) -> str:
+    """Human format, with bound context (request id, mentor id, ...) when present."""
+    extra = " | {extra}" if record["extra"] else ""
+    return _HUMAN_FORMAT + extra + "\n{exception}"
+
 
 # Third-party loggers that are noisy at INFO and rarely useful.
 _QUIET_LOGGERS = ("pymongo", "httpx", "httpcore", "urllib3")
@@ -84,7 +93,7 @@ def configure_logging(app_settings: AppSettings | None = None) -> None:
         sys.stdout,
         level=level,
         serialize=app_settings.LOG_JSON,
-        format=_HUMAN_FORMAT,
+        format=_human_format,
         colorize=not app_settings.LOG_JSON,
         # Variable values in tracebacks can include secrets; only show them locally.
         backtrace=app_settings.LOCAL_DEVELOPMENT,

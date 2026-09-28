@@ -1,13 +1,24 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Annotated
 
+from pydantic import BeforeValidator, SecretStr
 from pydantic_settings import SettingsConfigDict
 
 # backend/ - resolved from this file so settings load the same .env no matter
 # which directory the process is started from (tests, notebooks, uvicorn).
 BACKEND_DIR = Path(__file__).resolve().parents[4]
 ENV_FILE = BACKEND_DIR / ".env"
+
+
+def _blank_to_none(value: object) -> object:
+    return None if isinstance(value, str) and not value.strip() else value
+
+
+# An optional secret where a blank value (``COMET_API_KEY=``) means "unset".
+OptionalSecret = Annotated[SecretStr | None, BeforeValidator(_blank_to_none)]
+OptionalStr = Annotated[str | None, BeforeValidator(_blank_to_none)]
 
 
 def settings_config(prefix: str = "") -> SettingsConfigDict:

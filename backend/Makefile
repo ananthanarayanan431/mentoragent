@@ -9,13 +9,10 @@ COMPOSE     ?= docker compose
 UV          ?= uv
 MONGO_SVC   ?= mongo
 
-# Point this at the FastAPI app once src/mentoragent exposes one, then use
-# `make serve`. Until then `make run` is the working entrypoint.
-APP_MODULE  ?= mentoragent.api.main:app
-APP_HOST    ?= 0.0.0.0
-APP_PORT    ?= 8000
+CLI         := $(UV) run mentoragent
 
-.PHONY: help install env up down restart logs ps wait mongo-shell mongo-reset run serve shell \
+.PHONY: help install env up down restart logs ps mongo-shell mongo-reset run serve shell \
+        load-mentors create-memory seed evaluate docker-up docker-down \
         lint format typecheck test check hooks clean
 
 help: ## Show this help
@@ -63,11 +60,29 @@ mongo-reset: ## DESTRUCTIVE - drop the containers AND the data volumes
 
 # --- Application -----------------------------------------------------------
 
-run: up ## Start MongoDB, then run the application
-	$(UV) run python main.py
+run: up ## Start MongoDB, then run the API (settings from .env)
+	$(CLI) serve
 
-serve: up ## Start MongoDB, then run the FastAPI app with autoreload
-	$(UV) run uvicorn $(APP_MODULE) --host $(APP_HOST) --port $(APP_PORT) --reload
+serve: up ## Start MongoDB, then run the API with autoreload
+	$(CLI) serve --reload
+
+load-mentors: up ## Upsert the mentors from data/extraction_metadata.json
+	$(CLI) load-mentors
+
+create-memory: up ## Extract sources and rebuild the long-term memory (calls the embeddings API)
+	$(CLI) create-memory
+
+seed: load-mentors create-memory ## First-time setup: mentors + long-term memory
+
+evaluate: up ## Generate an evaluation dataset and score the agent with Opik
+	$(CLI) generate-dataset
+	$(CLI) evaluate
+
+docker-up: ## Build and run MongoDB + the API in containers
+	$(COMPOSE) --profile app up -d --build --wait
+
+docker-down: ## Stop the containers (data volumes are kept)
+	$(COMPOSE) --profile app down
 
 shell: ## Open a Python REPL with the project environment loaded
 	$(UV) run python

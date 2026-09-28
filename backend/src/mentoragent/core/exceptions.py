@@ -39,6 +39,13 @@ class PermissionException(MentorAgentError):
     default_message = "User does not have the right to perform this action"
 
 
+class ConversationError(MentorAgentError):
+    """The agent failed to produce a reply (LLM provider or retrieval failure)."""
+
+    status_code = 502
+    default_message = "The mentor could not respond right now. Please try again."
+
+
 class NotFoundException(MentorAgentError):
     """A requested object does not exist."""
 

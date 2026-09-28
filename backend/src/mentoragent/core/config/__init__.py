@@ -14,7 +14,7 @@ Normal application code uses the composed singleton::
     from mentoragent.core.config import settings
 
     settings.mongo.URI
-    settings.groq.API_KEY
+    settings.openrouter.LLM_MODEL
 """
 
 from __future__ import annotations
@@ -32,10 +32,7 @@ from mentoragent.core.config.integrations import (
     CometSettings,
     LangSmithSettings,
 )
-from mentoragent.core.config.llm import (
-    GroqSettings,
-    OpenRouterSettings,
-)
+from mentoragent.core.config.llm import OpenRouterSettings
 from mentoragent.core.config.mongo import MongoSettings
 from mentoragent.core.config.paths import PathSettings
 from mentoragent.core.config.rag import RagSettings
@@ -55,9 +52,8 @@ class Settings(BaseSettings):
         server: Uvicorn / FastAPI bind settings.
         cors: Extra browser origins allowed to call the API.
         mongo: MongoDB connection and collection names.
-        groq: Groq inference credentials and model selection.
         openrouter: OpenRouter credentials and model selection.
-        agent: Conversation memory thresholds.
+        agent: Conversation behaviour and limits.
         rag: Embedding model and retrieval tuning.
         arcade: Arcade tool-calling credentials.
         langsmith: LangSmith tracing configuration.
@@ -74,7 +70,6 @@ class Settings(BaseSettings):
     server: ServerSettings = Field(default_factory=ServerSettings)
     cors: CorsSettings = Field(default_factory=CorsSettings)
     mongo: MongoSettings = Field(default_factory=MongoSettings)
-    groq: GroqSettings = Field(default_factory=GroqSettings)
     openrouter: OpenRouterSettings = Field(default_factory=OpenRouterSettings)
     agent: AgentSettings = Field(default_factory=AgentSettings)
     rag: RagSettings = Field(default_factory=RagSettings)
@@ -92,7 +87,6 @@ __all__ = [
     "ArcadeSettings",
     "CometSettings",
     "CorsSettings",
-    "GroqSettings",
     "LangSmithSettings",
     "MongoSettings",
     "OpenRouterSettings",
