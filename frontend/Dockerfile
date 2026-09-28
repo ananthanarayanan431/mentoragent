@@ -7,7 +7,7 @@
 # ignore build output.
 
 # ---- build: compile the static bundle --------------------------------------
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 
 # Dependencies first, so editing source does not invalidate this layer.
