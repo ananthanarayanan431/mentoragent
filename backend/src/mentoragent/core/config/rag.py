@@ -12,3 +12,4 @@ class RagSettings(BaseSettings):
     TOP_K: int = 3
     CHUNK_SIZE: int = 256
     CHUNK_OVERLAP: int = 10
+    DEVICE: str = "cpu"
