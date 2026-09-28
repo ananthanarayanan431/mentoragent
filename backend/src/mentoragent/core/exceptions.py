@@ -79,3 +79,4 @@ class MentorNotFoundException(Exception):
     """Exception raised when a mentor is not found"""
     def __init__(self, mentor_id : str):
         self.message = f"Mentor for id {mentor_id} not found."
+        super().__init__(self.message)

@@ -1,22 +1,22 @@
 import opik
-from mentoragents.core.config import settings
+from mentoragent.core.config import settings
 from loguru import logger
 from opik.evaluation import evaluate
 from opik.evaluation.metrics import (Hallucination, AnswerRelevance, Moderation, ContextRecall, ContextPrecision)
-from mentoragents.workflow.state import state_to_str
-from mentoragents.workflow.graph import MentorGraph
-from mentoragents.utils.generate_response import get_response
-from mentoragents.db.client import MongoClientWrapper
-from mentoragents.models.mentor_extract import MentorExtract
+from mentoragent.workflow.state import state_to_str
+from mentoragent.workflow.graph import MentorGraph
+from mentoragent.utils.generate_response import get_response
+from mentoragent.db.client import MongoClientWrapper
+from mentoragent.models.mentor_extract import MentorExtract
 import asyncio
 
 graph_builder = MentorGraph().build()
 
 mentors_collection = MongoClientWrapper(
     model = MentorExtract,
-    collection_name = settings.MONGO_MENTORS_COLLECTION,
-    database_name = settings.MONGO_DB_NAME,
-    mongodb_uri = settings.MONGO_URI
+    collection_name = settings.mongo.MENTORS_COLLECTION,
+    database_name = settings.mongo.DB_NAME,
+    mongodb_uri = settings.mongo.URI
 )
 
 
@@ -29,7 +29,7 @@ scoring_metrics = [
 ]
 
 def evaluate_agent(
-    dataset = opik.Dataset | None,
+    dataset : opik.Dataset | None = None,
     workers : int = 2,
     nb_samples : int | None = None 
 ) -> None: 
@@ -49,7 +49,7 @@ def evaluate_agent(
     logger.info("Starting evaluation...")
 
     experiment_config = {
-        "model_id" : settings.GROQ_LLM_MODEL,
+        "model_id" : settings.groq.LLM_MODEL,
         "dataset_name" : dataset.name,
     }
 

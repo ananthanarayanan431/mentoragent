@@ -3,7 +3,7 @@ from typing import Generic, Type, TypeVar
 from pydantic import BaseModel
 from bson import ObjectId
 from pymongo import MongoClient, errors
-from mentoragents.core.config import settings
+from mentoragent.core.config import settings
 from loguru import logger
 from pymongo.server_api import ServerApi
 
@@ -33,8 +33,8 @@ class MongoClientWrapper(Generic[T]):
         self,
         model : Type[T],
         collection_name : str,
-        database_name : str = settings.MONGO_DB_NAME,
-        mongodb_uri : str = settings.MONGO_URI
+        database_name : str = settings.mongo.DB_NAME,
+        mongodb_uri : str = settings.mongo.URI
     ) -> None:
         """Initialize a connection to the MongoDB collection.
         
@@ -59,12 +59,12 @@ class MongoClientWrapper(Generic[T]):
             self.client.admin.command("ping")
         except Exception as e:
             logger.error(f"Failed to initialize MongoDB client: {e}")
-
+            raise
 
         self.database = self.client[database_name]
         self.collection = self.database[collection_name]
 
-        logger.info(f"Connected to MongoDB instance : \n  URI : {mongodb_uri} \n Database : {database_name} \n  Collection : {collection_name} \n")
+        logger.info(f"Connected to MongoDB instance : \n Database : {database_name} \n  Collection : {collection_name} \n")
         
     def __enter__(self) -> "MongoClientWrapper":
         """

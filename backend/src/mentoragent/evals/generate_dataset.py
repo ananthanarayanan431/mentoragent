@@ -1,10 +1,10 @@
-from mentoragents.models.evaluation import EvaluationDataset, EvaluationDatasetSample
+from mentoragent.models.evaluation import EvaluationDataset, EvaluationDatasetSample
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_groq import ChatGroq
-from mentoragents.core.config import settings
+from mentoragent.core.config import settings
 from langchain_core.prompts import ChatPromptTemplate
-from mentoragents.workflow.prompt import EVALUATE_DATASET_GENERATION_PROMPT
-from mentoragents.rag.extractor import Extractor
+from mentoragent.workflow.prompt import EVALUATE_DATASET_GENERATION_PROMPT
+from mentoragent.rag.extractor import Extractor
 from loguru import logger
 import time
 
@@ -73,7 +73,7 @@ class EvaluationDatasetGenerator:
         evaluation_dataset = EvaluationDataset(
             samples = dataset_samples,
         )
-        evaluation_dataset.save_to_json(file_path = settings.EVALUATION_DATASET_FILE_PATH)
+        evaluation_dataset.save_to_json(file_path = settings.paths.EVALUATION_DATASET_FILE_PATH)
         return evaluation_dataset
 
     def __build_chain(self):
@@ -84,8 +84,8 @@ class EvaluationDatasetGenerator:
             chain : The chain for the evaluation dataset generation.
         """
         model = ChatGroq(
-            api_key = settings.GROQ_API_KEY,
-            model_name = settings.GROQ_LLM_MODEL,
+            api_key = settings.groq.API_KEY,
+            model_name = settings.groq.LLM_MODEL,
             temperature = self.temperature
         )
 
@@ -125,8 +125,8 @@ class EvaluationDatasetGenerator:
         Returns:
             bool : True if the sample is valid, False otherwise.    
         """
-        return {
+        return (
             len(sample.messages) >= 2
             and sample.messages[-2].role == "user"
             and sample.messages[-1].role == "assistant"
-         }
+        )

@@ -1,6 +1,6 @@
-from mentoragents.db.client import MongoClientWrapper
-from langchain_mongodb.index import create_fulltext_search_index, create_vector_search_index
-from mentoragents.rag.retrievers import MongoDBAtlasHybridSearchRetriever
+from mentoragent.db.client import MongoClientWrapper
+from langchain_mongodb.index import create_fulltext_search_index
+from mentoragent.rag.retrievers import MongoDBAtlasHybridSearchRetriever
 
 class MongoIndex:
     """

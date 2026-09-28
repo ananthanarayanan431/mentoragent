@@ -14,9 +14,9 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from mentoragents.core.config import settings
-from mentoragents.core.exceptions import NotFoundException, PermissionException, unpack_validation_error
-from mentoragents.core.logging import logger
+from mentoragent.core.config import settings
+from mentoragent.core.exceptions import NotFoundException, PermissionException, unpack_validation_error
+from mentoragent.core.logging import logger
 
 async def add_request_id(request: Request, call_next: callable) -> Response:
     """Middleware to generate and add a request ID to the request for tracing.
@@ -79,7 +79,7 @@ async def exception_logging_middleware(request: Request, call_next: callable) ->
         response = await call_next(request)
         return response
     except Exception as exc:
-        if settings.LOCAL_CURSOR_DEVELOPMENT:
+        if settings.app.LOCAL_DEVELOPMENT:
             logger.error(f"Unhandled exception: {exc}\n{traceback.format_exc()}")
         else:
             logger.error(f"Unhandled exception: {exc}")
@@ -219,7 +219,7 @@ async def validation_exception_handler(
     # Extract basic error messages
     error_messages = unpack_validation_error(exc)
 
-    if settings.LOCAL_CURSOR_DEVELOPMENT:
+    if settings.app.LOCAL_DEVELOPMENT:
         # Additional diagnostic information
         exception_type = exc.__class__.__name__
         exception_str = str(exc)
@@ -233,7 +233,7 @@ async def validation_exception_handler(
             # Create a simplified version for the response
             for frame in stack_frames:
                 # Only include frames from our backend code
-                if "site-packages" not in frame.filename and "/airweave" in frame.filename:
+                if "site-packages" not in frame.filename and "/mentoragent" in frame.filename:
                     context = f"{frame.filename.split('/')[-1]}:{frame.name}:{frame.lineno}"
                     stack_trace.append(context)
 
