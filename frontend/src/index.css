@@ -1,0 +1,218 @@
+@import 'tailwindcss';
+
+/* Class-based dark mode: the theme toggle writes `.dark` on <html>, which lets
+   an explicit choice override the OS preference. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Semantic colours, defined once per theme. Components use the utilities these
+   generate (bg-canvas, text-muted, ...) rather than raw palette steps, so the
+   two themes cannot drift apart. */
+:root {
+  --ui-canvas: oklch(0.99 0.003 85);
+  --ui-surface: oklch(1 0 0);
+  --ui-raised: oklch(0.97 0.004 85);
+  --ui-border: oklch(0.91 0.005 85);
+  --ui-border-strong: oklch(0.84 0.007 85);
+  --ui-text: oklch(0.22 0.008 75);
+  --ui-muted: oklch(0.52 0.012 75);
+  --ui-faint: oklch(0.66 0.01 75);
+  --ui-accent: oklch(0.56 0.14 55);
+  --ui-accent-hover: oklch(0.5 0.14 55);
+  --ui-accent-soft: oklch(0.95 0.035 70);
+  --ui-on-accent: oklch(1 0 0);
+  --ui-danger: oklch(0.52 0.19 25);
+  --ui-danger-soft: oklch(0.96 0.03 25);
+  --ui-positive: oklch(0.6 0.13 150);
+}
+
+.dark {
+  --ui-canvas: oklch(0.17 0.006 70);
+  --ui-surface: oklch(0.21 0.007 70);
+  --ui-raised: oklch(0.25 0.008 70);
+  --ui-border: oklch(0.3 0.008 70);
+  --ui-border-strong: oklch(0.38 0.01 70);
+  --ui-text: oklch(0.95 0.005 85);
+  --ui-muted: oklch(0.72 0.012 80);
+  --ui-faint: oklch(0.58 0.012 80);
+  --ui-accent: oklch(0.78 0.13 70);
+  --ui-accent-hover: oklch(0.84 0.13 72);
+  --ui-accent-soft: oklch(0.3 0.05 62);
+  --ui-on-accent: oklch(0.19 0.02 70);
+  --ui-danger: oklch(0.72 0.15 22);
+  --ui-danger-soft: oklch(0.29 0.06 22);
+  --ui-positive: oklch(0.75 0.14 155);
+}
+
+/* `inline` keeps the var() reference in the generated utility, so switching
+   theme re-resolves the colour without rebuilding any CSS. */
+@theme inline {
+  --color-canvas: var(--ui-canvas);
+  --color-surface: var(--ui-surface);
+  --color-raised: var(--ui-raised);
+  --color-line: var(--ui-border);
+  --color-line-strong: var(--ui-border-strong);
+  --color-ink: var(--ui-text);
+  --color-muted: var(--ui-muted);
+  --color-faint: var(--ui-faint);
+  --color-accent: var(--ui-accent);
+  --color-accent-hover: var(--ui-accent-hover);
+  --color-accent-soft: var(--ui-accent-soft);
+  --color-on-accent: var(--ui-on-accent);
+  --color-danger: var(--ui-danger);
+  --color-danger-soft: var(--ui-danger-soft);
+  --color-positive: var(--ui-positive);
+
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --animate-blink: blink 1.2s ease-in-out infinite;
+  --animate-rise: rise 0.28s ease-out both;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@layer base {
+  html {
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    background-color: var(--ui-canvas);
+    color: var(--ui-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* One consistent focus ring everywhere, visible against both themes. */
+  :focus-visible {
+    outline: 2px solid var(--ui-accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--ui-accent-soft);
+    color: var(--ui-text);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Markdown coming back from a mentor. Tailwind's reset strips list markers
+     and heading sizes, so the reply needs them restored. */
+  .prose-reply {
+    line-height: 1.7;
+  }
+  .prose-reply > * + * {
+    margin-top: 0.75rem;
+  }
+  .prose-reply h1,
+  .prose-reply h2,
+  .prose-reply h3 {
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .prose-reply h1 {
+    font-size: 1.25rem;
+  }
+  .prose-reply h2 {
+    font-size: 1.125rem;
+  }
+  .prose-reply h3 {
+    font-size: 1rem;
+  }
+  .prose-reply ul,
+  .prose-reply ol {
+    padding-left: 1.5rem;
+  }
+  .prose-reply ul {
+    list-style: disc;
+  }
+  .prose-reply ol {
+    list-style: decimal;
+  }
+  .prose-reply li + li {
+    margin-top: 0.25rem;
+  }
+  .prose-reply a {
+    color: var(--ui-accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .prose-reply strong {
+    font-weight: 600;
+  }
+  .prose-reply em {
+    font-style: italic;
+  }
+  .prose-reply blockquote {
+    border-left: 2px solid var(--ui-border-strong);
+    padding-left: 0.875rem;
+    color: var(--ui-muted);
+  }
+  .prose-reply code {
+    background-color: var(--ui-raised);
+    border: 1px solid var(--ui-border);
+    border-radius: 0.3rem;
+    padding: 0.1rem 0.3rem;
+    font-size: 0.875em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .prose-reply pre {
+    background-color: var(--ui-raised);
+    border: 1px solid var(--ui-border);
+    border-radius: 0.6rem;
+    padding: 0.875rem;
+    overflow-x: auto;
+  }
+  .prose-reply pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 0.85em;
+  }
+  .prose-reply table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+  }
+  .prose-reply th,
+  .prose-reply td {
+    border: 1px solid var(--ui-border);
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+  }
+  .prose-reply th {
+    background-color: var(--ui-raised);
+    font-weight: 600;
+  }
+}

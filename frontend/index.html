@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Chat with AI mentors modelled on real experts. MentorAgents — where human expertise meets AI."
+    />
+    <title>MentorAgents</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+    />
+
+    <script>
+      // Applied before first paint so a dark-theme user never sees a white
+      // flash. useTheme() takes over from here and uses the same key.
+      ;(function () {
+        try {
+          var stored = localStorage.getItem('mentoragent:theme')
+          var dark =
+            stored === 'dark' ||
+            ((!stored || stored === 'system') &&
+              matchMedia('(prefers-color-scheme: dark)').matches)
+          if (dark) {
+            document.documentElement.classList.add('dark')
+            document.documentElement.style.colorScheme = 'dark'
+          }
+        } catch (e) {
+          /* storage blocked: fall back to the light theme */
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
