@@ -30,7 +30,11 @@ from mentoragent.core.config.integrations import (
     CometSettings,
     LangSmithSettings,
 )
-from mentoragent.core.config.llm import GroqSettings, OpenAISettings
+from mentoragent.core.config.llm import (
+    GroqSettings,
+    OpenAISettings,
+    OpenRouterSettings,
+)
 from mentoragent.core.config.mongo import MongoSettings
 from mentoragent.core.config.paths import PathSettings
 from mentoragent.core.config.rag import RagSettings
@@ -50,6 +54,7 @@ class Settings(BaseSettings):
         mongo: MongoDB connection and collection names.
         groq: Groq inference credentials and model selection.
         openai: OpenAI credentials and model selection.
+        openrouter: OpenRouter credentials and model selection.
         agent: Conversation memory thresholds.
         rag: Embedding model and retrieval tuning.
         arcade: Arcade tool-calling credentials.
@@ -69,6 +74,7 @@ class Settings(BaseSettings):
     mongo: MongoSettings = Field(default_factory=MongoSettings)
     groq: GroqSettings = Field(default_factory=GroqSettings)
     openai: OpenAISettings = Field(default_factory=OpenAISettings)
+    openrouter: OpenRouterSettings = Field(default_factory=OpenRouterSettings)
     agent: AgentSettings = Field(default_factory=AgentSettings)
     rag: RagSettings = Field(default_factory=RagSettings)
     arcade: ArcadeSettings = Field(default_factory=ArcadeSettings)
@@ -89,6 +95,7 @@ __all__ = [
     "LangSmithSettings",
     "MongoSettings",
     "OpenAISettings",
+    "OpenRouterSettings",
     "PathSettings",
     "RagSettings",
     "ServerSettings",

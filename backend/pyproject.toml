@@ -8,6 +8,7 @@ requires-python = ">=3.11"
 dependencies = [
     "sentence-transformers>=4.1.0",
     "fastapi[standard]>=0.115.8",
+    "openai>=2.0.0",
     "langchain-openai>=0.3.25",
     "langchain-core>=0.3.34",
     "langchain-groq>=0.2.4",
