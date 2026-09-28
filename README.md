@@ -56,7 +56,7 @@ Replies stream back token by token.
 ## Quick start
 
 Prerequisites: **Docker** with the Compose plugin, **Python 3.12** with
-[uv](https://docs.astral.sh/uv/), and **Node 22**.
+[uv](https://docs.astral.sh/uv/), and **Node 26**.
 
 ```bash
 git clone https://github.com/ananthanarayanan431/mentoragent.git

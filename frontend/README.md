@@ -18,7 +18,7 @@ React single-page app for chatting with the mentors served by
 
 ## Quick start
 
-Prerequisites: Node 22 (see [`.nvmrc`](.nvmrc)) and a backend running on
+Prerequisites: Node 26 (see [`.nvmrc`](.nvmrc)) and a backend running on
 port 8000 — start it with `make run` in [`backend/`](../backend).
 
 ```bash

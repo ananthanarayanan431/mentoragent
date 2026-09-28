@@ -6,7 +6,7 @@ half of the repo follows, and what CI checks before a change lands.
 ## Setup
 
 Prerequisites: Docker with the Compose plugin, Python 3.12 with
-[uv](https://docs.astral.sh/uv/), and Node 22.
+[uv](https://docs.astral.sh/uv/), and Node 26.
 
 ```bash
 cd backend
