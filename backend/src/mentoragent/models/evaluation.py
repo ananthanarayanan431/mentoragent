@@ -1,55 +1,42 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal
+
 from pydantic import BaseModel, Field
-from typing import List
-from pathlib import Path
-import json
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
 
 class Message(BaseModel):
-    """A message in a concersation between a user and a assistant.
+    """A message in a conversation between a user and an assistant."""
 
-    Attributes:
-        role : The role of the message sender ('user' or 'assistant')
-        content : The content of the message.
-    
-    """
-    role : str = Field(description = "Role of the message")
-    content : str = Field(description = "Content of the message")
-   
+    role: Literal["user", "assistant"] = Field(description="Role of the message sender")
+    content: str = Field(description="Content of the message")
+
 
 class EvaluationDatasetSample(BaseModel):
-    """A sample conversation for evaluation purposes.
-
-    Contains a list of messages exchanged between a user and an assistant. 
+    """A sample conversation used for evaluation.
 
     Attributes:
-        mentor_id : The ID of the mentor associated with this sample.
-        messages : A list of messages objects representing thje conversation. 
+        mentor_id: The mentor the conversation is with.
+        messages: The conversation, oldest message first.
     """
-    mentor_id : str | None = None 
-    messages : List[Message] 
+
+    mentor_id: str | None = None
+    messages: list[Message]
+
 
 class EvaluationDataset(BaseModel):
-    """A collection of EvaluationDatasetSample objects.
+    """A collection of evaluation samples."""
 
-    Attributes:
-        samples : A list of EvaluationDatasetSample objects.
-    """
-    samples : List[EvaluationDatasetSample]
+    samples: list[EvaluationDatasetSample]
 
-    def save_to_json(self, file_path : Path) -> None:
-        """Saves the evaluation dataset to a JSON file.
+    def save_to_json(self, file_path: Path) -> None:
+        """Write the dataset to ``file_path`` as pretty-printed JSON.
 
-        Args:
-            file_path : The path where the JSON file will be saved.
-        
-        Returns:
-            None
-        
         Raises:
-            IOError: If there's an error writing to the file
+            OSError: If the file cannot be written.
         """
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text(
-            json.dumps(
-                self.model_dump(), indent = 4, ensure_ascii = False),
-                encoding = "utf-8"
-            )
+        file_path.write_text(self.model_dump_json(indent=4), encoding="utf-8")

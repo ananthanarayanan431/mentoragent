@@ -53,6 +53,8 @@ Thumbs.db
 # Local development
 .idea/
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
 .coverage
 htmlcov/
 .env.local

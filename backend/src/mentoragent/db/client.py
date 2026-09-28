@@ -1,217 +1,133 @@
+"""MongoDB access.
 
-from typing import Generic, Type, TypeVar
-from pydantic import BaseModel
+``MongoClient`` is a thread-safe connection pool meant to be created once per
+process, so :func:`get_mongo_client` hands out a single cached instance and
+:class:`MongoRepository` borrows it rather than opening its own.
+"""
+
+from __future__ import annotations
+
+from functools import lru_cache
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
+
 from bson import ObjectId
-from pymongo import MongoClient, errors
-from mentoragent.core.config import settings
 from loguru import logger
+from pydantic import BaseModel
+from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 
-T = TypeVar("T", bound = BaseModel)
+from mentoragent.core.config import settings
 
-class MongoClientWrapper(Generic[T]):
-    """Service class for MongoDB operations, supporting ingestion quering and validation.
-    
-    This class provides methods to interact with MongoDB colections including document ingestion, querying and validation operations.
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from pymongo.collection import Collection
+
+T = TypeVar("T", bound=BaseModel)
+
+MongoDocument = dict[str, Any]
+
+
+@lru_cache(maxsize=1)
+def get_mongo_client() -> MongoClient[MongoDocument]:
+    """Return the process-wide MongoDB client, connecting on first use.
+
+    Raises:
+        pymongo.errors.PyMongoError: If the server cannot be reached.
+    """
+    client: MongoClient[MongoDocument] = MongoClient(settings.mongo.URI, server_api=ServerApi("1"))
+    try:
+        client.admin.command("ping")
+    except Exception:
+        client.close()
+        logger.exception("Failed to connect to MongoDB")
+        raise
+    logger.info("Connected to MongoDB")
+    return client
+
+
+def close_mongo_client() -> None:
+    """Close the shared client. Call once on application shutdown."""
+    if get_mongo_client.cache_info().currsize:
+        get_mongo_client().close()
+        get_mongo_client.cache_clear()
+        logger.debug("MongoDB client closed")
+
+
+class MongoRepository(Generic[T]):
+    """Typed access to one collection, converting documents to/from a Pydantic model.
 
     Args:
-        model (Type[T]) : The Pydantic model class to use for document serialization. 
-        collection_name (str) : Name of the MongoDB collection to use. 
-        database_name (str, optional) : Name of the MongoDB database to use. 
-        mongodb_uri (str, optional) : URI for connecting to MongoDB instance. 
+        model: Pydantic model documents are validated into.
+        collection_name: Name of the collection.
+        database_name: Database name. Defaults to ``MONGO_DB_NAME``.
+        client: Client to use. Defaults to the shared client; pass one to
+            point at another cluster or to inject a fake in tests.
+    """
 
-    Attributes:
-        model (Type[T]) : The Pydantic model class used for document serialization. 
-        collection_name (str) : Name of the MongoDB colleciton. 
-        database_name (str) : Name of the MongoDB database.
-        mongodb_uri (str) : MongoDB connection URI.
-        client (MongoClient) : MongoDB client instance. 
-        database (Database) : MongoDB database instance. 
-        collection (Collection) : MongoDB collection instance.
-     """
     def __init__(
         self,
-        model : Type[T],
-        collection_name : str,
-        database_name : str = settings.mongo.DB_NAME,
-        mongodb_uri : str = settings.mongo.URI
+        model: type[T],
+        collection_name: str,
+        database_name: str | None = None,
+        client: MongoClient[MongoDocument] | None = None,
     ) -> None:
-        """Initialize a connection to the MongoDB collection.
-        
-        Args: 
-            model (Type[T]) : The Pydantic model class to use for document serialization.
-            collection_name (str) : Name of the MongoDB collection to use. 
-            database_name (str, optional) : Name of the MongoDB database.
-                Defaults to value from settings.
-            mongodb_uri (str, optional) : URI for connecting to MongoDB instance. 
-                Defaults to value from settings.
-        
-        Raises:
-            Exception : If connection to MongoDB fails.
-        """
-        self.model = model 
-        self.collection_name = collection_name 
-        self.database_name = database_name
-        self.mongodb_uri = mongodb_uri 
+        self.model = model
+        client = client or get_mongo_client()
+        self.collection: Collection[MongoDocument] = client[
+            database_name or settings.mongo.DB_NAME
+        ][collection_name]
 
-        try:
-            self.client = MongoClient(self.mongodb_uri, server_api=ServerApi('1'))
-            self.client.admin.command("ping")
-        except Exception as e:
-            logger.error(f"Failed to initialize MongoDB client: {e}")
-            raise
-
-        self.database = self.client[database_name]
-        self.collection = self.database[collection_name]
-
-        logger.info(f"Connected to MongoDB instance : \n Database : {database_name} \n  Collection : {collection_name} \n")
-        
-    def __enter__(self) -> "MongoClientWrapper":
-        """
-        Enable context manager support. 
+    def clear_collection(self) -> int:
+        """Delete every document in the collection.
 
         Returns:
-            MongoDBService : The current instance. 
+            The number of deleted documents.
         """
-        return self
+        deleted = self.collection.delete_many({}).deleted_count
+        logger.debug("Cleared {}: deleted {} documents", self.collection.name, deleted)
+        return deleted
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
-        """
-        Close the MongoDB client connection. 
-        """
-        self.close()
+    def ingest_documents(self, documents: Iterable[T]) -> int:
+        """Insert documents, letting MongoDB assign ``_id``.
 
-    def clear_collection(self) -> None:
-        """
-        Remove all documents from the collection. 
-
-        This method deletes all documents in the collection to avoid duplicates during ingestion. 
+        Returns:
+            The number of inserted documents.
 
         Raises:
-            errors.PyMongoError : If the collection is not found. 
+            ValueError: If ``documents`` is empty.
         """
-        try:
-            result = self.collection.delete_many({})
-            logger.debug(
-                f"Cleared colleciton. Delete {result.deleted_count} documents."
-            )
+        payload = [doc.model_dump(exclude={"_id"}) for doc in documents]
+        if not payload:
+            raise ValueError("No documents to ingest.")
 
-        except errors.PyMongoError as e:
-            logger.error(f"Error clearing the collection : {e}")
-    
-    def ingest_documents(self, documents : list[T]) -> None:
-        """
-        Ingest multiple documents into the collection. 
+        self.collection.insert_many(payload)
+        logger.debug("Inserted {} documents into {}", len(payload), self.collection.name)
+        return len(payload)
 
-        Args : 
-            documents (list[T]) : List of Pydantic model instances to ingest. 
-        
-        Raises:
-            ValueError : If documents is empty or contains non-Pydantic model items.
-            errors.PyMongoError : If the ingestion fails.
-        """
-        try:
-            if not documents:
-                raise ValueError("No documents to ingest.")
-        
-            if not all(isinstance(doc, BaseModel) for doc in documents):
-                raise ValueError("Documents must be instances of Pydantic models.")
-            
-            dict_documents = [doc.model_dump() for doc in documents] 
-
-            for doc in dict_documents:
-                doc.pop("_id", None)
-
-            self.collection.insert_many(dict_documents)
-            logger.debug(
-                f"Inserted {len(dict_documents)} documents into MongoDB collection."
-            )
-
-        except errors.PyMongoError as e:
-            logger.error(f"Error ingesting documents : {e}")
-            raise 
-
-    def fetch_documents(self, query : dict, limit : int | None = 2) -> list[T]:
-        """
-        Retrieve documents from the collection based on the query and limit.
+    def fetch_documents(self, query: Mapping[str, Any], limit: int | None = None) -> list[T]:
+        """Return the documents matching ``query``.
 
         Args:
-            query (dict) : MongoDB query filter to apply. 
-            limit (int | None) : Maximum number of documents to retrieve. If None, all documents are retrieved.
-
-        Returns:
-            list[T] : List of Pydantic model instances matching the query criteria. 
-
-        Raise: 
-            errors.PyMongoError: If the query operation fails.
+            query: MongoDB filter.
+            limit: Maximum number of documents; ``None`` returns them all.
         """
-        try:
-            if limit is not None:
-                documents = self.collection.find(query).limit(limit)
-            else:
-                documents = self.collection.find(query)
-            # logger.debug(f"Fetched {len(documents)} documents with query: {query}")
-            return self.__parse_documents(documents)
-        except errors.PyMongoError as e:
-            logger.error(f"Error fetching documents : {e}")
-            raise 
-        
-    def __parse_documents(self, documents : list[dict]) -> list[T]:
-        """Convert MongoDB documents to Pydantic model instances. 
-        
-        Converts MongoDB objectId fields to strings and transforms the document structure to match the Pydantic model. 
+        cursor = self.collection.find(query)
+        if limit is not None:
+            cursor = cursor.limit(limit)
+        return [self._to_model(doc) for doc in cursor]
 
-        Args:
-            documents (list[dict]) : List of MongoDB documents to parse.
-        
-        Returns:
-            list[T] : List of validated Pydantic model instances. 
-        """
-        parsed_documents = []
-        for doc in documents:
-            parsed_doc = self.__parse_single_document(doc)
-            parsed_documents.append(parsed_doc)
-        
-        return parsed_documents
-     
-    def __parse_single_document(self, document : dict) -> T:
-        """Parse a single MongoDB document to a Pydantic model instance.
-        
-        Args:
-            document (dict) : MongoDB document to parse.
+    def fetch_one(self, query: Mapping[str, Any]) -> T | None:
+        """Return the first document matching ``query``, or ``None``."""
+        document = self.collection.find_one(query)
+        return None if document is None else self._to_model(document)
 
-        Returns:
-            T : Pydantic model instance.
-        """        
-        for key, value in document.items(): 
-            if isinstance(value, ObjectId):
-                document[key] = str(value)
+    def count(self) -> int:
+        """Return the number of documents in the collection."""
+        return self.collection.count_documents({})
 
-        # _id = document.pop("_id", None)
-        # document["_id"] = _id 
-        return self.model.model_validate(document)
-
-    def get_collection_count(self) -> int:
-        """
-        Get the number of documents in the collection.
-
-        Returns:
-            int : The number of documents in the collection. 
-
-        Raised:
-            errors.PyMongoError : If the count operation fails.
-        """
-        try: 
-            return self.collection.count_documents({})
-        except errors.PyMongoError as e:
-            logger.error(f"Error getting collection count : {e}")
-            raise 
-    
-    def close(self) -> None:
-        """
-        Close the MongoDB client collection.
-
-        This method should be called when the service is no longer needed to properly release resources, unless using the context manager.
-        """
-        self.client.close()
-        logger.debug("MongoDB client connection closed.")
+    def _to_model(self, document: MongoDocument) -> T:
+        """Validate a raw document into the model, stringifying ObjectIds."""
+        return self.model.model_validate(
+            {k: str(v) if isinstance(v, ObjectId) else v for k, v in document.items()}
+        )

@@ -34,11 +34,22 @@ cd backend
 make install   # uv sync — create .venv from uv.lock
 make env       # copy .env.example to .env (never overwrites an existing .env)
 # now fill in the API keys in .env
+make hooks     # install the pre-commit hooks (ruff lint + format)
 make up        # start MongoDB Atlas Local and wait until it is healthy
 make run       # run main.py
 ```
 
 Run `make` with no arguments to list every target.
+
+## Development
+
+| Command | What it does |
+| --- | --- |
+| `make format` | Auto-fix lint issues and format the code |
+| `make lint` | Lint with ruff |
+| `make typecheck` | Type-check with mypy |
+| `make test` | Run the pytest suite (no network or database needed) |
+| `make check` | All of the above; what CI should run |
 
 ## Configuration
 
@@ -126,22 +137,25 @@ backend/
 ├── main.py                     # placeholder entrypoint (make run)
 ├── docker-compose.yml          # MongoDB Atlas Local
 ├── Makefile
-└── src/mentoragent/
-    ├── core/
-    │   ├── config/             # settings, one class per concern
-    │   ├── exceptions.py       # domain exceptions
-    │   ├── handlers.py         # FastAPI middleware and exception handlers
-    │   └── logging.py          # contextual logger
-    ├── db/
-    │   ├── client.py           # typed MongoDB wrapper (Pydantic in and out)
-    │   └── indexes.py          # vector and full-text index creation
-    ├── models/                 # Mentor, MentorExtract, evaluation schemas
-    ├── rag/
-    │   ├── extractors/         # PDF, Wikipedia, YouTube, Twitter loaders
-    │   └── memory/             # build and query long-term memory
-    ├── workflow/
-    │   └── model.py            # async OpenRouter client
-    └── evals/                  # dataset generation and Opik evaluation
+├── src/mentoragent/
+│   ├── core/
+│   │   ├── config/             # settings, one class per concern
+│   │   ├── exceptions.py       # domain exceptions
+│   │   ├── handlers.py         # FastAPI middleware and exception handlers
+│   │   └── logging.py          # loguru setup (configure_logging)
+│   ├── db/
+│   │   ├── client.py           # shared MongoClient + typed MongoRepository
+│   │   └── indexes.py          # idempotent vector and full-text index creation
+│   ├── models/                 # Mentor, MentorExtract, evaluation schemas
+│   ├── rag/
+│   │   ├── extractors/         # PDF, Wikipedia, YouTube, Twitter loaders
+│   │   ├── extractor.py        # runs every extractor for every mentor
+│   │   ├── deduplicate_documents.py  # MinHash near-duplicate removal
+│   │   └── memory/             # build and query long-term memory
+│   ├── workflow/
+│   │   └── model.py            # async OpenRouter client
+│   └── evals/                  # dataset generation and Opik evaluation
+└── tests/                      # pytest suite
 ```
 
 ## Project status
@@ -154,10 +168,34 @@ backend/
 | Data models | Done |
 | Source extractors (PDF, Wikipedia, YouTube, Twitter) | Done |
 | Long-term memory creator and retriever | Written; depends on the missing modules below |
-| `rag.retrievers`, `rag.splitters`, `rag.extractor`, `rag.deduplicate_documents` | Not started |
+| `rag.extractor`, `rag.deduplicate_documents` | Done |
+| `rag.retrievers`, `rag.splitters`, `rag.embeddings` | In progress |
 | LangGraph agent (`workflow.graph`, `workflow.state`, `workflow.prompt`) | Not started |
 | FastAPI app (`mentoragent.api.main`, used by `make serve`) | Not started |
 | Evaluation pipeline | Written; depends on the agent graph |
+
+## Conventions
+
+Enforced by ruff and mypy; the notes explain the why.
+
+- **`from __future__ import annotations`** starts every module (ruff adds it).
+  Imports used only in annotations go under `if TYPE_CHECKING:`. Exception:
+  types used in Pydantic fields or FastAPI route signatures must stay real
+  imports, because those are evaluated at runtime.
+- **Modern typing**: `list[str]`, `X | None`, `Self`; no `typing.List`/`Optional`.
+- **Settings**: read through `settings.<group>.<FIELD>`. Secrets are `SecretStr`;
+  call `.get_secret_value()` only where the key is handed to a client.
+- **Logging**: `from loguru import logger`, with arguments rather than f-strings
+  (`logger.info("Loaded {} docs", n)`). Use `logger.exception(...)` in `except`
+  blocks so the traceback is kept. Call `configure_logging()` once at start-up.
+- **Errors**: raise subclasses of `MentorAgentError`; each declares its
+  `status_code`, and one handler maps them to HTTP responses. Never use
+  `assert` for runtime checks.
+- **No side effects at import**: no DB connections, graph compilation or API
+  clients at module level. Build them in a factory (`build()`, `lru_cache`)
+  or inject them through `__init__`.
+- **MongoDB**: never create a `MongoClient` directly; use `get_mongo_client()`
+  or `MongoRepository`, which share one connection pool.
 
 ## License
 

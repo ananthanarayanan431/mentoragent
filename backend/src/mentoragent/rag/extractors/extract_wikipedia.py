@@ -1,42 +1,51 @@
-from langchain_core.documents import Document
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from langchain_community.document_loaders import WikipediaLoader
 from loguru import logger
-from mentoragent.models.mentor_extract import MentorExtract
 
-def extract_wikipedia(mentor_extract : MentorExtract) -> list[Document]:
-        """Extract documents from  Wikipredia for a given mentor.
+from mentoragent.rag.extractors.base import Source, make_document
 
-        Args:
-            mentor : Mentor object containing mentor details.
+if TYPE_CHECKING:
+    from langchain_core.documents import Document
 
-        Returns:
-            list[Document] : List of documents extracted from Wikipedia.
-        """
-        logger.info(f"Extracting docs from Wikipedia for {mentor_extract.id}")
+    from mentoragent.models.mentor_extract import MentorExtract
 
-        try:
-            documents : list[Document] = list[Document]()
-            data_loader = WikipediaLoader(
-                query = mentor_extract.name,
-                lang = "en",
-                load_max_docs = 10,
-                doc_content_chars_max = 1000000,
-            )
 
-            docs = data_loader.load()
-            for doc in docs:
-                document = Document(
-                    page_content = doc.page_content,
-                    metadata = {
-                        "mentor_id" : mentor_extract.id,
-                        "mentor_name" : mentor_extract.name,
-                        "source_url" : doc.metadata["source"],
-                        "source" : "wikipedia"
-                    }
-                )
-                documents.append(document)
-            logger.info(f"Extracted {len(documents)} docs from Wikipedia for {mentor_extract.id}")
-            return documents 
-        except Exception as e:
-            logger.error(f"Error extracting docs from Wikipedia for {mentor_extract.id} : {e}")
-            return []
+def extract_wikipedia(
+    mentor_extract: MentorExtract,
+    max_docs: int = 10,
+    max_chars_per_doc: int = 1_000_000,
+) -> list[Document]:
+    """Load the Wikipedia pages that match the mentor's name.
+
+    Args:
+        mentor_extract: The mentor to search Wikipedia for.
+        max_docs: Maximum number of pages to load.
+        max_chars_per_doc: Truncate each page to this many characters.
+
+    Returns:
+        One document per page, or an empty list if the search fails.
+    """
+    log = logger.bind(mentor_id=mentor_extract.id, source=Source.WIKIPEDIA)
+
+    try:
+        pages = WikipediaLoader(
+            query=mentor_extract.name,
+            lang="en",
+            load_max_docs=max_docs,
+            doc_content_chars_max=max_chars_per_doc,
+        ).load()
+    except Exception:
+        log.exception("Failed to load Wikipedia pages for {!r}", mentor_extract.name)
+        return []
+
+    documents = [
+        make_document(
+            mentor_extract, page.page_content, Source.WIKIPEDIA, page.metadata.get("source", "")
+        )
+        for page in pages
+    ]
+    log.info("Extracted {} Wikipedia pages", len(documents))
+    return documents

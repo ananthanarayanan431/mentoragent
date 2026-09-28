@@ -1,283 +1,133 @@
-"""Middleware for the FastAPI application.
+"""Middleware and exception handlers for the FastAPI application.
 
-This module contains middleware that process requests and responses.
+Wire everything onto an app with two calls::
+
+    app = FastAPI()
+    register_middleware(app)
+    register_exception_handlers(app)
 """
 
-import re
+from __future__ import annotations
+
+import time
 import traceback
 import uuid
-from typing import List, Union
+from typing import TYPE_CHECKING
 
-from fastapi import Request, Response
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from loguru import logger
 from pydantic import ValidationError
-from starlette.middleware.base import BaseHTTPMiddleware
 
 from mentoragent.core.config import settings
-from mentoragent.core.exceptions import NotFoundException, PermissionException, unpack_validation_error
-from mentoragent.core.logging import logger
+from mentoragent.core.exceptions import MentorAgentError, unpack_validation_error
 
-async def add_request_id(request: Request, call_next: callable) -> Response:
-    """Middleware to generate and add a request ID to the request for tracing.
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
-    Args:
-    ----
-        request (Request): The incoming request.
-        call_next (callable): The next middleware in the chain.
+    from fastapi import FastAPI, Request, Response
 
-    Returns:
-    -------
-        Response: The response to the incoming request.
+REQUEST_ID_HEADER = "X-Request-ID"
 
+
+async def request_context_middleware(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    """Tag the request with an id, bind it to every log line, and log timing.
+
+    An incoming ``X-Request-ID`` (e.g. from a load balancer) is reused so a
+    request can be traced across services; otherwise a new one is generated.
+    The id is echoed back in the response header.
     """
-    request.state.request_id = str(uuid.uuid4())
-    return await call_next(request)
+    request_id = request.headers.get(REQUEST_ID_HEADER) or str(uuid.uuid4())
+    request.state.request_id = request_id
 
-
-async def log_requests(request: Request, call_next: callable) -> Response:
-    """Middleware to log incoming requests.
-
-    Args:
-    ----
-        request (Request): The incoming request.
-        call_next (callable): The next middleware in the chain.
-
-    Returns:
-    -------
-        Response: The response to the incoming request.
-
-    """
-    import time
-
-    start_time = time.time()
-    response = await call_next(request)
-    duration = time.time() - start_time
-    logger.info(
-        (
-            f"Handled request {request.method} {request.url} in {duration:.2f} seconds."
-            f"Response code: {response.status_code}"
+    with logger.contextualize(request_id=request_id):
+        start = time.perf_counter()
+        response = await call_next(request)
+        duration_ms = (time.perf_counter() - start) * 1000
+        logger.info(
+            "{} {} -> {} in {:.1f}ms",
+            request.method,
+            request.url.path,
+            response.status_code,
+            duration_ms,
         )
-    )
+
+    response.headers[REQUEST_ID_HEADER] = request_id
     return response
 
 
-async def exception_logging_middleware(request: Request, call_next: callable) -> Response:
-    """Middleware to log unhandled exceptions.
+def register_middleware(app: FastAPI) -> None:
+    """Install CORS and request-context middleware.
 
-    Args:
-    ----
-        request (Request): The incoming request.
-        call_next (callable): The next middleware in the chain.
-
-    Returns:
-    -------
-        Response: The response to the incoming request.
-
+    CORS uses Starlette's implementation with an explicit allow-list; origins
+    come from ``ADDITIONAL_CORS_ORIGINS``.
     """
-    try:
-        response = await call_next(request)
-        return response
-    except Exception as exc:
-        if settings.app.LOCAL_DEVELOPMENT:
-            logger.error(f"Unhandled exception: {exc}\n{traceback.format_exc()}")
-        else:
-            logger.error(f"Unhandled exception: {exc}")
-        return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors.ADDITIONAL_CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=[REQUEST_ID_HEADER],
+    )
+    app.middleware("http")(request_context_middleware)
 
 
-class DynamicCORSMiddleware(BaseHTTPMiddleware):
-    """Middleware to dynamically update CORS origins based on configuration.
-
-    Simple CORS handling that permits OPTIONS preflight requests and adds appropriate headers.
-    White label endpoint authorization is handled separately in the endpoints.
-    """
-
-    # OAuth endpoint patterns that should always pass OPTIONS requests
-    OAUTH_ENDPOINTS = [
-        r"/white-labels/[^/]+/oauth2/auth_url",
-        r"/white-labels/[^/]+/oauth2/code",
-    ]
-    OAUTH_PATTERNS = [re.compile(pattern) for pattern in OAUTH_ENDPOINTS]
-
-    def __init__(self, app, default_origins: List[str]):
-        """Initialize the middleware.
-
-        Args:
-            app: The FastAPI application
-            default_origins: Default CORS origins to allow
-        """
-        super().__init__(app)
-        self.default_origins = default_origins
-
-    async def dispatch(self, request: Request, call_next):
-        """Process the request and add dynamic CORS headers.
-
-        Args:
-            request: The incoming request
-            call_next: The next middleware function to call
-
-        Returns:
-            The response with appropriate CORS headers
-        """
-        # Get origin from request headers
-        origin = request.headers.get("origin")
-        path = request.url.path
-
-        # If no origin, no CORS headers needed
-        if not origin:
-            return await call_next(request)
-
-        # Handle OPTIONS preflight requests - only if allowed
-        if request.method == "OPTIONS":
-            # Check if this is an OAuth endpoint that should always pass OPTIONS
-            is_oauth_endpoint = any(pattern.match(path) for pattern in self.OAUTH_PATTERNS)
-
-            # Other endpoints need to be either white-label endpoints or have allowed origin
-            is_white_label_endpoint = "white-labels" in path
-            is_allowed_origin = origin in self.default_origins
-
-            if is_oauth_endpoint or is_white_label_endpoint or is_allowed_origin:
-                # Create a response with appropriate CORS headers
-                response = Response()
-                response.headers["Access-Control-Allow-Origin"] = origin
-                response.headers["Access-Control-Allow-Methods"] = (
-                    "GET,POST,PUT,DELETE,OPTIONS,PATCH"
-                )
-                response.headers["Access-Control-Allow-Headers"] = "*"
-                response.headers["Access-Control-Allow-Credentials"] = "true"
-                logger.debug(f"Handled OPTIONS preflight for {path} from origin {origin}")
-                return response
-            else:
-                # Not allowed, return 403
-                logger.debug(
-                    f"Rejected OPTIONS preflight for {path} from disallowed origin {origin}"
-                )
-                return Response(status_code=403)
-
-        # For non-OPTIONS requests, process the request
-        response = await call_next(request)
-
-        # Add CORS headers to the response for allowed origins or white-label endpoints
-        is_oauth_endpoint = any(pattern.match(path) for pattern in self.OAUTH_PATTERNS)
-        is_white_label_endpoint = "white-labels" in path
-        is_allowed_origin = origin in self.default_origins
-
-        if is_oauth_endpoint or is_white_label_endpoint or is_allowed_origin:
-            response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            logger.debug(f"Added CORS headers for origin {origin}")
-
-        return response
-
-
-# Exception handlers
 async def validation_exception_handler(
-    request: Request, exc: Union[RequestValidationError, ValidationError]
+    request: Request, exc: RequestValidationError | ValidationError
 ) -> JSONResponse:
-    """Exception handler for validation errors that occur during request processing.
+    """Return 422 with the validation errors keyed by field location.
 
-    This handler captures exceptions raised due to request data not passing the schema validation.
+    Example body::
 
-    It improves the client's ability to understand what part of their request was invalid
-    and why, facilitating easier debugging and correction.
+        {"errors": [{"body.email": "field required"}]}
 
-    Args:
-    ----
-        request (Request): The incoming request that triggered the exception.
-        exc (Union[RequestValidationError, ValidationError]): The exception object that was raised.
-            This can either be a RequestValidationError for request body/schema validation issues,
-            or a ValidationError for other data model validations within FastAPI.
-
-    Returns:
-    -------
-        JSONResponse: A 422 Unprocessable Entity status response that details the validation
-            errors. Each error message is a dictionary where the key is the location
-            of the validation error in the request, and the value is the associated error message.
-
-    Example of JSON output:
-        {
-            "errors": [
-                {"body.email": "field required"},
-                {"body.age": "value is not a valid integer"}
-            ],
-            "source": "RequestValidationError",
-            "request_path": "/api/users",
-            "request_method": "POST",
-            "schema_info": {
-                "name": "UserCreate",
-                "module": "airweave.schemas.user",
-                "file_path": "/airweave/schemas/user.py"
-            },
-            "validation_context": [
-                "airweave.api.v1.endpoints.users:create_user:42",
-                "airweave.schemas.user:UserCreate:15"
-            ]
-        }
-
+    During local development the response also carries the exception type
+    and the project frames of the traceback, to speed up debugging.
     """
-    # Extract basic error messages
     error_messages = unpack_validation_error(exc)
+    logger.warning("Validation error on {}: {}", request.url.path, error_messages)
 
-    if settings.app.LOCAL_DEVELOPMENT:
-        # Additional diagnostic information
-        exception_type = exc.__class__.__name__
-        exception_str = str(exc)
-        class_name = exception_str.split("\n")[0].split(" ")[-1]
+    if not settings.app.LOCAL_DEVELOPMENT:
+        return JSONResponse(status_code=422, content=error_messages)
 
-        # Extract a simplified stack trace focusing on schema validation
-        stack_trace = []
-        if hasattr(exc, "__traceback__") and exc.__traceback__ is not None:
-            stack_frames = traceback.extract_tb(exc.__traceback__)
-
-            # Create a simplified version for the response
-            for frame in stack_frames:
-                # Only include frames from our backend code
-                if "site-packages" not in frame.filename and "/mentoragent" in frame.filename:
-                    context = f"{frame.filename.split('/')[-1]}:{frame.name}:{frame.lineno}"
-                    stack_trace.append(context)
-
-        return JSONResponse(
-            status_code=422,
-            content={
-                "class_name": class_name,
-                "stack_trace": stack_trace,
-                "type": exception_type,
-                "error_messages": error_messages,
-            },
-        )
-    logger.error(f"Validation error: {error_messages}")
-
-    return JSONResponse(status_code=422, content=error_messages)
+    stack_trace = [
+        f"{frame.filename.rsplit('/', 1)[-1]}:{frame.name}:{frame.lineno}"
+        for frame in traceback.extract_tb(exc.__traceback__)
+        if "site-packages" not in frame.filename and "/mentoragent" in frame.filename
+    ]
+    return JSONResponse(
+        status_code=422,
+        content={
+            "type": exc.__class__.__name__,
+            "stack_trace": stack_trace,
+            "error_messages": error_messages,
+        },
+    )
 
 
-async def permission_exception_handler(request: Request, exc: PermissionException) -> JSONResponse:
-    """Exception handler for PermissionException.
+async def mentor_agent_error_handler(request: Request, exc: MentorAgentError) -> JSONResponse:
+    """Map any :class:`MentorAgentError` to its declared HTTP status."""
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
 
-    Args:
-    ----
-        request (Request): The incoming request that triggered the exception.
-        exc (PermissionException): The exception object that was raised.
 
-    Returns:
-    -------
-        JSONResponse: A 403 Forbidden status response that details the error message.
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Log an unexpected error with its traceback and return a generic 500.
 
+    The exception detail is never sent to the client.
     """
-    return JSONResponse(status_code=403, content={"detail": str(exc)})
+    logger.opt(exception=exc).error(
+        "Unhandled exception on {} {}", request.method, request.url.path
+    )
+    return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
 
-async def not_found_exception_handler(request: Request, exc: NotFoundException) -> JSONResponse:
-    """Exception handler for NotFoundException.
-
-    Args:
-    ----
-        request (Request): The incoming request that triggered the exception.
-        exc (NotFoundException): The exception object that was raised.
-
-    Returns:
-    -------
-        JSONResponse: A 404 Not Found status response that details the error message.
-
-    """
-    return JSONResponse(status_code=404, content={"detail": str(exc)})
+def register_exception_handlers(app: FastAPI) -> None:
+    """Register every exception handler on the app."""
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(ValidationError, validation_exception_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(MentorAgentError, mentor_agent_error_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(Exception, unhandled_exception_handler)

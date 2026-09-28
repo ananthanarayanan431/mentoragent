@@ -1,169 +1,99 @@
+"""Logging configuration.
 
-"""The logging configuration module."""
+The project logs through loguru everywhere; import it directly::
 
+    from loguru import logger
+
+    logger.info("Ingested {} documents for {}", count, mentor_id)
+
+Pass values as arguments rather than f-strings: formatting is then skipped
+for filtered-out levels, and the raw values stay available to JSON sinks.
+
+Attach structured context with ``bind`` (one logger) or ``contextualize``
+(everything logged inside a block, e.g. a request)::
+
+    log = logger.bind(component="ingestion")
+    with logger.contextualize(request_id=request_id):
+        ...
+
+Call :func:`configure_logging` once at process start-up (API app, CLI
+scripts). It also routes stdlib ``logging`` records - from uvicorn, pymongo,
+LangChain, ... - into loguru so every line shares one format.
+"""
+
+from __future__ import annotations
+
+import inspect
 import logging
 import sys
-from typing import Optional
+from typing import TYPE_CHECKING
+
+from loguru import logger
+
+if TYPE_CHECKING:
+    from mentoragent.core.config.app import AppSettings
+
+_HUMAN_FORMAT = (
+    "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+    "<level>{level: <8}</level> | "
+    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
+    "<level>{message}</level> | {extra}"
+)
+
+# Third-party loggers that are noisy at INFO and rarely useful.
+_QUIET_LOGGERS = ("pymongo", "httpx", "httpcore", "urllib3")
 
 
-class _ContextualLogger(logging.LoggerAdapter):
-    """A LoggerAdapter that supports both custom dimensions and prefixes."""
+class InterceptHandler(logging.Handler):
+    """Forward stdlib ``logging`` records to loguru.
 
-    def __init__(
-        self,
-        logger: logging.Logger,
-        prefix: str = "",
-        dimensions: Optional[dict] = None,
-    ) -> None:
-        """Initialize the contextual logger.
-
-        Args:
-        ----
-            logger (logging.Logger): Base logger instance
-            dimensions (Optional[dict]): Custom dimensions for structured logging
-            prefix (str): Optional prefix for log messages
-
-        """
-        super().__init__(logger, {})
-        self.prefix = prefix
-        self.dimensions = dimensions or {}
-
-    def process(self, msg: str, kwargs: dict) -> tuple[str, dict]:
-        """Process the log message and keywords.
-
-        Args:
-        ----
-            msg (str): The log message
-            kwargs (dict): The logging keywords
-
-        Returns:
-        -------
-            Tuple[str, dict]: Processed message and keywords
-
-        """
-        if self.prefix:
-            msg = f"{self.prefix}{msg}"
-
-        # Initialize extra if it doesn't exist
-        if "extra" not in kwargs:
-            kwargs["extra"] = {}
-
-        # Initialize custom_dimensions if it doesn't exist
-        if "custom_dimensions" not in kwargs["extra"]:
-            kwargs["extra"]["custom_dimensions"] = {}
-
-        # Merge dimensions
-        if self.dimensions:
-            kwargs["extra"]["custom_dimensions"].update(self.dimensions)
-
-        return msg, kwargs
-
-    def with_prefix(self, prefix: str) -> "_ContextualLogger":
-        """Create a new logger with an additional prefix while maintaining dimensions.
-
-        Args:
-        ----
-            prefix (str): The prefix to add
-
-        Returns:
-        -------
-            _ContextualLogger: New logger instance with updated prefix
-
-        """
-        return _ContextualLogger(self.logger, prefix, self.dimensions)
-
-    def with_context(self, **dimensions: str | int | float | bool) -> "_ContextualLogger":
-        """Create a new logger with additional context dimensions.
-
-        Args:
-        ----
-            dimensions: Keyword arguments to add to dimensions
-
-        Returns:
-        -------
-            _ContextualLogger: New logger instance with updated dimensions
-
-        """
-        new_dimensions = {**self.dimensions, **dimensions}
-        return _ContextualLogger(self.logger, self.prefix, new_dimensions)
-
-
-class LoggerConfigurator:
-    """Configures loggers with support for dimensions and prefixes.
-
-    The base context is injected into endpoints and worker runs, at the context dependency injection
-    level, such as api context or arq context.
-
-    These dimensions contain information about the context of the log message, such as
-    context_base (api, arq), user_id, request_id, polling_job_id, trigger_run_id, etc.
-
-    This can then be augmented with additional dimensions, such as type of operation (flow
-    generation, flow execution, etc), or error type (validation, parsing, etc).
-
-    Examples:
-    --------
-    Create base logger with component context:
-    ```python
-    logger = LoggerConfigurator.configure_logger(
-        __name__, dimensions={"component": "flow_generator"}
-    )
-    # Log a message with the base context
-    logger.info("Starting flow generation")
-    ```
-
-    Add operation context:
-    ```python
-    logger.with_context(operation="generate_flow").info("Starting flow generation")
-    ```
-
-    Chain multiple contexts:
-    ```python
-    detail_logger = logger.with_context(operation="validate").with_context(
-        user_id="123", request_id="456"
-    )
-    detail_logger.info("Starting validation")
-    ```
-
-    Mix contexts and prefix:
-    ```python
-    error_logger = logger.with_context(error_type="validation", severity="high").with_prefix(
-        "ERROR: "
-    )
-    ```
-
+    Taken from the loguru documentation; it keeps the caller's location
+    instead of reporting every record as coming from this handler.
     """
 
-    @staticmethod
-    def configure_logger(
-        name: str,
-        prefix: str = "",
-        dimensions: Optional[dict] = None,
-    ) -> _ContextualLogger:
-        """Configure and return a logger with the given name and initial context.
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            level: str | int = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
 
-        Args:
-        ----
-            name (str): Logger name (typically __name__)
-            dimensions (Optional[dict]): Initial custom dimensions
-            prefix (str): Initial prefix for log messages
+        frame, depth = inspect.currentframe(), 0
+        while frame and (depth == 0 or frame.f_code.co_filename == logging.__file__):
+            frame = frame.f_back
+            depth += 1
 
-        Returns:
-        -------
-            _ContextualLogger: Configured logger with context support
-
-        """
-        logger = logging.getLogger(name)
-        logger.setLevel(logging.INFO)
-
-        # Add more handlers here if needed (perhaps as config options for open source users)
-
-        # Add StreamHandler if not already added
-        if not any(isinstance(handler, logging.StreamHandler) for handler in logger.handlers):
-            stream_handler = logging.StreamHandler(sys.stdout)  # Explicitly use stdout
-            logger.addHandler(stream_handler)
-
-        return _ContextualLogger(logger, prefix, dimensions)
+        logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
 
 
-# Default logger instance
-logger = LoggerConfigurator.configure_logger(__name__)
+def configure_logging(app_settings: AppSettings | None = None) -> None:
+    """Configure the process-wide logger. Safe to call more than once.
+
+    Args:
+        app_settings: Source of ``LOG_LEVEL`` / ``LOG_JSON`` / ``DEBUG``.
+            Defaults to the global settings.
+    """
+    if app_settings is None:
+        from mentoragent.core.config import settings
+
+        app_settings = settings.app
+
+    level = "DEBUG" if app_settings.DEBUG else app_settings.LOG_LEVEL
+
+    logger.remove()
+    logger.add(
+        sys.stdout,
+        level=level,
+        serialize=app_settings.LOG_JSON,
+        format=_HUMAN_FORMAT,
+        colorize=not app_settings.LOG_JSON,
+        # Variable values in tracebacks can include secrets; only show them locally.
+        backtrace=app_settings.LOCAL_DEVELOPMENT,
+        diagnose=app_settings.LOCAL_DEVELOPMENT,
+    )
+
+    logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
+    for name in _QUIET_LOGGERS:
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+
+__all__ = ["InterceptHandler", "configure_logging", "logger"]

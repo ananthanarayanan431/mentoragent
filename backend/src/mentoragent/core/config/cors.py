@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Annotated
 
 from pydantic import Field, field_validator
@@ -18,9 +20,7 @@ class CorsSettings(BaseSettings):
     # NoDecode turns off the JSON pre-parse pydantic-settings applies to
     # complex types. Without it a plain value like "http://localhost:3000"
     # raises before the validator below ever runs.
-    ADDITIONAL_CORS_ORIGINS: Annotated[list[str], NoDecode] = Field(
-        default_factory=list
-    )
+    ADDITIONAL_CORS_ORIGINS: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
     @field_validator("ADDITIONAL_CORS_ORIGINS", mode="before")
     @classmethod

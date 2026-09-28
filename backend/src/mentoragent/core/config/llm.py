@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings
 
 from mentoragent.core.config.base import settings_config
@@ -14,23 +17,9 @@ class GroqSettings(BaseSettings):
 
     model_config = settings_config("GROQ_")
 
-    API_KEY: str
+    API_KEY: SecretStr
     LLM_MODEL: str = "llama-3.3-70b-versatile"
     LLM_MODEL_CONTEXT_SUMMARY: str = "llama-3.1-8b-instant"
-
-
-class OpenAISettings(BaseSettings):
-    """OpenAI credentials and model selection, required for evaluation.
-
-    Attributes:
-        API_KEY: The API key for the OpenAI service.
-        LLM_MODEL: The model used for evaluation runs.
-    """
-
-    model_config = settings_config("OPENAI_")
-
-    API_KEY: str
-    LLM_MODEL: str = "gpt-4o-mini"
 
 
 class OpenRouterSettings(BaseSettings):
@@ -50,9 +39,9 @@ class OpenRouterSettings(BaseSettings):
 
     model_config = settings_config("OPENROUTER_")
 
-    API_KEY: str
+    API_KEY: SecretStr
     BASE_URL: str = "https://openrouter.ai/api/v1"
     LLM_MODEL: str = "openai/gpt-4o-mini"
-    TEMPERATURE: float = 0.7
+    TEMPERATURE: float = Field(default=0.7, ge=0.0, le=2.0)
     APP_URL: str | None = None
     APP_NAME: str | None = "mentoragent"

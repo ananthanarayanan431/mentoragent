@@ -15,7 +15,8 @@ APP_MODULE  ?= mentoragent.api.main:app
 APP_HOST    ?= 0.0.0.0
 APP_PORT    ?= 8000
 
-.PHONY: help install env up down restart logs ps wait mongo-shell mongo-reset run serve shell clean
+.PHONY: help install env up down restart logs ps wait mongo-shell mongo-reset run serve shell \
+        lint format typecheck test check hooks clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -23,8 +24,11 @@ help: ## Show this help
 
 # --- Setup -----------------------------------------------------------------
 
-install: ## Sync the virtualenv from uv.lock
+install: ## Sync the virtualenv (incl. dev tools) from uv.lock
 	$(UV) sync
+
+hooks: ## Install the git pre-commit hooks
+	$(UV) run pre-commit install
 
 env: ## Create .env from .env.example (never overwrites an existing .env)
 	@test -f .env && echo ".env already exists - leaving it alone" \
@@ -68,7 +72,25 @@ serve: up ## Start MongoDB, then run the FastAPI app with autoreload
 shell: ## Open a Python REPL with the project environment loaded
 	$(UV) run python
 
+# --- Quality ---------------------------------------------------------------
+
+lint: ## Lint with ruff
+	$(UV) run ruff check src tests main.py
+
+format: ## Auto-fix lint issues and format the code
+	$(UV) run ruff check --fix src tests main.py
+	$(UV) run ruff format src tests main.py
+
+typecheck: ## Type-check with mypy
+	$(UV) run mypy
+
+test: ## Run the test suite
+	$(UV) run pytest
+
+check: lint typecheck test ## Everything CI should run
+	$(UV) run ruff format --check src tests main.py
+
 clean: ## Remove Python build/cache artefacts
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 	find . -type d -name '*.egg-info' -prune -exec rm -rf {} +
-	rm -rf .pytest_cache .coverage coverage.xml
+	rm -rf .pytest_cache .ruff_cache .mypy_cache .coverage coverage.xml

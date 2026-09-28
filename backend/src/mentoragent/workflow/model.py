@@ -1,11 +1,17 @@
-from collections.abc import AsyncIterator
-from typing import TypeVar
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Self, TypeVar
 
 from openai import AsyncOpenAI
-from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel
 
 from mentoragent.core.config import settings
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+    from types import TracebackType
+
+    from openai.types.chat import ChatCompletionMessageParam
 
 SchemaT = TypeVar("SchemaT", bound=BaseModel)
 
@@ -19,7 +25,7 @@ class Models:
         self,
         model_name: str | None = None,
         temperature: float | None = None,
-    ):
+    ) -> None:
         """
         Initialize the OpenRouter client.
 
@@ -33,14 +39,14 @@ class Models:
         self.model_name = model_name or config.LLM_MODEL
         self.temperature = config.TEMPERATURE if temperature is None else temperature
 
-        headers = {}
+        headers: dict[str, str] = {}
         if config.APP_URL:
             headers["HTTP-Referer"] = config.APP_URL
         if config.APP_NAME:
             headers["X-Title"] = config.APP_NAME
 
         self.client = AsyncOpenAI(
-            api_key=config.API_KEY,
+            api_key=config.API_KEY.get_secret_value(),
             base_url=config.BASE_URL,
             default_headers=headers,
         )
@@ -48,7 +54,7 @@ class Models:
     async def generate(
         self,
         messages: list[ChatCompletionMessageParam],
-        **kwargs,
+        **kwargs: Any,
     ) -> str:
         """
         Get a single chat completion.
@@ -73,7 +79,7 @@ class Models:
         self,
         messages: list[ChatCompletionMessageParam],
         response_schema: type[SchemaT],
-        **kwargs,
+        **kwargs: Any,
     ) -> SchemaT:
         """
         Get a chat completion parsed into a Pydantic model.
@@ -110,7 +116,7 @@ class Models:
     async def stream(
         self,
         messages: list[ChatCompletionMessageParam],
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncIterator[str]:
         """
         Stream a chat completion token by token.
@@ -139,8 +145,13 @@ class Models:
         """
         await self.client.close()
 
-    async def __aenter__(self) -> "Models":
+    async def __aenter__(self) -> Self:
         return self
 
-    async def __aexit__(self, *exc) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         await self.close()

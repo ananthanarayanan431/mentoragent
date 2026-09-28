@@ -1,4 +1,13 @@
+from __future__ import annotations
+
+from pathlib import Path
+
 from pydantic_settings import SettingsConfigDict
+
+# backend/ - resolved from this file so settings load the same .env no matter
+# which directory the process is started from (tests, notebooks, uvicorn).
+BACKEND_DIR = Path(__file__).resolve().parents[4]
+ENV_FILE = BACKEND_DIR / ".env"
 
 
 def settings_config(prefix: str = "") -> SettingsConfigDict:
@@ -18,7 +27,7 @@ def settings_config(prefix: str = "") -> SettingsConfigDict:
         raise on the *other* groups' variables the moment it read ``.env``.
     """
     return SettingsConfigDict(
-        env_file=".env",
+        env_file=ENV_FILE,
         env_file_encoding="utf-8",
         env_prefix=prefix,
         case_sensitive=False,

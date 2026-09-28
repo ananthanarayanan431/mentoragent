@@ -1,45 +1,45 @@
-from mentoragent.models.mentor_extract import MentorExtract
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from langchain_community.document_loaders import YoutubeLoader
-from langchain_core.documents import Document
 from loguru import logger
 
+from mentoragent.rag.extractors.base import Source, make_document
+
+if TYPE_CHECKING:
+    from langchain_core.documents import Document
+
+    from mentoragent.models.mentor_extract import MentorExtract
+
+
 def extract_youtube_transcripts(mentor_extract: MentorExtract) -> list[Document]:
-    """
-    Extracts the transcripts from a YouTube video.
-    
+    """Load the English transcript of every YouTube video listed for the mentor.
+
     Args:
-        mentor_extract : MentorExtract object containing mentor details.
+        mentor_extract: The mentor whose ``youtube_videos`` are transcribed.
 
     Returns:
-        list[Document] : List of documents extracted from YouTube videos.
+        One document per video. Videos without a usable transcript are skipped.
     """
-    logger.info(f"Extracting transcripts from YouTube videos: {mentor_extract.youtube_videos}")
-    documents : list[Document] = []
+    log = logger.bind(mentor_id=mentor_extract.id, source=Source.YOUTUBE)
+    documents: list[Document] = []
 
     for youtube_url in mentor_extract.youtube_videos:
         try:
-            loader = YoutubeLoader.from_youtube_url(
-                youtube_url,
-                add_video_info=False,
-                language=["en"],
-            )
-            transcript = loader.load()
-        except Exception as e:
-            logger.error(f"Error extracting transcript from {youtube_url} : {e}")
+            transcript = YoutubeLoader.from_youtube_url(
+                youtube_url, add_video_info=False, language=["en"]
+            ).load()
+        except Exception:
+            log.exception("Failed to load transcript for {}", youtube_url)
             continue
 
         if not transcript:
+            log.warning("No transcript available for {}", youtube_url)
             continue
 
-        document = Document(
-            page_content=transcript[0].page_content,
-            metadata={
-                "source" : "youtube",
-                "source_url": youtube_url,
-                "mentor_id": mentor_extract.id,
-                "mentor_name": mentor_extract.name,
-            }
-        )
-        documents.append(document)
-    logger.info(f"Extracted {len(documents)} documents from YouTube videos")
+        content = "\n".join(part.page_content for part in transcript)
+        documents.append(make_document(mentor_extract, content, Source.YOUTUBE, youtube_url))
+
+    log.info("Extracted {} YouTube transcripts", len(documents))
     return documents

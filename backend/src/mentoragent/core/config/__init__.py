@@ -17,13 +17,15 @@ Normal application code uses the composed singleton::
     settings.groq.API_KEY
 """
 
+from __future__ import annotations
+
 from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from mentoragent.core.config.agent import AgentSettings
 from mentoragent.core.config.app import AppSettings, ServerSettings
-from mentoragent.core.config.base import settings_config
+from mentoragent.core.config.base import ENV_FILE, settings_config
 from mentoragent.core.config.cors import CorsSettings
 from mentoragent.core.config.integrations import (
     ArcadeSettings,
@@ -32,7 +34,6 @@ from mentoragent.core.config.integrations import (
 )
 from mentoragent.core.config.llm import (
     GroqSettings,
-    OpenAISettings,
     OpenRouterSettings,
 )
 from mentoragent.core.config.mongo import MongoSettings
@@ -41,7 +42,9 @@ from mentoragent.core.config.rag import RagSettings
 
 # Also export the variables into os.environ: LangChain and LangSmith read
 # LANGSMITH_* straight from the process environment, not through Settings.
-load_dotenv()
+# override=False: real environment variables (e.g. from the deployment
+# platform) always win over the file.
+load_dotenv(ENV_FILE, override=False)
 
 
 class Settings(BaseSettings):
@@ -53,7 +56,6 @@ class Settings(BaseSettings):
         cors: Extra browser origins allowed to call the API.
         mongo: MongoDB connection and collection names.
         groq: Groq inference credentials and model selection.
-        openai: OpenAI credentials and model selection.
         openrouter: OpenRouter credentials and model selection.
         agent: Conversation memory thresholds.
         rag: Embedding model and retrieval tuning.
@@ -73,7 +75,6 @@ class Settings(BaseSettings):
     cors: CorsSettings = Field(default_factory=CorsSettings)
     mongo: MongoSettings = Field(default_factory=MongoSettings)
     groq: GroqSettings = Field(default_factory=GroqSettings)
-    openai: OpenAISettings = Field(default_factory=OpenAISettings)
     openrouter: OpenRouterSettings = Field(default_factory=OpenRouterSettings)
     agent: AgentSettings = Field(default_factory=AgentSettings)
     rag: RagSettings = Field(default_factory=RagSettings)
@@ -94,7 +95,6 @@ __all__ = [
     "GroqSettings",
     "LangSmithSettings",
     "MongoSettings",
-    "OpenAISettings",
     "OpenRouterSettings",
     "PathSettings",
     "RagSettings",

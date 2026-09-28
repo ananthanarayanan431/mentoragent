@@ -1,7 +1,7 @@
 [project]
 name = "mentoragents"
 version = "0.1.0"
-description = "Where Human expertist meets AI"
+description = "Where human expertise meets AI"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
@@ -13,24 +13,36 @@ dependencies = [
     "langchain-core>=0.3.34",
     "langchain-groq>=0.2.4",
     "langchain-mongodb>=0.4.0",
+    "langchain-text-splitters>=0.3.0",
     "langgraph>=0.2.70",
     "langgraph-checkpoint-mongodb>=0.1.0",
     "opik>=1.4.11",
-    "pre-commit>=4.1.0",
     "pydantic-settings>=2.7.1",
     "pymongo>=4.9.2",
+    "python-dotenv>=1.0.0",
     "loguru>=0.7.3",
     "langchain-huggingface>=0.1.2",
     "langchain-community>=0.3.17",
     "wikipedia>=1.4.0",
-    "ipykernel>=6.29.5",
     "pydantic>=2.10.6",
     "datasketch>=1.6.5",
     "uvicorn>=0.34.3",
     "arcadepy>=1.6.0",
     "pypdf>=5.7.0",
     "pytube>=15.0.0",
+    "tiktoken>=0.8.0",
+    "tqdm>=4.66.0",
     "youtube-transcript-api>=1.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.29.5",
+    "mypy>=1.13.0",
+    "pre-commit>=4.1.0",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.8.0",
 ]
 
 [tool.setuptools]
@@ -42,3 +54,66 @@ where = ["src"]
 [build-system]
 requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
+
+# --- Ruff -------------------------------------------------------------------
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "F",       # pyflakes
+    "I",       # isort
+    "UP",      # pyupgrade: modern syntax (list[str], X | None, ...)
+    "FA",      # flake8-future-annotations
+    "B",       # bugbear
+    "SIM",     # simplify
+    "C4",      # comprehensions
+    "RUF",     # ruff-specific
+    "PTH",     # prefer pathlib
+    "S",       # bandit (security)
+    "T20",     # no stray print()
+    "PIE",
+    "RET",
+    "ERA",     # commented-out code
+]
+ignore = [
+    "S101",   # assert is fine in tests
+    "S104",   # binding to 0.0.0.0 is intentional in containers
+    "RUF012", # pydantic/class-level mutable defaults are fine
+    "SIM300", # misfires on UPPER_CASE settings fields (treats them as constants)
+]
+
+[tool.ruff.lint.isort]
+# Every module starts with this import; ruff adds it when missing.
+required-imports = ["from __future__ import annotations"]
+known-first-party = ["mentoragent"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "T20"]
+"main.py" = ["T20"]
+
+# --- Mypy -------------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
+packages = ["mentoragent"]
+plugins = ["pydantic.mypy"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_return_any = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+check_untyped_defs = true
+ignore_missing_imports = true
+
+# --- Pytest -----------------------------------------------------------------
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers"
