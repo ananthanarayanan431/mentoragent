@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, deleteConversation, listMentors, sendChat } from './api'
 
 function mockFetch(response: Response | Promise<never>) {
-  const fetchMock = vi.fn(() => (response instanceof Response ? Promise.resolve(response) : response))
+  const fetchMock = vi.fn(() =>
+    response instanceof Response ? Promise.resolve(response) : response,
+  )
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
 }

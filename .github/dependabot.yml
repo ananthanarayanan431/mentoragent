@@ -1,0 +1,24 @@
+# Weekly update PRs. Python dependencies are pinned in backend/uv.lock and
+# upgraded with `uv lock --upgrade`, which Dependabot does not manage.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    groups:
+      # One PR for the routine patch/minor bumps; majors still come separately.
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directories:
+      - /backend
+      - /frontend
+    schedule:
+      interval: weekly

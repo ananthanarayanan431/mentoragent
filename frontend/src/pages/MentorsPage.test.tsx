@@ -62,7 +62,10 @@ describe('MentorsPage', () => {
   })
 
   it('offers a retry when the backend cannot be reached', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))),
+    )
     renderPage()
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/Is the backend running/)

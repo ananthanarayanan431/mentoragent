@@ -9,31 +9,36 @@ import { MessageList } from '../components/chat/MessageList'
 import { ErrorState, Spinner } from '../components/StateViews'
 import { useChatSocket } from '../hooks/useChatSocket'
 import { ApiError, deleteConversation, getMentor, sendChat } from '../lib/api'
-import { chatReducer, initialChatState, newId } from '../lib/chat-state'
+import { chatReducer, newId } from '../lib/chat-state'
 import { clearConversation, loadConversation, saveConversation } from '../lib/storage'
 import type { Mentor, ServerEvent } from '../types'
 
 export function ChatPage() {
   const { mentorId = '' } = useParams<{ mentorId: string }>()
+  // Every piece of state below belongs to one mentor, so switching mentors
+  // remounts rather than resetting half a dozen things by hand.
+  return <ChatView key={mentorId} mentorId={mentorId} />
+}
 
+function ChatView({ mentorId }: { mentorId: string }) {
   const [mentor, setMentor] = useState<Mentor | null>(null)
   const [loadError, setLoadError] = useState<ApiError | null>(null)
   const [draft, setDraft] = useState('')
   const [panelOpen, setPanelOpen] = useState(false)
-  const [state, dispatch] = useReducer(chatReducer, initialChatState)
+  // Seeded from localStorage, so a reload paints the history immediately.
+  const [state, dispatch] = useReducer(chatReducer, mentorId, loadConversation)
 
   // The reducer's own state, readable from callbacks without re-subscribing.
+  // Event handlers run after effects have flushed, so this is never stale.
   const stateRef = useRef(state)
-  stateRef.current = state
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
 
   // --- Mentor ---------------------------------------------------------------
 
   useEffect(() => {
     const controller = new AbortController()
-    setMentor(null)
-    setLoadError(null)
-    // Restore before the request resolves so the history paints immediately.
-    dispatch({ type: 'restore', state: loadConversation(mentorId) })
 
     getMentor(mentorId, controller.signal)
       .then(setMentor)
@@ -132,10 +137,7 @@ export function ChatPage() {
               missing ? `There is no mentor with the id “${mentorId}”.` : loadError.message
             }
           />
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-accent"
-          >
+          <Link to="/" className="inline-flex items-center gap-1.5 text-sm font-medium text-accent">
             <ArrowLeft size={15} aria-hidden="true" />
             Back to all mentors
           </Link>

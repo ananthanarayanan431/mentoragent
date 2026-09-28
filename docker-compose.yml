@@ -1,0 +1,10 @@
+# Runs the whole stack from the repository root:
+#
+#   docker compose --profile app up --build
+#
+# The services themselves are defined in backend/docker-compose.yml, which
+# stays the single source of truth so `make up` inside backend/ and this file
+# can never describe different infrastructure. Paths inside the included file
+# resolve relative to that file, so the build contexts still work.
+include:
+  - backend/docker-compose.yml

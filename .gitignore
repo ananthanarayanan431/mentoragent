@@ -1,0 +1,25 @@
+# Repo-wide ignores. Language-specific rules live in backend/.gitignore and
+# frontend/.gitignore, next to the code they apply to.
+
+# Secrets — only .env.example files are committed
+.env
+.env.*
+!.env.example
+
+# Personal Claude Code settings (shared project config in .claude/ stays tracked)
+.claude/settings.local.json
+
+# Editors
+.idea/
+.vs/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# OS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db

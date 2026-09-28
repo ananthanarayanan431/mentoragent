@@ -55,6 +55,10 @@ export function useChatSocket({ onEvent, onDropped }: Options): ChatSocket {
     onDroppedRef.current = onDropped
   })
 
+  // Lets `connect` schedule a retry of itself without referencing its own
+  // binding while that binding is still being initialised.
+  const connectRef = useRef<() => void>(() => {})
+
   const connect = useCallback(() => {
     if (timerRef.current !== null) {
       clearTimeout(timerRef.current)
@@ -103,12 +107,17 @@ export function useChatSocket({ onEvent, onDropped }: Options): ChatSocket {
       const delay = retryDelay(attemptRef.current)
       attemptRef.current += 1
       setStatus('reconnecting')
-      timerRef.current = setTimeout(connect, delay)
+      timerRef.current = setTimeout(() => connectRef.current(), delay)
     }
   }, [])
 
   useEffect(() => {
+    connectRef.current = connect
     closedByUsRef.current = false
+    // set-state-in-effect: opening the socket is exactly the case effects are
+    // for — synchronising with an external system — and the status it sets is
+    // that system's state, which cannot be derived during render.
+    // oxlint-disable-next-line react/set-state-in-effect
     connect()
     return () => {
       closedByUsRef.current = true

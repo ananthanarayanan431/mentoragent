@@ -60,7 +60,10 @@ describe('conversation storage', () => {
       'mentoragent:conversation:ada',
       JSON.stringify({
         conversationId: 'c1',
-        messages: [{ id: 'u1', role: 'alien', content: 'x' }, { id: 'u2', role: 'user' }],
+        messages: [
+          { id: 'u1', role: 'alien', content: 'x' },
+          { id: 'u2', role: 'user' },
+        ],
       }),
     )
 

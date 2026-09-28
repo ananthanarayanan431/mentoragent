@@ -12,10 +12,7 @@ export function Header({ theme, onThemeChange }: Props) {
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-canvas/85 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
-        <Link
-          to="/"
-          className="flex items-center gap-2.5 rounded-lg font-semibold tracking-tight"
-        >
+        <Link to="/" className="flex items-center gap-2.5 rounded-lg font-semibold tracking-tight">
           <Logo />
           <span>
             Mentor<span className="text-accent">Agents</span>

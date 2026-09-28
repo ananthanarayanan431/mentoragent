@@ -56,6 +56,24 @@ services:
       mongo:
         condition: service_healthy
 
+  web:
+    # The React app, served by nginx. Same opt-in profile as the API.
+    profiles: ["app"]
+    # Context is ../frontend so this stays the single compose file for the
+    # whole stack; paths inside it resolve relative to THIS file.
+    build: ../frontend
+    image: mentoragent-web
+    container_name: mentoragent-web
+    restart: unless-stopped
+    environment:
+      # nginx reverse-proxies /api to the API service, so the browser talks to
+      # one origin and the bundle needs no VITE_API_URL.
+      BACKEND_HOST: api:8000
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    depends_on:
+      - api
+
 volumes:
   mongo_data:
   mongo_config:

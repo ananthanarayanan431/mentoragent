@@ -33,9 +33,7 @@ export function ThemeToggle({ theme, onChange }: Props) {
             title={label}
             onClick={() => onChange(value)}
             className={`grid size-7 place-items-center rounded-full transition-colors ${
-              active
-                ? 'bg-accent-soft text-accent'
-                : 'text-faint hover:bg-raised hover:text-ink'
+              active ? 'bg-accent-soft text-accent' : 'text-faint hover:bg-raised hover:text-ink'
             }`}
           >
             <Icon size={14} strokeWidth={2} aria-hidden="true" />

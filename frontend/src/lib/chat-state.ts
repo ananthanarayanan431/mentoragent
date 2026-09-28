@@ -52,10 +52,7 @@ export function newId(): string {
 }
 
 /** Replace the last mentor message, which is the one currently streaming. */
-function updateStreaming(
-  messages: Message[],
-  update: (message: Message) => Message,
-): Message[] {
+function updateStreaming(messages: Message[], update: (message: Message) => Message): Message[] {
   const index = messages.findLastIndex((m) => m.role === 'mentor' && m.streaming)
   if (index === -1) return messages
   const next = messages.slice()

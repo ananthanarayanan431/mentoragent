@@ -18,7 +18,6 @@ export function MentorsPage() {
 
   useEffect(() => {
     const controller = new AbortController()
-    setStatus('loading')
 
     listMentors(controller.signal)
       .then((data) => {
@@ -34,7 +33,10 @@ export function MentorsPage() {
     return () => controller.abort()
   }, [attempt])
 
-  const retry = useCallback(() => setAttempt((n) => n + 1), [])
+  const retry = useCallback(() => {
+    setStatus('loading')
+    setAttempt((n) => n + 1)
+  }, [])
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
@@ -45,8 +47,8 @@ export function MentorsPage() {
           meets <span className="text-accent">AI</span>
         </h1>
         <p className="mt-4 text-balance leading-relaxed text-muted">
-          Chat with mentors modelled on real experts. Each one answers from a long-term memory
-          built out of that person&rsquo;s public work.
+          Chat with mentors modelled on real experts. Each one answers from a long-term memory built
+          out of that person&rsquo;s public work.
         </p>
       </div>
 
