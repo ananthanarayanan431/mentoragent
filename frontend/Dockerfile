@@ -26,7 +26,7 @@ RUN npm run build
 
 # ---- runtime: nginx serving the bundle -------------------------------------
 # The unprivileged variant runs as uid 101 and listens on 8080.
-FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
+FROM nginxinc/nginx-unprivileged:1.31-alpine AS runtime
 
 # Where to reach the API. In compose this is the backend service name.
 ENV BACKEND_HOST=backend:8000
