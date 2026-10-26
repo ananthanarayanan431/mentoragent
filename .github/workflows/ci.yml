@@ -29,7 +29,7 @@ jobs:
       - name: Install uv
         # Pinned exactly: this action publishes no floating major tag (`v10`
         # does not resolve). Dependabot keeps it current.
-        uses: astral-sh/setup-uv@v10.3.0
+        uses: astral-sh/setup-uv@v10.3.2
         with:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
