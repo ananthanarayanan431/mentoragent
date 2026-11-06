@@ -22,3 +22,10 @@ updates:
       - /frontend
     schedule:
       interval: weekly
+    ignore:
+      # The backend's Python version is one decision across backend/.python-version,
+      # pyproject.toml (ruff, pyright) and the Dockerfile. Bumping only the image
+      # left CI testing one version while the image shipped another, and 3.15 broke
+      # the build (no zstandard wheel). Upgrade Python by hand, everywhere at once.
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]

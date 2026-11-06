@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
 
 # ---- build: resolve dependencies into a virtualenv with uv ----------------
-FROM python:3.15-slim AS build
+# Keep in step with .python-version: the image runs the Python the tests run on.
+FROM python:3.12-slim AS build
 COPY --from=ghcr.io/astral-sh/uv:0.8 /uv /bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
 WORKDIR /app
@@ -16,7 +17,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-editable
 
 # ---- runtime: slim image, non-root user ------------------------------------
-FROM python:3.15-slim AS runtime
+FROM python:3.12-slim AS runtime
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
