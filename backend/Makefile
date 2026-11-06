@@ -24,8 +24,8 @@ help: ## Show this help
 install: ## Sync the virtualenv (incl. dev tools) from uv.lock
 	$(UV) sync
 
-hooks: ## Install the git pre-commit hooks
-	$(UV) run pre-commit install
+hooks: ## Use the repo's git hooks (.githooks): commit message and staged-file checks
+	git config core.hooksPath .githooks
 
 env: ## Create .env from .env.example (never overwrites an existing .env)
 	@test -f .env && echo ".env already exists - leaving it alone" \

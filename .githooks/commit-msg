@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# commit-msg: clean and validate the commit message.
+#
+#   1. Strip AI-attribution trailers (Co-Authored-By Claude/Anthropic,
+#      "Generated with Claude Code" lines).
+#   2. Require a Conventional Commit subject: <type>(<scope>)!: <description>
+#   3. Reject em/en dashes anywhere in the message.
+#
+# Activate once per clone:  git config core.hooksPath .githooks
+
+set -euo pipefail
+
+msg_file="$1"
+
+# --- 1. Strip AI attribution (sed -i.bak works on both BSD and GNU sed) -------
+sed -i.bak -E \
+  -e '/^[Cc]o-[Aa]uthored-[Bb]y:.*([Cc]laude|[Aa]nthropic)/d' \
+  -e '/[Gg]enerated with \[?Claude Code/d' \
+  "$msg_file"
+rm -f "$msg_file.bak"
+
+# --- Extract the message body git will actually keep ---------------------------
+# Git passes the raw message: drop comment lines and everything below the
+# `git commit -v` scissors line.
+comment_char="$(git config --get core.commentChar 2>/dev/null || echo '#')"
+[ "$comment_char" = "auto" ] && comment_char='#'
+
+body="$(awk -v c="$comment_char" '
+  index($0, c " ------------------------ >8 ------------------------") == 1 { exit }
+  index($0, c) == 1 { next }
+  { print }
+' "$msg_file")"
+
+subject="$(printf '%s\n' "$body" | awk 'NF { print; exit }')"
+
+fail() {
+  {
+    echo "commit-msg: $1"
+    [ -n "${2:-}" ] && printf '  %s\n' "$2"
+    echo
+    echo "Commit rejected. Fix the message and commit again."
+  } >&2
+  exit 1
+}
+
+[ -n "$subject" ] || fail "empty commit message."
+
+# Git-generated subjects are exempt from the format check.
+case "$subject" in
+  Merge\ * | Revert\ * | fixup!\ * | squash!\ * | amend!\ *) exit 0 ;;
+esac
+
+# --- 2. Conventional Commit subject --------------------------------------------
+types='feat|fix|chore|docs|refactor|test|ci|perf|build|style|revert'
+pattern="^($types)(\([a-z0-9._/-]+\))?!?: [^ ].*$"
+
+if ! printf '%s\n' "$subject" | grep -Eq "$pattern"; then
+  fail "subject is not a Conventional Commit." \
+"got:      $subject
+  expected: <type>(<optional-scope>): <description>
+  types:    ${types//|/, }
+  example:  feat(api): add health score endpoint"
+fi
+
+max_len=72
+if [ "${#subject}" -gt "$max_len" ]; then
+  fail "subject is ${#subject} characters (max $max_len)." "$subject"
+fi
+
+# --- 3. No em/en dashes ----------------------------------------------------------
+if printf '%s\n' "$body" | grep -q -e '—' -e '–'; then
+  fail "message contains an em dash (—) or en dash (–); use '-' or reword." \
+    "$(printf '%s\n' "$body" | grep -n -e '—' -e '–' | head -n 3)"
+fi
+
+exit 0

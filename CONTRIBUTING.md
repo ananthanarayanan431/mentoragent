@@ -12,7 +12,7 @@ Prerequisites: Docker with the Compose plugin, Python 3.12 with
 cd backend
 make install     # sync the virtualenv from uv.lock
 make env         # create .env from .env.example, then fill in the keys
-make hooks       # install the pre-commit hooks (ruff lint + format)
+make hooks       # use the repo's git hooks in .githooks/
 make up          # start MongoDB
 
 cd ../frontend
@@ -66,14 +66,26 @@ Enforced by ruff and mypy; the full reasoning is in
 
 ### Commits
 
-Write a subject line that says what changed and why it matters, in the
-imperative mood:
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/). The
+`commit-msg` hook in `.githooks/` rejects anything else:
 
 ```
-Add the mentor chat WebSocket reconnect
+<type>(<optional-scope>): <imperative summary, max 72 characters>
+
+<optional body: what changed and why>
 ```
 
-Keep unrelated changes in separate commits.
+- Types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `perf`,
+  `build`, `style`, `revert`. Scopes are usually `backend`, `frontend`, `ci`
+  or `deps`.
+- Plain hyphens only: the hook rejects em and en dashes.
+- No AI attribution: the hook strips `Co-Authored-By` lines for AI tools and
+  "Generated with" footers.
+- One logical change per commit; keep unrelated changes apart.
+
+The `pre-commit` hook checks only the staged files: no private keys, nothing
+over 1 MB, ruff on backend Python, prettier and oxlint on frontend files.
+Never skip hooks with `--no-verify`; fix what they report.
 
 ## Reporting a security issue
 

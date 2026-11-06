@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# pre-commit: fast checks on the files being committed.
+#
+#   1. No private keys and no files over 1 MB.
+#   2. Backend Python: ruff lint and format check.
+#   3. Frontend: prettier check and oxlint.
+#
+# Only staged files are checked, so a commit stays quick. CI runs the full suite
+# (scripts/ci/python-checks.sh, scripts/ci/frontend-checks.sh).
+#
+# Activate once per clone:  git config core.hooksPath .githooks   (or `make -C backend hooks`)
+
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+fail() {
+  echo "pre-commit: $1" >&2
+  echo "Commit rejected. Fix the files above, stage them, and commit again." >&2
+  exit 1
+}
+
+# Added, copied or modified files only; deletions have nothing to check.
+staged=()
+while IFS= read -r -d '' file; do
+  staged+=("$file")
+done < <(git diff --cached --name-only --diff-filter=ACM -z)
+
+[ "${#staged[@]}" -gt 0 ] || exit 0
+
+# --- 1. Secrets and large files ------------------------------------------------
+max_bytes=$((1024 * 1024))
+for file in "${staged[@]}"; do
+  size="$(git cat-file -s ":$file")"
+  # Lockfiles are generated and legitimately large.
+  case "$file" in
+    */uv.lock | */package-lock.json) size=0 ;;
+  esac
+  if [ "$size" -gt "$max_bytes" ]; then
+    fail "$file is $size bytes (max $max_bytes). Keep large files out of git."
+  fi
+  if git show ":$file" | grep -Eq -- '-----BEGIN ([A-Z]+ )?PRIVATE KEY-----'; then
+    fail "$file contains a private key."
+  fi
+done
+
+# --- 2. Backend Python ----------------------------------------------------------
+py_files=()
+for file in "${staged[@]}"; do
+  case "$file" in
+    backend/*.py) py_files+=("${file#backend/}") ;;
+  esac
+done
+
+if [ "${#py_files[@]}" -gt 0 ]; then
+  (
+    cd backend
+    uv run --quiet ruff check "${py_files[@]}"
+    uv run --quiet ruff format --check "${py_files[@]}"
+  ) || fail "ruff found problems. Run \`make -C backend format\` to fix most of them."
+fi
+
+# --- 3. Frontend ----------------------------------------------------------------
+fe_files=()
+lint_files=()
+for file in "${staged[@]}"; do
+  case "$file" in
+    frontend/package-lock.json) ;;
+    frontend/*.ts | frontend/*.tsx | frontend/*.js | frontend/*.jsx)
+      fe_files+=("${file#frontend/}")
+      lint_files+=("${file#frontend/}")
+      ;;
+    frontend/*.css | frontend/*.json | frontend/*.md | frontend/*.html)
+      fe_files+=("${file#frontend/}")
+      ;;
+  esac
+done
+
+if [ "${#fe_files[@]}" -gt 0 ]; then
+  [ -d frontend/node_modules ] || fail "frontend/node_modules is missing. Run \`npm ci\` in frontend/."
+  (
+    cd frontend
+    npx --no-install prettier --check "${fe_files[@]}"
+    if [ "${#lint_files[@]}" -gt 0 ]; then
+      npx --no-install oxlint --deny-warnings "${lint_files[@]}"
+    fi
+  ) || fail "frontend checks failed. Run \`npm run format\` in frontend/ to fix formatting."
+fi
+
+exit 0
