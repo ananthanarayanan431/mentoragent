@@ -57,7 +57,7 @@ Run `make` with no arguments to list every target.
 | --- | --- |
 | `make format` | Auto-fix lint issues and format the code |
 | `make lint` | Lint with ruff |
-| `make typecheck` | Type-check with mypy |
+| `make typecheck` | Type-check with pyright (strict) |
 | `make test` | Run the pytest suite (no network or database needed) |
 | `make check` | All of the above; what CI should run |
 
@@ -258,7 +258,7 @@ all state lives in MongoDB.
 
 ## Conventions
 
-Enforced by ruff and mypy; the notes explain the why.
+Enforced by ruff and pyright (strict); the notes explain the why.
 
 - **`from __future__ import annotations`** starts every module (ruff adds it).
   Imports used only in annotations go under `if TYPE_CHECKING:`. Exception:
@@ -272,7 +272,15 @@ Enforced by ruff and mypy; the notes explain the why.
   blocks so the traceback is kept. Call `configure_logging()` once at start-up.
 - **Errors**: raise subclasses of `MentorAgentError`; each declares its
   `status_code`, and one handler maps them to HTTP responses. Never use
-  `assert` for runtime checks.
+  `assert` for runtime checks. Put the message in a variable before raising
+  (`msg = f"..."; raise ValueError(msg)`) so tracebacks don't print it twice.
+- **No blind excepts**: catch the narrowest exception that can happen.
+  `except Exception` is allowed only at a real boundary (the WebSocket loop,
+  the readiness probe, optional tracing). It must log the traceback and carry
+  `# noqa: BLE001 - <why>`.
+- **Type ignores**: pyright runs in strict mode. An ignore always names its
+  rule (`# pyright: ignore[reportPrivateUsage]`), is used only for an untyped
+  or private third-party API, and has a comment saying why.
 - **No side effects at import**: no DB connections, graph compilation or API
   clients at module level. Build them in a factory (`build()`, `lru_cache`)
   or inject them through `__init__`.

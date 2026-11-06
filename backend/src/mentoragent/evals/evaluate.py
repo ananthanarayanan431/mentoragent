@@ -10,6 +10,7 @@ from loguru import logger
 from opik.evaluation import evaluate
 from opik.evaluation.metrics import (
     AnswerRelevance,
+    BaseMetric,
     ContextPrecision,
     ContextRecall,
     Hallucination,
@@ -70,7 +71,7 @@ def evaluate_agent(dataset: opik.Dataset, workers: int = 2, nb_samples: int | No
     """
     conversations = build_conversation_service(tracing=True)
     mentors = MongoRepository(MentorExtract, settings.mongo.MENTORS_COLLECTION)
-    scoring_metrics = [
+    scoring_metrics: list[BaseMetric] = [
         Hallucination(),
         AnswerRelevance(),
         Moderation(),

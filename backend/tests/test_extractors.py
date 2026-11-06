@@ -27,7 +27,11 @@ def _loader(pages: list[str]) -> MagicMock:
 
 def test_pdf_loads_every_pdf(mentor_extract: MentorExtract) -> None:
     loaders = {"a.pdf": _loader(["a1", "a2"]), "b.pdf": _loader(["b1"])}
-    with patch(PDF_LOADER, side_effect=lambda url, **_: loaders[url]):
+
+    def loader(url: str, **_: Any) -> MagicMock:
+        return loaders[url]
+
+    with patch(PDF_LOADER, side_effect=loader):
         docs = extract_pdf_contents(mentor_extract)
 
     assert [d.page_content for d in docs] == ["a1", "a2", "b1"]

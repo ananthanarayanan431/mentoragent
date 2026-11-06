@@ -16,7 +16,7 @@ from mentoragent.core.config import settings
 from tests.fakes import InMemoryMentorService, build_fake_conversation_service, tool_call
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Iterator
+    from collections.abc import AsyncGenerator, Iterator
 
     from fastapi import FastAPI
 
@@ -27,7 +27,7 @@ def _client(mentor_extract: MentorExtract, responses: list[AIMessage]) -> TestCl
     service, _, _ = build_fake_conversation_service(responses)
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         app.state.conversations = service
         app.state.mentors = InMemoryMentorService([mentor_extract])
         yield

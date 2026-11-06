@@ -30,7 +30,7 @@ def test_rag_rejects_overlap_not_smaller_than_chunk() -> None:
 
 
 def test_api_keys_are_masked_in_repr() -> None:
-    openrouter = OpenRouterSettings()
+    openrouter = OpenRouterSettings()  # pyright: ignore[reportCallIssue] - API_KEY from env
     assert "test-openrouter-key" not in repr(openrouter)
     assert openrouter.API_KEY.get_secret_value() == "test-openrouter-key"
 

@@ -26,10 +26,10 @@ def build_embedding_model(model_name: str | None = None) -> OpenAIEmbeddings:
 
     return OpenAIEmbeddings(
         model=model_name,
-        openai_api_key=config.API_KEY,
-        openai_api_base=config.BASE_URL,
+        api_key=config.API_KEY,
+        base_url=config.BASE_URL,
         default_headers=config.default_headers,
-        request_timeout=config.TIMEOUT_SECONDS,
+        timeout=config.TIMEOUT_SECONDS,
         max_retries=config.MAX_RETRIES,
         # Send raw strings. The default pre-tokenizes input with tiktoken and
         # sends token IDs, which only OpenAI's own endpoint accepts.

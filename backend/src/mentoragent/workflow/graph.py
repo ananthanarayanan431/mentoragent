@@ -10,7 +10,7 @@ conversation --(otherwise)--> END
 from __future__ import annotations
 
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
@@ -33,8 +33,16 @@ if TYPE_CHECKING:
 
     from mentoragent.workflow.nodes import Nodes
 
+    MentorGraphBuilder: TypeAlias = StateGraph[MentorState, None, Any, Any]
+    # Input and output are partial state updates, so they stay open.
+    MentorGraph: TypeAlias = CompiledStateGraph[MentorState, None, Any, Any]
+    # Savers disagree on the checkpoint version type (MongoDBSaver leaves it open).
+    Checkpointer: TypeAlias = BaseCheckpointSaver[Any]
 
-def build_graph(nodes: Nodes, tools: Sequence[BaseTool], summary_trigger: int) -> StateGraph:
+
+def build_graph(
+    nodes: Nodes, tools: Sequence[BaseTool], summary_trigger: int
+) -> MentorGraphBuilder:
     """Assemble the (uncompiled) graph.
 
     Args:
@@ -42,12 +50,15 @@ def build_graph(nodes: Nodes, tools: Sequence[BaseTool], summary_trigger: int) -
         tools: Tools executed by the retrieve-context node.
         summary_trigger: Message count above which the history is summarised.
     """
-    builder = StateGraph(MentorState)
+    builder: MentorGraphBuilder = StateGraph(MentorState)
 
-    builder.add_node(CONVERSATION_NODE, nodes.conversation_node)
-    builder.add_node(RETRIEVE_CONTEXT_NODE, ToolNode(tools, handle_tool_errors=True))
-    builder.add_node(SUMMARIZE_CONTEXT_NODE, nodes.summarize_context_node)
-    builder.add_node(SUMMARIZE_CONVERSATION_NODE, nodes.summarize_conversation_node)
+    # LangGraph's add_node and compile overloads carry unparameterised generics of
+    # their own, so pyright sees them as partially unknown whatever we pass.
+    add_node = builder.add_node  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    add_node(CONVERSATION_NODE, nodes.conversation_node)
+    add_node(RETRIEVE_CONTEXT_NODE, ToolNode(tools, handle_tool_errors=True))
+    add_node(SUMMARIZE_CONTEXT_NODE, nodes.summarize_context_node)
+    add_node(SUMMARIZE_CONVERSATION_NODE, nodes.summarize_conversation_node)
 
     builder.add_edge(START, CONVERSATION_NODE)
     builder.add_conditional_edges(
@@ -65,7 +76,8 @@ def compile_graph(
     nodes: Nodes,
     tools: Sequence[BaseTool],
     summary_trigger: int,
-    checkpointer: BaseCheckpointSaver | None = None,
-) -> CompiledStateGraph:
+    checkpointer: Checkpointer | None = None,
+) -> MentorGraph:
     """Build and compile the graph. Compile once per process and reuse it."""
-    return build_graph(nodes, tools, summary_trigger).compile(checkpointer=checkpointer)
+    builder = build_graph(nodes, tools, summary_trigger)
+    return builder.compile(checkpointer=checkpointer)  # pyright: ignore[reportUnknownMemberType]

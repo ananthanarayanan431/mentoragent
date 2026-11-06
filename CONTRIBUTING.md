@@ -37,7 +37,7 @@ request.
 
 ### Backend
 
-Enforced by ruff and mypy; the full reasoning is in
+Enforced by ruff and pyright (strict); the full reasoning is in
 [backend/README.md](backend/README.md).
 
 - Every module starts with `from __future__ import annotations`. Imports used

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from datasketch import MinHash, MinHashLSH
 from loguru import logger
@@ -85,11 +85,14 @@ class DeduplicateDocuments:
         for i, minhash in enumerate(minhashes):
             if minhash is None:
                 continue
-            for j in lsh.query(minhash):
+            # datasketch is untyped; query returns the integer keys inserted above.
+            candidates = cast("list[int]", lsh.query(minhash))  # pyright: ignore[reportUnknownMemberType]
+            for j in candidates:
                 pair = (min(i, j), max(i, j))
-                if i == j or pair in duplicates:
+                other = minhashes[j]
+                if i == j or pair in duplicates or other is None:
                     continue
-                similarity = minhash.jaccard(minhashes[j])
+                similarity = minhash.jaccard(other)
                 if similarity >= threshold:
                     duplicates[pair] = similarity
 
@@ -102,5 +105,6 @@ class DeduplicateDocuments:
 
         minhash = MinHash(num_perm=self.num_perm)
         for i in range(len(words) - SHINGLE_SIZE + 1):
-            minhash.update(" ".join(words[i : i + SHINGLE_SIZE]).encode("utf-8"))
+            shingle = " ".join(words[i : i + SHINGLE_SIZE]).encode("utf-8")
+            minhash.update(shingle)  # pyright: ignore[reportUnknownMemberType]
         return minhash

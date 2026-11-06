@@ -38,7 +38,7 @@ mentoragent = "mentoragent.cli:app"
 [dependency-groups]
 dev = [
     "ipykernel>=6.29.5",
-    "mypy>=1.13.0",
+    "pyright==1.1.414",
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
     "ruff>=0.8.0",
@@ -136,20 +136,17 @@ runtime-evaluated-decorators = ["pydantic.validate_call"]
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "datetime.timezone".msg = "Use `from datetime import UTC` instead."
 
-# --- Mypy -------------------------------------------------------------------
+# --- Pyright ----------------------------------------------------------------
 
-[tool.mypy]
-python_version = "3.12"
-mypy_path = "src"
-packages = ["mentoragent"]
-plugins = ["pydantic.mypy"]
-warn_unused_ignores = true
-warn_redundant_casts = true
-warn_return_any = true
-disallow_untyped_defs = true
-no_implicit_optional = true
-check_untyped_defs = true
-ignore_missing_imports = true
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+include = ["src", "tests", "main.py"]
+venvPath = "."
+venv = ".venv"
+# langgraph and datasketch ship without a py.typed marker. Pyright still infers
+# their types from the source, so a missing stub is not worth an error.
+reportMissingTypeStubs = false
 
 # --- Pytest -----------------------------------------------------------------
 

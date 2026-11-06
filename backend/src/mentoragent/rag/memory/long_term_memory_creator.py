@@ -8,7 +8,7 @@ from mentoragent.core.config import settings
 from mentoragent.db.indexes import create_search_indexes
 from mentoragent.rag.deduplicate_documents import DeduplicateDocuments
 from mentoragent.rag.extractor import Extractor
-from mentoragent.rag.retrievers import build_vector_store
+from mentoragent.rag.retrievers import build_vector_store, vector_collection
 from mentoragent.rag.splitters import build_text_splitter
 
 if TYPE_CHECKING:
@@ -60,7 +60,7 @@ class LongTermMemoryCreator:
         Returns:
             The number of chunks ingested.
         """
-        deleted = self.vectorstore.collection.delete_many({}).deleted_count
+        deleted = vector_collection(self.vectorstore).delete_many({}).deleted_count
         logger.info("Cleared long-term memory ({} documents)", deleted)
 
         total = 0

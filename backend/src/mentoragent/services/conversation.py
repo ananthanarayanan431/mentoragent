@@ -17,9 +17,9 @@ if TYPE_CHECKING:
 
     from langchain_core.callbacks import BaseCallbackHandler
     from langchain_core.runnables import RunnableConfig
-    from langgraph.graph.state import CompiledStateGraph
 
     from mentoragent.models.mentor import Mentor
+    from mentoragent.workflow.graph import MentorGraph
     from mentoragent.workflow.state import MentorState
 
 # Accepted message inputs: one user message, several, or role/content dicts
@@ -68,7 +68,7 @@ class ConversationService:
 
     def __init__(
         self,
-        graph: CompiledStateGraph,
+        graph: MentorGraph,
         recursion_limit: int,
         tracer_factory: Callable[[str], BaseCallbackHandler] | None = None,
     ) -> None:
@@ -110,7 +110,8 @@ class ConversationService:
         """
         thread_id = thread_id_for(mentor.id, conversation_id)
         try:
-            state = await self.graph.ainvoke(
+            # LangGraph's overloads mention Command[Unknown]; the result is a state dict.
+            state = await self.graph.ainvoke(  # pyright: ignore[reportUnknownMemberType]
                 self._input(mentor, messages, mentor_context), self._config(thread_id)
             )
         except Exception as exc:
@@ -136,7 +137,7 @@ class ConversationService:
         """
         thread_id = thread_id_for(mentor.id, conversation_id)
         try:
-            async for chunk, metadata in self.graph.astream(
+            async for chunk, metadata in self.graph.astream(  # pyright: ignore[reportUnknownMemberType]
                 self._input(mentor, messages, mentor_context),
                 self._config(thread_id),
                 stream_mode="messages",
@@ -154,7 +155,7 @@ class ConversationService:
 
     async def delete_conversation(self, mentor_id: str, conversation_id: str) -> None:
         """Forget one conversation's history."""
-        checkpointer = self.graph.checkpointer
+        checkpointer = self.graph.checkpointer  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         if checkpointer is not None and not isinstance(checkpointer, bool):
             await checkpointer.adelete_thread(thread_id_for(mentor_id, conversation_id))
 

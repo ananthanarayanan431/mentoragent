@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from arcadepy import Arcade
 from loguru import logger
@@ -102,8 +102,10 @@ def get_all_tweets(
         if not isinstance(value, dict):
             break
 
-        tweets.extend(value.get("data") or [])
-        next_token = (value.get("meta") or {}).get("next_token")
+        page = cast("dict[str, Any]", value)
+        tweets.extend(page.get("data") or [])
+        meta: dict[str, Any] = page.get("meta") or {}
+        next_token = meta.get("next_token")
         if not next_token:
             break
 

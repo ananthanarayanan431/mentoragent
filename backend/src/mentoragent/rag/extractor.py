@@ -97,6 +97,6 @@ class Extractor:
 
         with tqdm(mentors, desc="Extracting docs", unit="mentor") as progress_bar:
             for mentor_extract in progress_bar:
-                progress_bar.set_postfix({"mentor": mentor_extract.name})
+                progress_bar.set_postfix_str(f"mentor={mentor_extract.name}")
                 docs = self.extract(mentor_extract, sample_count if is_sample_data else None)
                 yield mentor_extract.to_mentor(), docs

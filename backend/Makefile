@@ -96,8 +96,8 @@ format: ## Auto-fix lint issues and format the code
 	$(UV) run ruff check --fix src tests main.py
 	$(UV) run ruff format src tests main.py
 
-typecheck: ## Type-check with mypy
-	$(UV) run mypy
+typecheck: ## Type-check with pyright (strict)
+	$(UV) run pyright
 
 test: ## Run the test suite
 	$(UV) run pytest
@@ -108,4 +108,4 @@ check: lint typecheck test ## Everything CI should run
 clean: ## Remove Python build/cache artefacts
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 	find . -type d -name '*.egg-info' -prune -exec rm -rf {} +
-	rm -rf .pytest_cache .ruff_cache .mypy_cache .coverage coverage.xml
+	rm -rf .pytest_cache .ruff_cache .coverage coverage.xml

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Self, TypeVar
+from typing import TYPE_CHECKING, Any, Self, TypeVar, cast
 
 from openai import AsyncOpenAI
 from pydantic import BaseModel
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
     from types import TracebackType
 
-    from openai.types.chat import ChatCompletionMessageParam
+    from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
 
 SchemaT = TypeVar("SchemaT", bound=BaseModel)
 
@@ -67,11 +67,16 @@ class Models:
         Returns:
             The assistant message content.
         """
-        response = await self.client.chat.completions.create(
-            model=self.model_name,
-            messages=messages,
-            temperature=self.temperature,
-            **kwargs,
+        # Spreading **kwargs hides which create() overload applies; without
+        # stream=True it is always the non-streaming one.
+        response = cast(
+            "ChatCompletion",
+            await self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                temperature=self.temperature,
+                **kwargs,
+            ),
         )
         return response.choices[0].message.content or ""
 

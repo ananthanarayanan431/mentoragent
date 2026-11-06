@@ -25,14 +25,14 @@ from mentoragent.models.mentor_extract import MentorExtract
 from mentoragent.services.mentors import MentorService
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Callable
+    from collections.abc import AsyncGenerator, Callable
     from contextlib import AbstractAsyncContextManager
 
 API_PREFIX = "/api/v1"
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Build shared resources once at start-up; release them on shutdown.
 
     Start-up fails fast if MongoDB is unreachable, so an orchestrator can

@@ -15,7 +15,8 @@ from mentoragent.core.config import settings
 
 def _default_workspace(api_key: str) -> str | None:
     try:
-        return OpikConfigurator(api_key=api_key)._get_default_workspace()
+        # Opik has no public call for the account's default workspace.
+        return OpikConfigurator(api_key=api_key)._get_default_workspace()  # pyright: ignore[reportPrivateUsage]
     except Exception:  # noqa: BLE001 - tracing is optional; fall back to Opik's default
         logger.opt(exception=True).warning(
             "Could not resolve the default Opik workspace; using Opik's default"

@@ -70,7 +70,10 @@ class Settings(BaseSettings):
     server: ServerSettings = Field(default_factory=ServerSettings)
     cors: CorsSettings = Field(default_factory=CorsSettings)
     mongo: MongoSettings = Field(default_factory=MongoSettings)
-    openrouter: OpenRouterSettings = Field(default_factory=OpenRouterSettings)
+    # API_KEY is required but read from the environment, which pyright cannot see.
+    openrouter: OpenRouterSettings = Field(
+        default_factory=lambda: OpenRouterSettings()  # pyright: ignore[reportCallIssue]
+    )
     agent: AgentSettings = Field(default_factory=AgentSettings)
     rag: RagSettings = Field(default_factory=RagSettings)
     arcade: ArcadeSettings = Field(default_factory=ArcadeSettings)

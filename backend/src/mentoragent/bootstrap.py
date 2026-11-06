@@ -24,8 +24,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from langchain_core.callbacks import BaseCallbackHandler
-    from langgraph.checkpoint.base import BaseCheckpointSaver
-    from langgraph.graph.state import CompiledStateGraph
+
+    from mentoragent.workflow.graph import Checkpointer, MentorGraph
 
 
 def build_checkpointer() -> MongoDBSaver:
@@ -39,7 +39,7 @@ def build_checkpointer() -> MongoDBSaver:
     )
 
 
-def build_mentor_graph(checkpointer: BaseCheckpointSaver | None = None) -> CompiledStateGraph:
+def build_mentor_graph(checkpointer: Checkpointer | None = None) -> MentorGraph:
     """Build and compile the mentor graph with production models and retrieval."""
     vectorstore = build_vector_store()
     tools = [
@@ -57,7 +57,7 @@ def build_mentor_graph(checkpointer: BaseCheckpointSaver | None = None) -> Compi
     )
 
 
-def _opik_tracer_factory(graph: CompiledStateGraph) -> Callable[[str], BaseCallbackHandler]:
+def _opik_tracer_factory(graph: MentorGraph) -> Callable[[str], BaseCallbackHandler]:
     from opik.integrations.langchain import OpikTracer
 
     graph_view = graph.get_graph(xray=True)

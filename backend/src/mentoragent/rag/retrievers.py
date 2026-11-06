@@ -2,26 +2,32 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from langchain_mongodb import MongoDBAtlasVectorSearch
 from langchain_mongodb.retrievers import MongoDBAtlasHybridSearchRetriever
 
 from mentoragent.core.config import settings
-from mentoragent.db.client import get_mongo_client
+from mentoragent.db.client import MongoDocument, get_mongo_client
 from mentoragent.rag.embeddings import build_embedding_model
 
 if TYPE_CHECKING:
     from langchain_core.embeddings import Embeddings
     from pymongo import MongoClient
+    from pymongo.collection import Collection
 
 # Field names inside each long-term memory document.
 TEXT_KEY = "chunk"
 EMBEDDING_KEY = "embedding"
 
 
+def vector_collection(vectorstore: MongoDBAtlasVectorSearch) -> Collection[MongoDocument]:
+    """The store's MongoDB collection (langchain-mongodb leaves it untyped)."""
+    return cast("Collection[MongoDocument]", vectorstore.collection)  # pyright: ignore[reportUnknownMemberType]
+
+
 def build_vector_store(
-    embedding: Embeddings | None = None, client: MongoClient | None = None
+    embedding: Embeddings | None = None, client: MongoClient[MongoDocument] | None = None
 ) -> MongoDBAtlasVectorSearch:
     """Return the vector store over ``MONGO_LONG_TERM_MEMORY_COLLECTION``.
 

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from langchain_core.documents import Document
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, AIMessageChunk
+from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_core.retrievers import BaseRetriever
 from langgraph.checkpoint.memory import InMemorySaver
@@ -24,7 +24,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
     from langchain_core.callbacks import CallbackManagerForLLMRun, CallbackManagerForRetrieverRun
-    from langchain_core.messages import BaseMessage
 
     from mentoragent.models.mentor_extract import MentorExtract
 
@@ -38,7 +37,7 @@ class ScriptedChatModel(BaseChatModel):
 
     responses: list[AIMessage]
     _index: int = PrivateAttr(default=0)
-    _received: list[list[BaseMessage]] = PrivateAttr(default_factory=list)
+    _received: list[list[BaseMessage]] = PrivateAttr(default_factory=list[list[BaseMessage]])
 
     @property
     def _llm_type(self) -> str:

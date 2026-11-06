@@ -4,8 +4,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from langchain_mongodb.index import create_fulltext_search_index
+# A public re-export of pymongo_search_utils, which we do not depend on directly.
+from langchain_mongodb.index import (
+    create_fulltext_search_index,  # pyright: ignore[reportPrivateImportUsage]
+)
 from loguru import logger
+
+from mentoragent.rag.retrievers import vector_collection
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -13,8 +18,10 @@ if TYPE_CHECKING:
     from langchain_mongodb import MongoDBAtlasVectorSearch
     from pymongo.collection import Collection
 
+    from mentoragent.db.client import MongoDocument
 
-def _index_exists(collection: Collection, index_name: str) -> bool:
+
+def _index_exists(collection: Collection[MongoDocument], index_name: str) -> bool:
     return any(True for _ in collection.list_search_indexes(index_name))
 
 
@@ -42,11 +49,12 @@ def create_search_indexes(
         wait_until_complete: Seconds to wait for each index to become queryable
             before raising ``TimeoutError``. ``None`` returns immediately.
     """
-    collection = vectorstore.collection
+    collection = vector_collection(vectorstore)
 
-    vector_index = vectorstore._index_name  # no public accessor in langchain-mongodb
+    # No public accessor in langchain-mongodb for the index name or text key.
+    vector_index = vectorstore._index_name  # pyright: ignore[reportPrivateUsage]
     exists = _index_exists(collection, vector_index)
-    vectorstore.create_vector_search_index(
+    vectorstore.create_vector_search_index(  # pyright: ignore[reportUnknownMemberType]
         dimensions=embedding_dim,
         filters=list(filter_fields),
         update=exists,
@@ -63,7 +71,7 @@ def create_search_indexes(
 
     create_fulltext_search_index(
         collection=collection,
-        field=vectorstore._text_key,  # no public accessor in langchain-mongodb
+        field=vectorstore._text_key,  # pyright: ignore[reportPrivateUsage]
         index_name=fulltext_index,
         wait_until_complete=wait_until_complete,
     )
