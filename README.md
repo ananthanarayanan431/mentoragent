@@ -117,7 +117,9 @@ mentoragent/
 │   ├── Dockerfile        # build with Node, serve with nginx
 │   └── nginx.conf.template
 ├── docker-compose.yml    # includes backend/docker-compose.yml
-└── .github/workflows/    # CI for both halves
+├── scripts/ci/           # the quality gates CI runs, one script per half
+├── .githooks/            # commit-msg and pre-commit hooks
+└── .github/              # CI, PR labels, CODEOWNERS, Dependabot
 ```
 
 Each half has its own README with the detail:
@@ -133,8 +135,10 @@ Each half has its own README with the detail:
 | Lint | `make lint` | `npm run lint` |
 | Types | `make typecheck` | `npm run typecheck` |
 | Test | `make test` | `npm test` |
-| Everything CI runs | `make check` | `npm run lint && npm run typecheck && npm test -- --run && npm run build` |
+| Everything CI runs | `make check` | `../scripts/ci/frontend-checks.sh` |
 
+CI runs `scripts/ci/python-checks.sh` and `scripts/ci/frontend-checks.sh`; run
+them from the repo root with `all` to include the dependency audits.
 `make help` in `backend/` lists every target, including the data pipeline
 (`make seed`, `make load-mentors`, `make create-memory`) and evaluation
 (`make evaluate`).

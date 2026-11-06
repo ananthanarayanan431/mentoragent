@@ -1,0 +1,26 @@
+{
+  // Prettier formats frontend files and Ruff formats Python; both read the repo's config.
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
+
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python",
+  "python.analysis.typeCheckingMode": "strict",
+
+  "typescript.tsdk": "frontend/node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "oxc.configPath": "frontend/.oxlintrc.json",
+
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.venv": true,
+    "backend/uv.lock": true,
+    "frontend/package-lock.json": true
+  }
+}
