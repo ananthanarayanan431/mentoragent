@@ -1,0 +1,29 @@
+# Marks pull requests with no activity for 14 days as Stale. Any new commit, comment or
+# review removes the label. Stale PRs are never closed automatically; issues are left alone.
+name: Stale PRs
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  pull-requests: write
+
+jobs:
+  stale:
+    name: Label inactive pull requests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-issue-stale: -1
+          days-before-issue-close: -1
+          days-before-pr-stale: 14
+          days-before-pr-close: -1
+          stale-pr-label: Stale
+          stale-pr-message: >-
+            This pull request has had no activity for 14 days, so it is marked Stale.
+            Push a commit or leave a comment to clear the label.
+          exempt-draft-pr: true
