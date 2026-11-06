@@ -25,7 +25,7 @@ async def ready() -> JSONResponse:
     """Readiness: dependencies (MongoDB) are reachable."""
     try:
         await asyncio.wait_for(get_async_mongo_client().admin.command("ping"), timeout=2)
-    except Exception:
+    except Exception:  # noqa: BLE001 - any failure means "not ready"; the traceback is logged
         logger.opt(exception=True).warning("Readiness check failed")
         return JSONResponse(status_code=503, content={"status": "unavailable"})
     return JSONResponse(content={"status": "ok"})

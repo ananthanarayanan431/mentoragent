@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
-from mentoragent.core.exceptions import MentorNotFoundException
+from mentoragent.core.exceptions import MentorNotFoundError
 from mentoragent.core.handlers import (
     REQUEST_ID_HEADER,
     register_exception_handlers,
@@ -29,7 +29,7 @@ def client() -> TestClient:
 
     @app.get("/missing")
     async def missing() -> None:
-        raise MentorNotFoundException("ada")
+        raise MentorNotFoundError("ada")
 
     @app.get("/boom")
     async def boom() -> None:

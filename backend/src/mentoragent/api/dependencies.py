@@ -10,7 +10,7 @@ from fastapi.security import APIKeyHeader
 from starlette.requests import HTTPConnection
 
 from mentoragent.core.config import settings
-from mentoragent.core.exceptions import PermissionException
+from mentoragent.core.exceptions import PermissionDeniedError
 from mentoragent.services.conversation import ConversationService
 from mentoragent.services.mentors import MentorService
 
@@ -33,7 +33,8 @@ async def require_api_key(api_key: Annotated[str | None, Security(_api_key_heade
     A no-op when ``API_KEY`` is not configured.
     """
     if not _key_is_valid(api_key):
-        raise PermissionException("Invalid or missing API key")
+        msg = "Invalid or missing API key"
+        raise PermissionDeniedError(msg)
 
 
 async def require_websocket_api_key(connection: HTTPConnection) -> None:

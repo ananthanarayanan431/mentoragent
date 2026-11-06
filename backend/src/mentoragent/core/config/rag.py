@@ -36,8 +36,9 @@ class RagSettings(BaseSettings):
     def check_overlap_smaller_than_chunk(self) -> Self:
         """Reject an overlap that would make the splitter loop forever."""
         if self.CHUNK_OVERLAP >= self.CHUNK_SIZE:
-            raise ValueError(
+            msg = (
                 f"RAG_CHUNK_OVERLAP ({self.CHUNK_OVERLAP}) must be smaller than "
                 f"RAG_CHUNK_SIZE ({self.CHUNK_SIZE})"
             )
+            raise ValueError(msg)
         return self

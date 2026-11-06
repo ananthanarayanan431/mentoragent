@@ -95,7 +95,8 @@ def get_all_tweets(
         response = client.tools.execute(tool_name=tool_name, input=inputs, user_id=user_id)
         output = response.output
         if output is not None and output.error is not None:
-            raise RuntimeError(f"{tool_name} failed: {output.error.message}")
+            msg = f"{tool_name} failed: {output.error.message}"
+            raise RuntimeError(msg)
 
         value = output.value if output is not None else None
         if not isinstance(value, dict):

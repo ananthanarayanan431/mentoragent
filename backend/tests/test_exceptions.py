@@ -5,22 +5,22 @@ from pydantic import BaseModel, ValidationError
 
 from mentoragent.core.exceptions import (
     MentorAgentError,
-    MentorStyleNotFoundException,
-    NotFoundException,
-    PermissionException,
+    MentorStyleNotFoundError,
+    NotFoundError,
+    PermissionDeniedError,
     unpack_validation_error,
 )
 
 
 def test_default_messages_and_status_codes() -> None:
-    assert PermissionException().status_code == 403
-    assert NotFoundException().message == "Object not found"
-    assert NotFoundException("custom").message == "custom"
+    assert PermissionDeniedError().status_code == 403
+    assert NotFoundError().message == "Object not found"
+    assert NotFoundError("custom").message == "custom"
 
 
 def test_mentor_errors_are_not_found_errors() -> None:
-    exc = MentorStyleNotFoundException("ada")
-    assert isinstance(exc, NotFoundException)
+    exc = MentorStyleNotFoundError("ada")
+    assert isinstance(exc, NotFoundError)
     assert isinstance(exc, MentorAgentError)
     assert exc.status_code == 404
     assert str(exc) == "Mentor style for id ada not found."

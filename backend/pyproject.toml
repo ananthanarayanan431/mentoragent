@@ -66,6 +66,7 @@ select = [
     "E", "W",  # pycodestyle
     "F",       # pyflakes
     "I",       # isort
+    "N",       # pep8-naming
     "UP",      # pyupgrade: modern syntax (list[str], X | None, ...)
     "FA",      # flake8-future-annotations
     "B",       # bugbear
@@ -78,12 +79,19 @@ select = [
     "PIE",
     "RET",
     "ERA",     # commented-out code
+    "ASYNC",   # async pitfalls (blocking calls in coroutines)
+    "TC",      # type-checking-only imports
+    "TID",     # banned imports (see below)
+    # Error-handling standard
+    "BLE",     # no blind `except Exception:` that swallows errors
+    "TRY",     # exception anti-patterns
+    "EM",      # message in a variable first, so tracebacks don't print it twice
 ]
 ignore = [
-    "S101",   # assert is fine in tests
     "S104",   # binding to 0.0.0.0 is intentional in containers
     "RUF012", # pydantic/class-level mutable defaults are fine
     "SIM300", # misfires on UPPER_CASE settings fields (treats them as constants)
+    "TRY003", # long messages outside the exception class: EM already covers this
 ]
 
 [tool.ruff.lint.isort]
@@ -92,8 +100,41 @@ required-imports = ["from __future__ import annotations"]
 known-first-party = ["mentoragent"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S", "T20"]
+# Tests may use assert, subprocess and print, and raise inline messages as fixtures.
+"tests/**" = ["S", "T20", "EM"]
 "main.py" = ["T20"]
+# FastAPI resolves route signatures (including Depends parameter types) at
+# runtime, so those imports must not move under `if TYPE_CHECKING:`.
+"src/mentoragent/api/routes/**" = ["TC001", "TC002", "TC003"]
+"src/mentoragent/api/dependencies.py" = ["TC001", "TC002", "TC003"]
+# Typer builds the CLI from the command signatures at runtime.
+"src/mentoragent/cli.py" = ["TC001", "TC002", "TC003"]
+
+# FastAPI dependency markers are meant to be called as default values.
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Security",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+]
+
+# Pydantic and FastAPI read annotations while the app runs, so moving their
+# imports under `if TYPE_CHECKING:` would crash at startup, not just lint.
+[tool.ruff.lint.flake8-type-checking]
+exempt-modules = ["typing", "typing_extensions", "fastapi"]
+runtime-evaluated-base-classes = [
+    "pydantic.BaseModel",
+    "pydantic_settings.BaseSettings",
+    "typing.TypedDict",
+]
+runtime-evaluated-decorators = ["pydantic.validate_call"]
+
+# Architecture rules as lint errors.
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"datetime.timezone".msg = "Use `from datetime import UTC` instead."
 
 # --- Mypy -------------------------------------------------------------------
 

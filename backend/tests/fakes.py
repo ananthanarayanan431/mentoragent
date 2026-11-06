@@ -13,7 +13,7 @@ from langchain_core.retrievers import BaseRetriever
 from langgraph.checkpoint.memory import InMemorySaver
 from pydantic import PrivateAttr
 
-from mentoragent.core.exceptions import MentorNotFoundException
+from mentoragent.core.exceptions import MentorNotFoundError
 from mentoragent.services.conversation import ConversationService
 from mentoragent.workflow.chains import Chains
 from mentoragent.workflow.graph import compile_graph
@@ -166,4 +166,4 @@ class InMemoryMentorService:
         try:
             return self.mentors[mentor_id]
         except KeyError:
-            raise MentorNotFoundException(mentor_id) from None
+            raise MentorNotFoundError(mentor_id) from None

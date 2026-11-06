@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from mentoragent.core.exceptions import MentorNotFoundException
+from mentoragent.core.exceptions import MentorNotFoundError
 
 if TYPE_CHECKING:
     from mentoragent.db.client import AsyncMongoRepository
@@ -27,9 +27,9 @@ class MentorService:
         """Return one mentor.
 
         Raises:
-            MentorNotFoundException: If no mentor has this id.
+            MentorNotFoundError: If no mentor has this id.
         """
         mentor = await self.repository.fetch_one({"id": mentor_id})
         if mentor is None:
-            raise MentorNotFoundException(mentor_id)
+            raise MentorNotFoundError(mentor_id)
         return mentor

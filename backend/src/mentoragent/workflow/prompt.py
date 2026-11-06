@@ -140,5 +140,5 @@ def register_prompts() -> None:
     for prompt in ALL_PROMPTS:
         try:
             opik.Prompt(name=prompt.name, prompt=prompt.prompt)
-        except Exception:
+        except Exception:  # noqa: BLE001 - prompt versioning is best effort
             logger.opt(exception=True).warning("Could not version prompt {} in Opik", prompt.name)

@@ -60,7 +60,7 @@ class EvaluationDatasetGenerator:
                         {"mentor": mentor, "document": chunk.page_content}
                     )
 
-                except Exception:
+                except Exception:  # noqa: BLE001 - one bad LLM sample must not end the run
                     logger.exception("Error generating dataset sample for {}", mentor.id)
                     continue
 
@@ -79,7 +79,8 @@ class EvaluationDatasetGenerator:
                 break
 
         if not dataset_samples:
-            raise RuntimeError("Could not generate any evaluation samples")
+            msg = "Could not generate any evaluation samples"
+            raise RuntimeError(msg)
 
         logger.info("Generated {} evaluation samples", len(dataset_samples))
         evaluation_dataset = EvaluationDataset(samples=dataset_samples)

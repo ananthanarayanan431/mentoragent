@@ -96,7 +96,7 @@ async def chat_websocket(
                 await websocket.send_json({"type": "error", "detail": exc.message})
             except WebSocketDisconnect:
                 raise
-            except Exception:
+            except Exception:  # noqa: BLE001 - keep the socket open; the traceback is logged
                 logger.exception("Unexpected error in WebSocket chat")
                 await websocket.send_json({"type": "error", "detail": "Internal Server Error"})
     except WebSocketDisconnect:

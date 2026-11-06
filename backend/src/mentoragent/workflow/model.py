@@ -107,10 +107,11 @@ class Models:
         )
         message = response.choices[0].message
         if message.parsed is None:
-            raise ValueError(
+            msg = (
                 f"Model returned no parsable {response_schema.__name__}: "
                 f"{message.refusal or message.content!r}"
             )
+            raise ValueError(msg)
         return message.parsed
 
     async def stream(

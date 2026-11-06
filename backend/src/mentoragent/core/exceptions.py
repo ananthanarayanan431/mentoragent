@@ -32,7 +32,7 @@ class MentorAgentError(Exception):
         super().__init__(self.message)
 
 
-class PermissionException(MentorAgentError):
+class PermissionDeniedError(MentorAgentError):
     """The user lacks the permission required to perform an action."""
 
     status_code = 403
@@ -46,14 +46,14 @@ class ConversationError(MentorAgentError):
     default_message = "The mentor could not respond right now. Please try again."
 
 
-class NotFoundException(MentorAgentError):
+class NotFoundError(MentorAgentError):
     """A requested object does not exist."""
 
     status_code = 404
     default_message = "Object not found"
 
 
-class MentorNotFoundException(NotFoundException):
+class MentorNotFoundError(NotFoundError):
     """No mentor exists for the given id."""
 
     field: ClassVar[str] = "Mentor"
@@ -63,25 +63,25 @@ class MentorNotFoundException(NotFoundException):
         super().__init__(f"{self.field} for id {mentor_id} not found.")
 
 
-class MentorNameNotFoundException(MentorNotFoundException):
+class MentorNameNotFoundError(MentorNotFoundError):
     """The mentor exists but has no name."""
 
     field = "Mentor name"
 
 
-class MentorPerspectiveNotFoundException(MentorNotFoundException):
+class MentorPerspectiveNotFoundError(MentorNotFoundError):
     """The mentor exists but has no perspective."""
 
     field = "Mentor perspective"
 
 
-class MentorStyleNotFoundException(MentorNotFoundException):
+class MentorStyleNotFoundError(MentorNotFoundError):
     """The mentor exists but has no style."""
 
     field = "Mentor style"
 
 
-class MentorExpertiseNotFoundException(MentorNotFoundException):
+class MentorExpertiseNotFoundError(MentorNotFoundError):
     """The mentor exists but has no expertise."""
 
     field = "Mentor expertise"

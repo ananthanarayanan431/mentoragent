@@ -18,7 +18,7 @@ from opik.evaluation.metrics import (
 
 from mentoragent.bootstrap import build_conversation_service
 from mentoragent.core.config import settings
-from mentoragent.core.exceptions import MentorNotFoundException
+from mentoragent.core.exceptions import MentorNotFoundError
 from mentoragent.db.client import MongoRepository
 from mentoragent.models.mentor_extract import MentorExtract
 from mentoragent.workflow.prompt import (
@@ -126,12 +126,12 @@ async def evaluation_task(
         ``input``, ``context``, ``output`` and ``expected_output`` for scoring.
 
     Raises:
-        MentorNotFoundException: If ``mentor_id`` is not in the database.
+        MentorNotFoundError: If ``mentor_id`` is not in the database.
     """
     mentor_id = sample["mentor_id"]
     mentor = await asyncio.to_thread(mentors.fetch_one, {"id": mentor_id})
     if mentor is None:
-        raise MentorNotFoundException(mentor_id)
+        raise MentorNotFoundError(mentor_id)
 
     input_messages = sample["messages"][:-1]
     reply = await conversations.respond(

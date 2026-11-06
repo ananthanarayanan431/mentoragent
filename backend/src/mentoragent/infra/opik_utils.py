@@ -8,6 +8,7 @@ from typing import Any
 import opik
 from loguru import logger
 from opik.configurator.configure import OpikConfigurator
+from opik.rest_api.errors import NotFoundError
 
 from mentoragent.core.config import settings
 
@@ -15,8 +16,10 @@ from mentoragent.core.config import settings
 def _default_workspace(api_key: str) -> str | None:
     try:
         return OpikConfigurator(api_key=api_key)._get_default_workspace()
-    except Exception:
-        logger.warning("Could not resolve the default Opik workspace; using Opik's default")
+    except Exception:  # noqa: BLE001 - tracing is optional; fall back to Opik's default
+        logger.opt(exception=True).warning(
+            "Could not resolve the default Opik workspace; using Opik's default"
+        )
         return None
 
 
@@ -37,7 +40,7 @@ def configure_opik() -> bool:
     os.environ["OPIK_PROJECT_NAME"] = comet.PROJECT
     try:
         opik.configure(api_key=api_key, workspace=workspace, use_local=False, force=True)
-    except Exception:
+    except Exception:  # noqa: BLE001 - tracing is optional and must never stop the app
         logger.opt(exception=True).warning("Could not configure Opik; tracing disabled")
         return False
 
@@ -52,7 +55,7 @@ def get_opik_dataset(name: str) -> opik.Dataset | None:
     """Return the named Opik dataset, or ``None`` if it does not exist."""
     try:
         return opik.Opik().get_dataset(name=name)
-    except Exception:
+    except NotFoundError:
         return None
 
 

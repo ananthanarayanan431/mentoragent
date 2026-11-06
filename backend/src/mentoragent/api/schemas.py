@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 from mentoragent.core.config import settings
-from mentoragent.models.mentor_extract import MentorExtract
+
+if TYPE_CHECKING:
+    from mentoragent.models.mentor_extract import MentorExtract
 
 MentorId = Annotated[str, StringConstraints(min_length=1, max_length=128)]
 # Restricted alphabet: the id becomes part of the checkpointer thread id.
@@ -31,7 +33,8 @@ class ChatRequest(BaseModel):
     @classmethod
     def limit_length(cls, v: str) -> str:
         if len(v) > settings.agent.MAX_MESSAGE_CHARS:
-            raise ValueError(f"must be at most {settings.agent.MAX_MESSAGE_CHARS} characters")
+            msg = f"must be at most {settings.agent.MAX_MESSAGE_CHARS} characters"
+            raise ValueError(msg)
         return v
 
 

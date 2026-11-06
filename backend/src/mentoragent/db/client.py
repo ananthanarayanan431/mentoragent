@@ -129,7 +129,8 @@ class MongoRepository(Generic[T]):
         """
         payload = [doc.model_dump(exclude={"_id"}) for doc in documents]
         if not payload:
-            raise ValueError("No documents to ingest.")
+            msg = "No documents to ingest."
+            raise ValueError(msg)
 
         self.collection.insert_many(payload)
         logger.debug("Inserted {} documents into {}", len(payload), self.collection.name)
