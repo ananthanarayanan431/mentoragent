@@ -23,15 +23,23 @@ npm install
 
 ## Before you push
 
-Run the same checks CI runs:
+Run the same checks CI runs, from the repo root:
 
 ```bash
-cd backend  && make check
-cd frontend && npm run lint && npm run typecheck && npm test -- --run && npm run build
+scripts/ci/python-checks.sh all     # ruff, pyright strict, pytest + coverage floor, pip-audit
+scripts/ci/frontend-checks.sh all   # prettier, oxlint, tsc, vitest, build, npm audit
 ```
 
-CI runs both halves plus a Docker build of each image on every push and pull
-request.
+CI calls exactly these scripts, so a local pass means a CI pass. On pull
+requests CI skips the half a change does not touch; pushes to `main` always
+run everything, plus a Docker build of each image.
+
+- **Coverage** must stay at or above the floor in `backend/pyproject.toml`
+  (`[tool.coverage.report] fail_under`). Raise it when coverage grows; never
+  lower it.
+- **Dependency audits are blocking.** Fix a finding by upgrading the package.
+  If no fix can be installed, add the advisory to `AUDIT_IGNORES` in
+  `scripts/ci/python-checks.sh` with the reason and the date.
 
 ## Conventions
 

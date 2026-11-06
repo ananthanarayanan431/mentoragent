@@ -1,9 +1,18 @@
+# Quality gates. CI runs exactly what developers run locally:
+#   Backend:   scripts/ci/python-checks.sh [unit|audit]
+#   Frontend:  scripts/ci/frontend-checks.sh [unit|audit]
+#   Images:    a Docker build of backend/ and frontend/
+#
+# Pull requests run only the gates for the areas they touch. Pushes to main and
+# manual runs always run everything. A skipped job reports as "skipped", which
+# satisfies required checks.
 name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
 # A newer push to the same branch cancels the run still in progress.
@@ -15,14 +24,39 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ github.event_name != 'pull_request' || steps.filter.outputs.backend == 'true' }}
+      frontend: ${{ github.event_name != 'pull_request' || steps.filter.outputs.frontend == 'true' }}
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            ci: &ci
+              - .github/workflows/ci.yml
+              - scripts/ci/**
+            backend:
+              - *ci
+              - backend/**
+              - docker-compose.yml
+            frontend:
+              - *ci
+              - frontend/**
+
   backend:
-    name: Backend
+    name: Backend lint, types, tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: backend
-
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     steps:
       - uses: actions/checkout@v7
 
@@ -36,23 +70,31 @@ jobs:
 
       - name: Install Python
         # Reads backend/.python-version, the same pin used locally.
+        working-directory: backend
         run: uv python install
 
-      - name: Install dependencies
-        # --locked fails the build if uv.lock is stale against pyproject.toml.
-        run: uv sync --locked
+      - name: Unit gate
+        # Also enforces the coverage floor from [tool.coverage.report].
+        run: scripts/ci/python-checks.sh unit
 
-      - name: Lint, type-check and test
-        run: make check
+  backend-audit:
+    name: Backend dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+      - name: Audit gate
+        run: scripts/ci/python-checks.sh audit
 
   frontend:
-    name: Frontend
+    name: Frontend lint, types, tests, build, audit
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: frontend
-
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     steps:
       - uses: actions/checkout@v7
 
@@ -62,30 +104,37 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
-        # `ci` installs exactly what package-lock.json pins, and fails if the
-        # lockfile and package.json disagree.
-        run: npm ci
+      - name: Unit gate
+        run: scripts/ci/frontend-checks.sh unit
 
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test -- --run
-      - run: npm run build
+      - name: Audit gate (production, high and above)
+        run: scripts/ci/frontend-checks.sh audit
 
   docker:
-    name: Docker images build
+    name: Docker image (${{ matrix.image }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs: [changes, backend, frontend]
+    # Runs when the matching area changed and no gate failed (a skipped gate is fine).
+    if: >-
+      !cancelled() && !contains(needs.*.result, 'failure') &&
+      (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true')
     strategy:
       fail-fast: false
       matrix:
         image: [backend, frontend]
-
     steps:
+      - name: Skip an image whose area did not change
+        id: wanted
+        run: echo "build=${{ needs.changes.outputs[matrix.image] }}" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v7
+        if: steps.wanted.outputs.build == 'true'
       - uses: docker/setup-buildx-action@v4
+        if: steps.wanted.outputs.build == 'true'
 
       - name: Build ${{ matrix.image }}
+        if: steps.wanted.outputs.build == 'true'
         uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.image }}

@@ -13,7 +13,7 @@ CLI         := $(UV) run mentoragent
 
 .PHONY: help install env up down restart logs ps mongo-shell mongo-reset run serve shell \
         load-mentors create-memory seed evaluate docker-up docker-down \
-        lint format typecheck test check hooks clean
+        lint format typecheck test check audit coverage hooks clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -102,8 +102,14 @@ typecheck: ## Type-check with pyright (strict)
 test: ## Run the test suite
 	$(UV) run pytest
 
-check: lint typecheck test ## Everything CI should run
-	$(UV) run ruff format --check src tests main.py
+check: ## Everything CI runs: lint, format, pyright, tests with the coverage floor
+	../scripts/ci/python-checks.sh unit
+
+audit: ## Scan the locked runtime dependencies for known vulnerabilities
+	../scripts/ci/python-checks.sh audit
+
+coverage: ## Run the tests with a line-by-line coverage report
+	$(UV) run pytest --cov --cov-report=term-missing
 
 clean: ## Remove Python build/cache artefacts
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +

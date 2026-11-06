@@ -41,6 +41,7 @@ dev = [
     "pyright==1.1.414",
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
     "ruff>=0.8.0",
 ]
 
@@ -154,3 +155,17 @@ reportMissingTypeStubs = false
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-ra --strict-markers"
+
+# --- Coverage ---------------------------------------------------------------
+# scripts/ci/python-checks.sh measures coverage when this section exists and
+# fails under the floor. Raise the floor as coverage grows; never lower it.
+
+[tool.coverage.run]
+source = ["mentoragent"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 75
+show_missing = true
+skip_covered = true
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]
