@@ -71,6 +71,14 @@ Enforced by ruff and pyright (strict); the full reasoning is in
   site data is blocked, and the app must work without it.
 - **Normalise errors** into `ApiError` with a message fit to show a user.
 - Components stay small and live in `src/components/`, pages in `src/pages/`.
+- **Lint is oxlint** with the `correctness`, `suspicious` and `perf`
+  categories as errors (`.oxlintrc.json`); `--deny-warnings` in the hook.
+  Deliberately off: `react-in-jsx-scope` (the automatic JSX runtime makes it
+  obsolete), `exhaustive-effect-dependencies` (it flags intentional trigger
+  dependencies; `react/exhaustive-deps` stays on), `prefer-tag-over-role`
+  (`role="status"` is the right live region, `<output>` is for form results)
+  and `prefer-add-event-listener` (each socket is private to its hook and has
+  exactly one handler per event).
 
 ### Commits
 
