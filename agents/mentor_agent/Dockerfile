@@ -1,4 +1,6 @@
 # syntax=docker/dockerfile:1
+# Build from the repo root, like every image in this repo:
+#   docker build -f agents/mentor_agent/Dockerfile .
 
 # ---- build: resolve dependencies into a virtualenv with uv ----------------
 # Keep in step with .python-version: the image runs the Python the tests run on.
@@ -8,11 +10,11 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
 WORKDIR /app
 
 # Dependencies first, so code changes don't invalidate this layer.
-COPY pyproject.toml uv.lock README.md ./
+COPY agents/mentor_agent/pyproject.toml agents/mentor_agent/uv.lock agents/mentor_agent/README.md ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-install-project
 
-COPY mentor_agent ./mentor_agent
+COPY agents/mentor_agent/mentor_agent ./mentor_agent
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-editable
 
@@ -33,7 +35,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
 RUN useradd --create-home --uid 1000 app
 WORKDIR /app
 COPY --from=build --chown=app:app /app/.venv /app/.venv
-COPY --chown=app:app data ./data
+COPY --chown=app:app agents/mentor_agent/data ./data
 USER app
 
 EXPOSE 8000

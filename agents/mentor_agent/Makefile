@@ -1,117 +1,62 @@
-# MentorAgents backend
-#
-# `make` on its own prints the available targets.
-
-SHELL       := /bin/bash
+# Shortcuts for the mentor agent; run from this directory (`make` lists them).
+# The gates are the CI ones (scripts/ci/python-checks.sh), run from the repo root.
+# MongoDB runs from infra/: make -C ../../infra up
 .DEFAULT_GOAL := help
+.PHONY: help install env dev seed evaluate fmt test audit coverage shell \
+        docker-up docker-down docker-logs docker-ps clean
 
-COMPOSE     ?= docker compose
-UV          ?= uv
-MONGO_SVC   ?= mongo
+ROOT := ../..
+GATE := cd $(ROOT) && scripts/ci/python-checks.sh agents/mentor_agent
+COMPOSE := docker compose -f $(ROOT)/infra/docker-compose.backend.yml
+SERVICE := mentor-agent-api
 
-CLI         := $(UV) run mentoragent
+help: ## List the targets
+	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
 
-.PHONY: help install env up down restart logs ps mongo-shell mongo-reset run serve shell \
-        load-mentors create-memory seed evaluate docker-up docker-down \
-        lint format typecheck test check audit coverage hooks clean
-
-help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
-		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
-
-# --- Setup -----------------------------------------------------------------
-
-install: ## Sync the virtualenv (incl. dev tools) from uv.lock
-	$(UV) sync
-
-hooks: ## Use the repo's git hooks (.githooks): commit message and staged-file checks
-	git config core.hooksPath .githooks
+install: ## Sync the virtualenv (with dev tools) from uv.lock
+	uv sync --locked
 
 env: ## Create .env from .env.example (never overwrites an existing .env)
-	@test -f .env && echo ".env already exists - leaving it alone" \
-		|| (cp .env.example .env && echo "Created .env - fill in the API keys")
+	@test -f .env && echo ".env already exists, leaving it alone" \
+		|| (cp .env.example .env && echo "Created .env: fill in the API keys")
 
-# --- MongoDB ---------------------------------------------------------------
+dev: ## Run the API with reload on :8000 (MongoDB must be up)
+	./run.sh api
 
-up: ## Start MongoDB and block until it reports healthy
-	$(COMPOSE) up -d --wait $(MONGO_SVC)
+seed: ## Load the mentors and build their long-term memory (calls the embeddings API)
+	./run.sh seed
 
-down: ## Stop MongoDB (data volumes are kept)
-	$(COMPOSE) down
+evaluate: ## Generate an evaluation dataset and score the agent with Opik
+	./run.sh evaluate
 
-restart: down up ## Restart MongoDB
+fmt: ## Format the code and apply safe lint fixes
+	uv run ruff format .
+	uv run ruff check --fix .
 
-logs: ## Tail the MongoDB logs
-	$(COMPOSE) logs -f $(MONGO_SVC)
+test: ## Lint, format check, Pyright strict, tests and coverage floor (CI unit gate)
+	$(GATE) unit
 
-ps: ## Show container status
-	$(COMPOSE) ps
+audit: ## Dependency audit (pip-audit on the locked runtime dependencies)
+	$(GATE) audit
 
-mongo-shell: ## Open a mongosh session inside the container
-	$(COMPOSE) exec $(MONGO_SVC) mongosh \
-		--username "$$(grep -E '^MONGO_USER=' .env | cut -d= -f2-)" \
-		--password "$$(grep -E '^MONGO_PASSWORD=' .env | cut -d= -f2-)" \
-		--authenticationDatabase admin
+coverage: ## Tests with a line-by-line coverage report
+	uv run pytest tests --cov --cov-report=term-missing
 
-mongo-reset: ## DESTRUCTIVE - drop the containers AND the data volumes
-	@echo "This deletes every document in the local MongoDB. Ctrl-C to abort."
-	@read -r -p "Type 'yes' to continue: " ans && [ "$$ans" = "yes" ]
-	$(COMPOSE) down -v
+shell: ## Python REPL with the project environment
+	uv run python
 
-# --- Application -----------------------------------------------------------
+docker-up: ## Build and start the agent in Docker (infra must be up)
+	$(COMPOSE) up -d --build --wait $(SERVICE)
 
-run: up ## Start MongoDB, then run the API (settings from .env)
-	$(CLI) serve
+docker-down: ## Stop and remove the agent's container only
+	$(COMPOSE) rm -sf $(SERVICE)
 
-serve: up ## Start MongoDB, then run the API with autoreload
-	$(CLI) serve --reload
+docker-logs: ## Follow the agent's Docker logs
+	$(COMPOSE) logs -f $(SERVICE)
 
-load-mentors: up ## Upsert the mentors from data/extraction_metadata.json
-	$(CLI) load-mentors
+docker-ps: ## Show the agent's container
+	$(COMPOSE) ps -a $(SERVICE)
 
-create-memory: up ## Extract sources and rebuild the long-term memory (calls the embeddings API)
-	$(CLI) create-memory
-
-seed: load-mentors create-memory ## First-time setup: mentors + long-term memory
-
-evaluate: up ## Generate an evaluation dataset and score the agent with Opik
-	$(CLI) generate-dataset
-	$(CLI) evaluate
-
-docker-up: ## Build and run MongoDB + the API in containers
-	$(COMPOSE) --profile app up -d --build --wait
-
-docker-down: ## Stop the containers (data volumes are kept)
-	$(COMPOSE) --profile app down
-
-shell: ## Open a Python REPL with the project environment loaded
-	$(UV) run python
-
-# --- Quality ---------------------------------------------------------------
-
-lint: ## Lint with ruff
-	$(UV) run ruff check .
-
-format: ## Auto-fix lint issues and format the code
-	$(UV) run ruff check --fix .
-	$(UV) run ruff format .
-
-typecheck: ## Type-check with pyright (strict)
-	$(UV) run pyright
-
-test: ## Run the test suite
-	$(UV) run pytest tests
-
-check: ## Everything CI runs: lint, format, pyright, tests with the coverage floor
-	cd ../.. && scripts/ci/python-checks.sh agents/mentor_agent unit
-
-audit: ## Scan the locked runtime dependencies for known vulnerabilities
-	cd ../.. && scripts/ci/python-checks.sh agents/mentor_agent audit
-
-coverage: ## Run the tests with a line-by-line coverage report
-	$(UV) run pytest --cov --cov-report=term-missing
-
-clean: ## Remove Python build/cache artefacts
+clean: ## Remove Python build and cache files
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
-	find . -type d -name '*.egg-info' -prune -exec rm -rf {} +
 	rm -rf .pytest_cache .ruff_cache .coverage coverage.xml

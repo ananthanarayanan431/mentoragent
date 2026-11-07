@@ -1,0 +1,29 @@
+# The mentor agent API: its own compose project, joined to the infra's network.
+# Usually driven by `make -C agents/mentor_agent docker-up`. Directly, from the
+# repo root, with the infra already up (make -C infra up):
+#   docker compose -f infra/docker-compose.backend.yml up -d --build
+#
+# Compose cannot wait on another project's services, so the infra must be healthy
+# before `up`; the API refuses to start while MongoDB is unreachable.
+name: mentoragent-agents
+
+services:
+  mentor-agent-api:
+    build:
+      context: ..
+      dockerfile: agents/mentor_agent/Dockerfile
+    image: mentoragent/mentor-agent:local
+    container_name: mentoragent-mentor-agent-api
+    restart: unless-stopped
+    # The agent's own settings (API keys, models). MONGO_URI is overridden below
+    # because inside the network MongoDB is reached by container name.
+    env_file: ../agents/mentor_agent/.env
+    environment:
+      MONGO_URI: mongodb://${MONGO_USER:-mentor_user}:${MONGO_PASSWORD:-mentor_password}@mentoragent-mongo:27017/?directConnection=true
+    ports:
+      - "${MENTOR_AGENT_PORT:-8000}:8000"
+
+networks:
+  default:
+    name: mentoragent-net
+    external: true

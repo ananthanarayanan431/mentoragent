@@ -1,0 +1,23 @@
+# Every image builds from the repo root (docker build -f <dir>/Dockerfile .), so
+# this file decides what reaches any build context.
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/*.egg-info
+**/.pytest_cache
+**/.ruff_cache
+**/coverage
+.git
+.github
+.githooks
+.claude
+.vscode
+docs
+infra
+scripts
+**/tests
+**/.env
+**/.env.*
+!**/.env.example
+**/*.tsbuildinfo

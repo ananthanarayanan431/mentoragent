@@ -48,7 +48,8 @@ jobs:
               - agents/**
               - pyproject.toml
               - .python-version
-              - docker-compose.yml
+              - infra/**
+              - .dockerignore
             frontend:
               - *ci
               - frontend/**
@@ -126,10 +127,12 @@ jobs:
       matrix:
         include:
           - image: mentor-agent
-            context: agents/mentor_agent
+            context: .
+            file: agents/mentor_agent/Dockerfile
             area: backend
           - image: web
             context: frontend
+            file: frontend/Dockerfile
             area: frontend
     steps:
       - name: Skip an image whose area did not change
@@ -146,6 +149,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
           push: false
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}

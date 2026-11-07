@@ -1,0 +1,26 @@
+# The web app (React, served by nginx): its own compose project, joined to the
+# infra's network like the agent. From the repo root, with the agent running:
+#   docker compose -f infra/docker-compose.frontend.yml up -d --build
+#
+# nginx reverse-proxies /api to the agent, so the browser talks to one origin.
+# Until the agent answers, API calls return the proxy's 502 instead of the web
+# app failing to start.
+name: mentoragent-web
+
+services:
+  web:
+    build:
+      context: ../frontend
+    image: mentoragent/web:local
+    container_name: mentoragent-web
+    restart: unless-stopped
+    environment:
+      # The agent's container name on mentoragent-net (docker-compose.backend.yml).
+      BACKEND_HOST: mentoragent-mentor-agent-api:8000
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+
+networks:
+  default:
+    name: mentoragent-net
+    external: true
