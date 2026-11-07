@@ -17,12 +17,19 @@ const MENTORS: Mentor[] = [
 const game = vi.hoisted(() => ({
   bridge: null as WorldBridge | null,
   destroyed: 0,
+  fail: false,
+  started: [] as { id: string; name: string }[][],
   commands: [] as { name: string; payload: unknown }[],
 }))
 
 vi.mock('./game/create-game', () => ({
-  createGame: (_parent: HTMLElement, options: { bridge: WorldBridge }) => {
+  createGame: (
+    _parent: HTMLElement,
+    options: { bridge: WorldBridge; mentors: { id: string; name: string }[] },
+  ) => {
+    if (game.fail) throw new Error('WebGL unavailable')
     game.bridge = options.bridge
+    game.started.push(options.mentors)
     for (const name of ['input', 'labels', 'endTalk'] as const) {
       options.bridge.commands.on(name, (payload) => game.commands.push({ name, payload }))
     }
@@ -64,6 +71,8 @@ function lastInput(): boolean | undefined {
 beforeEach(() => {
   window.localStorage.clear()
   game.bridge = null
+  game.fail = false
+  game.started = []
   game.commands = []
   api.listMentors.mockResolvedValue(MENTORS)
 })
@@ -146,5 +155,59 @@ describe('WorldPage', () => {
       </MemoryRouter>,
     )
     expect(await screen.findByText('The square is closed')).toBeInTheDocument()
+  })
+
+  it('says so when the game cannot start, instead of hanging on the spinner', async () => {
+    game.fail = true
+    render(
+      <MemoryRouter>
+        <WorldPage />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Mentor Square could not start')).toBeInTheDocument()
+    expect(screen.queryByText('Drawing the square')).not.toBeInTheDocument()
+  })
+
+  it('places at most eight mentors, one per spawn spot', async () => {
+    api.listMentors.mockResolvedValue(
+      Array.from({ length: 11 }, (_, i) => ({
+        id: `m${i}`,
+        name: `Mentor ${i}`,
+        expertise: '',
+        perspective: '',
+        style: '',
+      })),
+    )
+    await renderWorld()
+
+    expect(game.started.at(-1)).toHaveLength(8)
+    expect(screen.getByText(/8 mentors are strolling/)).toBeInTheDocument()
+  })
+
+  it('loads the mentors again when the player retries', async () => {
+    const user = userEvent.setup()
+    api.listMentors.mockRejectedValueOnce(new Error('offline'))
+    render(
+      <MemoryRouter>
+        <WorldPage />
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: /try again/i }))
+
+    await waitFor(() => expect(game.bridge).not.toBeNull())
+    expect(api.listMentors).toHaveBeenCalledTimes(2)
+  })
+
+  it('destroys the game when the page goes away', async () => {
+    const { unmount } = render(
+      <MemoryRouter>
+        <WorldPage />
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(game.bridge).not.toBeNull())
+    const before = game.destroyed
+    unmount()
+    expect(game.destroyed).toBe(before + 1)
   })
 })

@@ -1,4 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
+
+import { ApiError } from '@/lib/api'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ChatRequest, ServerEvent } from '@/lib/types'
@@ -10,11 +12,19 @@ const socket = vi.hoisted(() => ({
   accept: true,
   sent: [] as ChatRequest[],
   onEvent: null as ((event: ServerEvent) => void) | null,
+  onDropped: null as (() => void) | null,
 }))
 
 vi.mock('./use-chat-socket', () => ({
-  useChatSocket: ({ onEvent }: { onEvent: (event: ServerEvent) => void }) => {
+  useChatSocket: ({
+    onEvent,
+    onDropped,
+  }: {
+    onEvent: (event: ServerEvent) => void
+    onDropped?: () => void
+  }) => {
     socket.onEvent = onEvent
+    socket.onDropped = onDropped ?? null
     return {
       status: 'open',
       reconnect: () => {},
@@ -133,5 +143,56 @@ describe('useMentorConversation', () => {
 
     expect(result.current.state.messages).toEqual([])
     expect(api.deleteConversation).toHaveBeenCalledWith('ada', 'c1')
+  })
+
+  it('shows why the HTTP fallback failed', async () => {
+    socket.accept = false
+    api.sendChat.mockRejectedValueOnce(new ApiError('The mentor is busy.', 429))
+    api.sendChat.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    const { result } = renderHook(() => useMentorConversation('ada'))
+
+    act(() => {
+      result.current.send('One')
+    })
+    await waitFor(() => expect(result.current.state.isStreaming).toBe(false))
+    expect(result.current.state.messages.at(-1)).toMatchObject({
+      failed: true,
+      content: expect.stringContaining('The mentor is busy.'),
+    })
+
+    act(() => {
+      result.current.send('Two')
+    })
+    await waitFor(() => expect(result.current.state.isStreaming).toBe(false))
+    // A non-API error never leaks its technical message to the player.
+    expect(result.current.state.messages.at(-1)?.content).toContain('could not be sent')
+    expect(result.current.state.messages.at(-1)?.content).not.toContain('Failed to fetch')
+  })
+
+  it('settles a reply that the socket dropped half way', () => {
+    const { result } = renderHook(() => useMentorConversation('ada'))
+    act(() => {
+      result.current.send('Hello')
+    })
+    serverSends({ type: 'chunk', content: 'Half a' })
+
+    act(() => socket.onDropped?.())
+
+    expect(result.current.state.isStreaming).toBe(false)
+    expect(result.current.state.messages.at(-1)?.failed).toBe(true)
+    // The next message can go out again.
+    act(() => {
+      expect(result.current.send('Again')).toBe(true)
+    })
+  })
+
+  it('does not save a half-written reply while it streams', () => {
+    const { result } = renderHook(() => useMentorConversation('ada'))
+    act(() => {
+      result.current.send('Hello')
+    })
+    serverSends({ type: 'chunk', content: 'Partial' })
+
+    expect(window.localStorage.length).toBe(0)
   })
 })
