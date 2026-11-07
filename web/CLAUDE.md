@@ -17,17 +17,31 @@
 
 ## Key Files
 
-| File                                   | Purpose                                                     |
-| -------------------------------------- | ----------------------------------------------------------- |
-| `src/app/app.tsx`                      | Routes and the app shell                                    |
-| `src/features/chat/chat-state.ts`      | Pure reducer for the streaming protocol (no DOM, no socket) |
-| `src/features/chat/use-chat-socket.ts` | Socket lifecycle, reconnect with backoff                    |
-| `src/features/chat/storage.ts`         | Per-mentor conversation persistence (wrapped localStorage)  |
-| `src/lib/api.ts`                       | REST client; every failure becomes an `ApiError`            |
-| `src/lib/types.ts`                     | REST types from the contract, WebSocket events, UI types    |
-| `src/app/globals.css`                  | Semantic colour tokens for both themes                      |
+| File                                           | Purpose                                                                 |
+| ---------------------------------------------- | ----------------------------------------------------------------------- |
+| `src/app/app.tsx`                              | Routes: `/` the square, `/mentors` the list, `/chat/:id`                |
+| `src/features/world/world-page.tsx`            | Mentor Square: loads Phaser lazily, owns every menu                     |
+| `src/features/world/world-bridge.ts`           | Typed events/commands: the only link to the game                        |
+| `src/features/world/game/`                     | The game: map, wandering, appearance, art, Phaser scene                 |
+| `src/features/chat/use-mentor-conversation.ts` | One conversation (socket, reducer, storage); chat page and dialogue box |
+| `src/features/chat/chat-state.ts`              | Pure reducer for the streaming protocol (no DOM, no socket)             |
+| `src/features/chat/use-chat-socket.ts`         | Socket lifecycle, reconnect with backoff                                |
+| `src/features/chat/storage.ts`                 | Per-mentor conversation persistence (wrapped localStorage)              |
+| `src/lib/api.ts`                               | REST client; every failure becomes an `ApiError`                        |
+| `src/lib/types.ts`                             | REST types from the contract, WebSocket events, UI types                |
+| `src/app/globals.css`                          | Semantic colour tokens for both themes                                  |
 
 ## Rules
+
+- The game: Phaser code lives only in `features/world/game/` (`world-scene.ts`,
+  `create-game.ts`, `art.ts`) and is imported only through the lazy
+  `import('./game/create-game')`. Decisions (map, wandering, who is in reach,
+  appearance) go in pure modules with unit tests; the scene draws and moves.
+  Menus and the dialogue are React; the two sides talk only through the bridge.
+- The game never captures keys: Space and the arrows must keep working in the
+  dialogue's text box. React disables game input while a menu or dialogue is open.
+- All game art is drawn in code (`art.ts`). Do not add art from other games or
+  packs; a new mentor gets a sprite from `appearanceFor(id)` automatically.
 
 - Layout: `app/` is the shell, `components/` is UI shared by features,
   `features/<name>/` holds everything one feature needs (page, components, hooks,

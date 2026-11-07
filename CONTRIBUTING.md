@@ -20,16 +20,17 @@ pnpm install                                # web app and libs
 
 ## Where things go
 
-| You are adding...                 | It goes in                                                  |
-| --------------------------------- | ----------------------------------------------------------- |
-| A Python service                  | `agents/<name>_agent/`, laid out like `agents/mentor_agent` |
-| An agent route / its request body | `routes/v1/<area>.py` / `schemas/v1/<area>.py`              |
-| An agent setting                  | `config/<group>.py`, read as `settings.<group>.<FIELD>`     |
-| A web feature                     | `web/src/features/<name>/` (page, components, hooks, tests) |
-| UI shared by features             | `web/src/components/`                                       |
-| A framework-free web helper       | `web/src/lib/`                                              |
-| Shared TypeScript code            | `libs/<name>/`, a workspace package                         |
-| A container or compose service    | `infra/` (images build from the repo root)                  |
+| You are adding...                 | It goes in                                                                                  |
+| --------------------------------- | ------------------------------------------------------------------------------------------- |
+| A Python service                  | `agents/<name>_agent/`, laid out like `agents/mentor_agent`                                 |
+| An agent route / its request body | `routes/v1/<area>.py` / `schemas/v1/<area>.py`                                              |
+| An agent setting                  | `config/<group>.py`, read as `settings.<group>.<FIELD>`                                     |
+| A web feature                     | `web/src/features/<name>/` (page, components, hooks, tests)                                 |
+| Something in Mentor Square        | `web/src/features/world/`: logic in `game/*.ts` with tests, Phaser in `game/world-scene.ts` |
+| UI shared by features             | `web/src/components/`                                                                       |
+| A framework-free web helper       | `web/src/lib/`                                                                              |
+| Shared TypeScript code            | `libs/<name>/`, a workspace package                                                         |
+| A container or compose service    | `infra/` (images build from the repo root)                                                  |
 
 ## Before you push
 

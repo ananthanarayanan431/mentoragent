@@ -22,6 +22,13 @@ pages, YouTube transcripts and tweets are extracted, de-duplicated, embedded and
 stored in MongoDB Atlas, then retrieved as context when you ask a question.
 Replies stream back token by token.
 
+The web app opens on **Mentor Square**, a small pixel-art town where the mentors
+wander around. Walk up to one (arrow keys, WASD, or tap) and press Space to talk;
+the reply streams into a dialogue box. A quest log tracks who you've met. Prefer a
+plain chat? The classic list and chat pages are one click away.
+
+![Mentor Square: the player next to Charlie Munger on the plaza](docs/images/mentor-square.png)
+
 | Service      | Where                         | Port  | Docs                                                             |
 | ------------ | ----------------------------- | ----- | ---------------------------------------------------------------- |
 | Mentor agent | `agents/mentor_agent`         | 8000  | [`agents/mentor_agent/CLAUDE.md`](agents/mentor_agent/CLAUDE.md) |

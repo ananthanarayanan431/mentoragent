@@ -104,6 +104,8 @@ web/
     ├── app/                 # shell: app.tsx (routes), main.tsx, globals.css, not-found page
     ├── components/          # shared UI: avatar, header, error boundary, state views, theme toggle
     ├── features/
+    │   ├── world/           # Mentor Square: page, menus, dialogue box, bridge, progress
+    │   │   └── game/        # map, wandering, appearance, art (drawn in code), Phaser scene
     │   ├── chat/            # chat page and components, socket hook, streaming reducer, storage
     │   └── mentors/         # mentors page and card
     ├── lib/                 # api client, config, types (from the contract), theme hook
