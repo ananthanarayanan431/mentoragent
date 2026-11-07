@@ -11,7 +11,7 @@ function initials(name: string): string {
 
 interface Props {
   name: string
-  src?: string | null
+  src?: string | null | undefined
   /** Rendered size in pixels; also drives the font size of the fallback. */
   size?: number
   className?: string

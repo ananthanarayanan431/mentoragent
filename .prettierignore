@@ -1,4 +1,6 @@
-# Generated
+# Generated: must match the OpenAPI export byte for byte
+libs/*/openapi.json
+libs/*/src/schema.d.ts
 pnpm-lock.yaml
 **/uv.lock
 **/dist

@@ -52,6 +52,9 @@ jobs:
             web:
               - *ci
               - web/**
+              - libs/**
+              # The contract check exports the agent's OpenAPI document.
+              - agents/**
               - package.json
               - pnpm-lock.yaml
               - pnpm-workspace.yaml
@@ -121,8 +124,22 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/uv.lock"
       - name: Install
         run: pnpm install --frozen-lockfile
+      - name: Contract check (OpenAPI snapshot and generated types)
+        # Fails when the agent's API changed without regenerating its web contract:
+        #   make -C agents/mentor_agent openapi
+        # The key only satisfies settings validation; nothing is called.
+        env:
+          OPENROUTER_API_KEY: ci-placeholder
+        run: |
+          (cd agents/mentor_agent && uv run --locked python -m mentor_agent.export_openapi) > "$RUNNER_TEMP/openapi.json"
+          diff -u libs/mentor-agent-contracts/openapi.json "$RUNNER_TEMP/openapi.json"
+          pnpm --filter @mentoragent/mentor-agent-contracts check
       - name: Format
         run: pnpm format:check
       - name: Lint

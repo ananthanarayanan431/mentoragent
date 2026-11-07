@@ -19,9 +19,12 @@ WORKDIR /repo
 # Dependencies first, so editing source does not invalidate this layer.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY web/package.json web/
+COPY libs/mentor-agent-contracts/package.json libs/mentor-agent-contracts/
+# `...` also installs the workspace packages the web app depends on (the contracts).
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter @mentoragent/web
+    pnpm install --frozen-lockfile --filter @mentoragent/web...
 
+COPY libs/ libs/
 COPY web/ web/
 
 # VITE_* values are read at build time and baked into the bundle. The defaults

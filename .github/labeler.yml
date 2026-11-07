@@ -9,6 +9,10 @@ web:
   - changed-files:
       - any-glob-to-any-file: web/**
 
+lib:
+  - changed-files:
+      - any-glob-to-any-file: libs/**
+
 infra:
   - changed-files:
       - any-glob-to-any-file:

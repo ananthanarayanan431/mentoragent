@@ -2,7 +2,7 @@
 # The gates are the CI ones (scripts/ci/python-checks.sh), run from the repo root.
 # MongoDB runs from infra/: make -C ../../infra up
 .DEFAULT_GOAL := help
-.PHONY: help install env dev seed evaluate fmt test audit coverage shell \
+.PHONY: help install env dev seed evaluate fmt test audit coverage openapi shell \
         docker-up docker-down docker-logs docker-ps clean
 
 ROOT := ../..
@@ -41,6 +41,10 @@ audit: ## Dependency audit (pip-audit on the locked runtime dependencies)
 
 coverage: ## Tests with a line-by-line coverage report
 	uv run pytest tests --cov --cov-report=term-missing
+
+openapi: ## Re-export the OpenAPI document and regenerate the web contract types
+	uv run python -m mentor_agent.export_openapi > $(ROOT)/libs/mentor-agent-contracts/openapi.json
+	cd $(ROOT) && pnpm --filter @mentoragent/mentor-agent-contracts generate
 
 shell: ## Python REPL with the project environment
 	uv run python

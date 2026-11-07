@@ -1,26 +1,14 @@
-/** Shapes shared with the backend (`mentoragent.api.schemas`). */
+/**
+ * Shapes the web app works with.
+ *
+ * REST bodies come from the generated contract (libs/mentor-agent-contracts), so a
+ * backend change that breaks them fails type-checking. The WebSocket events are not
+ * part of OpenAPI and are declared here, next to the UI-only types.
+ */
+import type { ChatRequest, ChatResponse, MentorOut } from '@mentoragent/mentor-agent-contracts'
 
-export interface Mentor {
-  id: string
-  name: string
-  expertise: string
-  perspective: string
-  style: string
-  image_url: string | null
-}
-
-export interface ChatRequest {
-  mentor_id: string
-  message: string
-  /** Omit to start a new conversation. */
-  conversation_id?: string
-}
-
-export interface ChatResponse {
-  mentor_id: string
-  conversation_id: string
-  response: string
-}
+export type { ChatRequest, ChatResponse }
+export type Mentor = MentorOut
 
 /** Events the WebSocket sends, one per turn: start -> chunk* -> end, or error. */
 export type ServerEvent =

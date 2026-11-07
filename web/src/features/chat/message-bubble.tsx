@@ -8,7 +8,7 @@ import type { Message } from '@/lib/types'
 interface Props {
   message: Message
   mentorName: string
-  mentorImage: string | null
+  mentorImage?: string | null | undefined
 }
 
 export function MessageBubble({ message, mentorName, mentorImage }: Props) {

@@ -1,0 +1,20 @@
+{
+  "name": "@mentoragent/mentor-agent-contracts",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Types for the mentor agent API, generated from its OpenAPI document.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "node scripts/schema.mjs",
+    "check": "node scripts/schema.mjs --check",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "openapi-typescript": "7.13.0",
+    "typescript": "~6.0.3"
+  }
+}
