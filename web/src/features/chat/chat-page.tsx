@@ -61,7 +61,10 @@ function ChatView({ mentorId }: { mentorId: string }) {
               missing ? `There is no mentor with the id “${mentorId}”.` : loadError.message
             }
           />
-          <Link to="/" className="inline-flex items-center gap-1.5 text-sm font-medium text-accent">
+          <Link
+            to="/mentors"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-accent"
+          >
             <ArrowLeft size={15} aria-hidden="true" />
             Back to all mentors
           </Link>

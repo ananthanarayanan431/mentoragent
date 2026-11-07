@@ -1,4 +1,4 @@
-import { Link } from 'react-router'
+import { Link, NavLink } from 'react-router'
 
 import { ThemeToggle } from './theme-toggle'
 import type { Theme } from '@/lib/use-theme'
@@ -18,10 +18,26 @@ export function Header({ theme, onThemeChange }: Props) {
             Mentor<span className="text-accent">Agents</span>
           </span>
         </Link>
-        <ThemeToggle theme={theme} onChange={onThemeChange} />
+        <div className="flex items-center gap-1 sm:gap-3">
+          <nav aria-label="Views" className="flex items-center gap-1 text-sm">
+            <NavLink to="/" end className={navClass}>
+              Square
+            </NavLink>
+            <NavLink to="/mentors" className={navClass}>
+              Mentors
+            </NavLink>
+          </nav>
+          <ThemeToggle theme={theme} onChange={onThemeChange} />
+        </div>
       </div>
     </header>
   )
+}
+
+function navClass({ isActive }: { isActive: boolean }): string {
+  return `rounded-md px-2.5 py-1.5 font-medium transition-colors ${
+    isActive ? 'bg-accent-soft text-accent' : 'text-muted hover:bg-raised hover:text-ink'
+  }`
 }
 
 function Logo() {

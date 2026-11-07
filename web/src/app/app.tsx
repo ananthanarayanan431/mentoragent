@@ -4,6 +4,7 @@ import { Header } from '@/components/header'
 import { useTheme } from '@/lib/use-theme'
 import { ChatPage } from '@/features/chat/chat-page'
 import { MentorsPage } from '@/features/mentors/mentors-page'
+import { WorldPage } from '@/features/world/world-page'
 import { NotFoundPage } from './not-found-page'
 
 export function App() {
@@ -17,7 +18,8 @@ export function App() {
         <Header theme={theme} onThemeChange={setTheme} />
         <div className="flex flex-1 flex-col overflow-y-auto">
           <Routes>
-            <Route path="/" element={<MentorsPage />} />
+            <Route path="/" element={<WorldPage />} />
+            <Route path="/mentors" element={<MentorsPage />} />
             <Route path="/chat/:mentorId" element={<ChatPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
