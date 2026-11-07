@@ -26,11 +26,12 @@ If someone else committed in the meantime (an editor, another session), do not r
 Run the gate for the half you changed, from the repo root:
 
 ```bash
-scripts/ci/python-checks.sh unit     # backend changed
-scripts/ci/frontend-checks.sh unit   # frontend changed
+scripts/ci/python-checks.sh agents/mentor_agent unit   # an agent changed
+pnpm check                                             # web/ or libs/ changed
 ```
 
-Add `audit` after touching `backend/uv.lock` or `frontend/package-lock.json`. If a gate fails, fix the cause; do not commit red.
+Add `audit` (or `pnpm audit --prod`) after touching a `uv.lock` or `pnpm-lock.yaml`.
+After changing an agent's API, run `make -C agents/mentor_agent openapi` and commit the contract. If a gate fails, fix the cause; do not commit red.
 
 ## Step 3: Stage deliberately
 
@@ -50,7 +51,7 @@ Conventional Commit format, matching `.githooks/commit-msg`:
 ```
 
 - Types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `perf`, `build`, `style`, `revert`.
-- Scopes: `backend`, `frontend`, `ci`, `deps`, or none for repo-wide changes.
+- Scopes: `agent`, `web`, `infra`, `ci`, `deps`, or none for repo-wide changes.
 - Plain hyphens only. No em dashes (—) or en dashes (–); the hook rejects them.
 - The body explains why, and calls out anything a reviewer would not guess from the diff (a real bug found, a known exception, a follow-up).
 

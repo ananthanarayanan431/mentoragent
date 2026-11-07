@@ -1,7 +1,7 @@
-# MentorAgents — frontend
+# MentorAgents web app
 
 React single-page app for chatting with the mentors served by
-[`backend/`](../backend). Replies stream in token by token over a WebSocket.
+[`agents/mentor_agent`](../agents/mentor_agent). Replies stream in token by token over a WebSocket.
 
 ## Tech stack
 
@@ -18,14 +18,17 @@ React single-page app for chatting with the mentors served by
 
 ## Quick start
 
-Prerequisites: Node 26 (see [`.nvmrc`](.nvmrc)) and a backend running on
-port 8000 — start it with `make run` in [`backend/`](../backend).
+Prerequisites: Node (see the root [`.nvmrc`](../.nvmrc)), pnpm 10, and the agent
+running on port 8000 (`agents/mentor_agent/run.sh`).
 
 ```bash
-cd frontend
-npm install
-npm run dev      # http://localhost:5173
+pnpm install     # at the repo root: installs the whole workspace
+pnpm dev         # http://localhost:5173 (or ./run.sh, make dev, in this folder)
 ```
+
+REST types come from the agent's OpenAPI contract in
+[`libs/mentor-agent-contracts`](../libs/mentor-agent-contracts), so a backend
+change that breaks the web app fails type-checking.
 
 The dev server proxies `/api`, `/health` and `/ready` to `localhost:8000`,
 including the WebSocket upgrade, so the browser stays on one origin and no CORS
@@ -33,15 +36,15 @@ configuration is needed. Point it elsewhere with `VITE_DEV_BACKEND`.
 
 ## Scripts
 
-| Command             | What it does                                          |
-| ------------------- | ----------------------------------------------------- |
-| `npm run dev`       | Dev server with hot reload                            |
-| `npm run build`     | Type-check, then build to `dist/`                     |
-| `npm run preview`   | Serve the built bundle                                |
-| `npm test`          | Vitest (watch mode; `npm test -- --run` for one pass) |
-| `npm run lint`      | Lint with oxlint                                      |
-| `npm run typecheck` | Type-check without emitting                           |
-| `npm run format`    | Format with Prettier                                  |
+| Command (repo root) | What it does                                                            |
+| ------------------- | ----------------------------------------------------------------------- |
+| `pnpm dev`          | Dev server with hot reload                                              |
+| `pnpm build`        | Type-check, then build to `web/dist/`                                   |
+| `pnpm test`         | Vitest, one pass (`pnpm --filter @mentoragent/web test:watch` to watch) |
+| `pnpm lint`         | Lint with oxlint                                                        |
+| `pnpm typecheck`    | Type-check without emitting                                             |
+| `pnpm format`       | Format the repo with Prettier                                           |
+| `pnpm check`        | Everything CI runs                                                      |
 
 ## Configuration
 
@@ -74,46 +77,47 @@ attempts, at which point the connection badge offers a manual retry.
 ## Docker
 
 ```bash
-docker build -t mentoragent-frontend .
-docker run -p 8080:8080 -e BACKEND_HOST=host.docker.internal:8000 mentoragent-frontend
+make docker-up          # in this folder: build and run on the infra network
+# or, from the repo root, standalone:
+docker build -f web/Dockerfile -t mentoragent-web .
+docker run -p 8080:8080 -e BACKEND_HOST=host.docker.internal:8000 mentoragent-web
 ```
 
-The image builds the bundle with Node, then serves it from
+The image builds the bundle with Node and pnpm from the repo root, then serves it from
 `nginx-unprivileged` (non-root, port 8080). nginx also reverse-proxies `/api`,
 `/health` and `/ready` to `BACKEND_HOST`, which is why `VITE_API_URL` can stay
 empty in production. Streaming responses are unbuffered so tokens are not
 batched, and WebSocket upgrades are passed through.
 
-From the repository root, `docker compose up` runs the whole stack.
+From the repository root, `make -C infra stack-up` runs the whole stack.
 
 ## Project layout
 
 ```text
-frontend/
-├── Dockerfile               # build with node, serve with nginx
+web/
+├── Dockerfile               # pnpm build from the repo root, serve with nginx
+├── Makefile, run.sh         # dev, build, preview, docker up/down/logs/ps
 ├── nginx.conf.template      # SPA fallback, caching, API proxy
 ├── security-headers.conf    # included by every location that sets a header
 ├── index.html               # pre-paint theme script lives here
 └── src/
-    ├── components/          # Avatar, Header, MentorCard, state views
-    │   └── chat/            # composer, message list, bubbles, connection badge
-    ├── hooks/
-    │   ├── useChatSocket.ts # socket lifecycle, reconnect, backoff
-    │   └── useTheme.ts      # light / dark / system
-    ├── lib/
-    │   ├── api.ts           # typed client, error normalisation
-    │   ├── chat-state.ts    # pure reducer for the streaming protocol
-    │   ├── config.ts        # env, URL building
-    │   └── storage.ts       # per-mentor conversation persistence
-    ├── pages/               # MentorsPage, ChatPage, NotFoundPage
-    └── types.ts             # shapes shared with the backend
+    ├── app/                 # shell: app.tsx (routes), main.tsx, globals.css, not-found page
+    ├── components/          # shared UI: avatar, header, error boundary, state views, theme toggle
+    ├── features/
+    │   ├── chat/            # chat page and components, socket hook, streaming reducer, storage
+    │   └── mentors/         # mentors page and card
+    ├── lib/                 # api client, config, types (from the contract), theme hook
+    └── test/                # Vitest setup
 ```
+
+File names are kebab-case; imports across folders use the `@/` alias (`src/`),
+imports within a folder stay relative.
 
 ## Conventions
 
 - **Colours are semantic.** Components use `bg-canvas`, `text-muted`,
   `border-line` and friends, defined once per theme in
-  [`src/index.css`](src/index.css). No raw palette steps (`bg-zinc-800`) in
+  [`src/app/globals.css`](src/app/globals.css). No raw palette steps (`bg-zinc-800`) in
   components, so the two themes cannot drift apart.
 - **Protocol logic stays pure.** The streaming state machine lives in
   `chat-state.ts` as a reducer, tested without a DOM or a socket.

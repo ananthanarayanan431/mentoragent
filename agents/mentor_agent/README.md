@@ -1,4 +1,4 @@
-# MentorAgents — backend
+# Mentor agent
 
 > Where human expertise meets AI.
 
@@ -7,7 +7,7 @@ has a name, area of expertise, perspective and speaking style, and answers from
 a long-term memory built out of that person's public material: PDFs, Wikipedia,
 YouTube transcripts and tweets.
 
-The backend is a FastAPI service around a LangGraph agent. The agent decides
+The mentor agent is a FastAPI service around a LangGraph agent. The agent decides
 when to search the mentor's long-term memory (hybrid vector + keyword search in
 MongoDB Atlas, always scoped to the current mentor) and keeps each conversation's
 history in MongoDB, summarising it as it grows.
@@ -24,21 +24,19 @@ history in MongoDB, summarising it as it grows.
 | Tweets                   | [Arcade](https://arcade.dev) `X.SearchRecentTweetsByUsername`                      |
 | Evaluation               | [Opik](https://www.comet.com/site/products/opik/)                                  |
 | API                      | FastAPI + Uvicorn (async, REST + WebSocket streaming)                              |
-| CLI                      | Typer (`uv run mentoragent --help`)                                                |
+| CLI                      | Typer (`uv run mentor-agent --help`)                                               |
 
 ## Quick start
 
-Prerequisites: Python 3.12, `uv`, and Docker with the Compose plugin.
+Prerequisites: `uv` (it installs the Python in the root `.python-version`) and
+Docker with the Compose plugin. From this directory:
 
 ```bash
-cd backend
-make install   # uv sync — create .venv from uv.lock
-make env       # copy .env.example to .env (never overwrites an existing .env)
-# now fill in the API keys in .env
-make hooks     # install the pre-commit hooks (ruff lint + format)
-make up        # start MongoDB Atlas Local and wait until it is healthy
-make seed      # load the mentors, then build their long-term memory
-make serve     # run the API with autoreload on http://localhost:8000
+make install               # uv sync: create .venv from uv.lock
+make env                   # copy .env.example to .env, then fill in OPENROUTER_API_KEY
+make -C ../../infra up     # start MongoDB Atlas Local and wait until it is healthy
+make seed                  # load the mentors, then build their long-term memory
+./run.sh                   # run the API with autoreload on http://localhost:8000
 ```
 
 Open http://localhost:8000/docs for the interactive API docs (disabled when
@@ -47,33 +45,37 @@ Open http://localhost:8000/docs for the interactive API docs (disabled when
 The mentors live in [`data/extraction_metadata.json`](data/extraction_metadata.json).
 Add PDF / YouTube / website URLs and an X handle per mentor to enrich their
 memory, then rerun `make seed`. `create-memory` calls the embeddings API for
-every chunk; `uv run mentoragent create-memory --sample` does a cheap trial run.
+every chunk; `uv run mentor-agent create-memory --sample` does a cheap trial run.
 
 Run `make` with no arguments to list every target.
 
 ## Development
 
-| Command          | What it does                                         |
-| ---------------- | ---------------------------------------------------- |
-| `make format`    | Auto-fix lint issues and format the code             |
-| `make lint`      | Lint with ruff                                       |
-| `make typecheck` | Type-check with pyright (strict)                     |
-| `make test`      | Run the pytest suite (no network or database needed) |
-| `make check`     | All of the above; what CI should run                 |
+| Command         | What it does                                                            |
+| --------------- | ----------------------------------------------------------------------- |
+| `make fmt`      | Format the code and apply safe lint fixes                               |
+| `make test`     | The CI unit gate: ruff, format check, pyright strict, pytest + coverage |
+| `make audit`    | The CI audit gate: pip-audit on the locked runtime dependencies         |
+| `make coverage` | Tests with a line-by-line coverage report                               |
+| `make openapi`  | Refresh the web contract in `libs/mentor-agent-contracts`               |
+
+Tests are split into `tests/unit/` (one module at a time) and `tests/contract/`
+(the HTTP and WebSocket API as clients see it). None need the network or a
+database. Lint, type and test rules come from the root `pyproject.toml`.
 
 ## CLI
 
-| Command                                | What it does                                       |
-| -------------------------------------- | -------------------------------------------------- |
-| `mentoragent serve [--reload]`         | Run the API                                        |
-| `mentoragent load-mentors`             | Upsert mentors from the metadata file (idempotent) |
-| `mentoragent create-memory [--sample]` | Extract sources, chunk, dedupe, embed, index       |
-| `mentoragent delete-memory`            | Drop the long-term memory                          |
-| `mentoragent reset-conversations`      | Drop every conversation history                    |
-| `mentoragent generate-dataset`         | Build a synthetic evaluation dataset               |
-| `mentoragent evaluate`                 | Score the agent with Opik (needs `COMET_API_KEY`)  |
+| Command                                 | What it does                                       |
+| --------------------------------------- | -------------------------------------------------- |
+| `mentor-agent serve [--reload]`         | Run the API                                        |
+| `mentor-agent load-mentors`             | Upsert mentors from the metadata file (idempotent) |
+| `mentor-agent create-memory [--sample]` | Extract sources, chunk, dedupe, embed, index       |
+| `mentor-agent delete-memory`            | Drop the long-term memory                          |
+| `mentor-agent reset-conversations`      | Drop every conversation history                    |
+| `mentor-agent generate-dataset`         | Build a synthetic evaluation dataset               |
+| `mentor-agent evaluate`                 | Score the agent with Opik (needs `COMET_API_KEY`)  |
 
-Run them with `uv run mentoragent ...`.
+Run them with `uv run mentor-agent ...`.
 
 ## API
 
@@ -129,12 +131,12 @@ START -> conversation --(tool call)--> retrieve_context -> summarize_context --+
 ## Configuration
 
 All settings live in `.env` and are loaded by
-[`src/mentoragent/core/config`](src/mentoragent/core/config), one
+[`mentor_agent/config`](mentor_agent/config), one
 `BaseSettings` class per concern. Each group reads the variables with its prefix,
 so `MONGO_URI` becomes `settings.mongo.URI`:
 
 ```python
-from mentoragent.core.config import settings
+from mentor_agent.config import settings
 
 settings.mongo.URI
 settings.openrouter.LLM_MODEL
@@ -143,7 +145,7 @@ settings.openrouter.LLM_MODEL
 Every group can also be built on its own, which helps when debugging one piece:
 
 ```python
-from mentoragent.core.config import MongoSettings
+from mentor_agent.config import MongoSettings
 
 MongoSettings()
 ```
@@ -152,12 +154,12 @@ Only `OPENROUTER_API_KEY` is required; it serves both chat and embeddings.
 Optional integrations switch on when their keys are set (a blank value counts
 as unset):
 
-| Variable                                       | Enables                                                 |
-| ---------------------------------------------- | ------------------------------------------------------- |
-| `API_KEY`                                      | API-key protection for `/api/v1`                        |
-| `ARCADE_API_KEY`, `ARCADE_USER_ID`             | Fetching tweets during ingestion                        |
-| `COMET_API_KEY`                                | Opik tracing, prompt versioning, `mentoragent evaluate` |
-| `LANGSMITH_API_KEY` + `LANGSMITH_TRACING=true` | LangSmith tracing                                       |
+| Variable                                       | Enables                                                  |
+| ---------------------------------------------- | -------------------------------------------------------- |
+| `API_KEY`                                      | API-key protection for `/api/v1`                         |
+| `ARCADE_API_KEY`, `ARCADE_USER_ID`             | Fetching tweets during ingestion                         |
+| `COMET_API_KEY`                                | Opik tracing, prompt versioning, `mentor-agent evaluate` |
+| `LANGSMITH_API_KEY` + `LANGSMITH_TRACING=true` | LangSmith tracing                                        |
 
 Every other variable has a default. [`.env.example`](.env.example) lists them all.
 
@@ -168,13 +170,13 @@ Every other variable has a default. [`.env.example`](.env.example) lists them al
 ## Calling the LLM
 
 The agent uses LangChain chat models from
-[`workflow/llm.py`](src/mentoragent/workflow/llm.py). For direct calls outside
-the graph, `Models` in [`workflow/model.py`](src/mentoragent/workflow/model.py)
+[`chat/llm.py`](mentor_agent/chat/llm.py). For direct calls outside
+the graph, `Models` in [`chat/model.py`](mentor_agent/chat/model.py)
 is a thin async wrapper around the OpenAI SDK, pointed at OpenRouter.
 
 ```python
 from pydantic import BaseModel
-from mentoragent.workflow.model import Models
+from mentor_agent.chat.model import Models
 
 
 class Plan(BaseModel):
@@ -198,52 +200,64 @@ an OpenRouter model that supports structured outputs.
 
 ## Local MongoDB
 
-[`docker-compose.yml`](docker-compose.yml) runs `mongodb/mongodb-atlas-local`,
-not the plain `mongo` image. Only Atlas Local has the `$vectorSearch` and
-`$search` operators that RAG needs. `make up` waits for the image's own health
-check, which covers the search service too, so the database is ready for vector
-queries as soon as the command returns.
+[`infra/docker-compose.yml`](../../infra/docker-compose.yml) runs
+`mongodb/mongodb-atlas-local`, not the plain `mongo` image. Only Atlas Local has
+the `$vectorSearch` and `$search` operators that RAG needs. `make -C infra up`
+waits for the image's own health check, which covers the search service too, so
+the database is ready for vector queries as soon as the command returns. Its
+credentials are in `infra/.env`; keep `MONGO_URI` here in step with them.
 
-| Command                 | What it does                                     |
-| ----------------------- | ------------------------------------------------ |
-| `make up` / `make down` | Start or stop the database. Data is kept.        |
-| `make logs`             | Follow the database logs.                        |
-| `make mongo-shell`      | Open `mongosh` inside the container.             |
-| `make mongo-reset`      | **Delete all local data** (asks you to confirm). |
+| Command (from the repo root)              | What it does                                     |
+| ----------------------------------------- | ------------------------------------------------ |
+| `make -C infra up` / `make -C infra down` | Start or stop the database. Data is kept.        |
+| `make -C infra logs`                      | Follow the database logs.                        |
+| `make -C infra mongo-shell`               | Open `mongosh` inside the container.             |
+| `make -C infra mongo-reset`               | **Delete all local data** (asks you to confirm). |
 
 ## Project layout
 
 ```text
-backend/
-├── main.py                     # python main.py == mentoragent serve
-├── Dockerfile                  # multi-stage uv build, non-root runtime
-├── docker-compose.yml          # MongoDB Atlas Local (+ API with --profile app)
+agents/mentor_agent/
+├── Dockerfile                  # multi-stage uv build from the repo root, non-root runtime
+├── Makefile                    # shortcuts; `make` lists them
+├── run.sh                      # ./run.sh [api|seed|evaluate]
 ├── data/extraction_metadata.json  # the mentors and their sources
-├── src/mentoragent/
-│   ├── api/                    # FastAPI app factory, routes, schemas, dependencies
-│   ├── services/               # use cases: conversations, mentors, maintenance
+├── mentor_agent/
+│   ├── main.py                 # uvicorn entry point
+│   ├── server.py               # app factory and lifespan
+│   ├── routes/                 # health.py, v1/ (chat, mentors, admin)
+│   ├── schemas/                # request and response bodies (common, health, v1/)
+│   ├── dependencies.py         # FastAPI dependencies, API-key auth
+│   ├── errors.py               # exceptions and the handlers that render them
+│   ├── request_context.py      # request ids and CORS middleware
+│   ├── config/                 # settings, one module per concern
+│   ├── logs.py                 # loguru setup
+│   ├── tracing.py              # Opik integration
+│   ├── export_openapi.py       # the OpenAPI document for libs/mentor-agent-contracts
 │   ├── bootstrap.py            # composition root: builds models, graph, checkpointer
-│   ├── cli.py                  # Typer CLI (`mentoragent`)
-│   ├── workflow/               # LangGraph agent: state, prompts, chains, nodes, graph
+│   ├── cli.py                  # Typer CLI (`mentor-agent`)
+│   ├── services/               # use cases: conversations, mentors, maintenance
+│   ├── chat/                   # LangGraph agent: state, prompts, chains, nodes, graph
 │   ├── rag/                    # extractors, splitter, embeddings, retriever, memory
 │   ├── db/                     # shared Mongo clients, repositories, search indexes
 │   ├── models/                 # Pydantic domain models
-│   ├── core/                   # settings, logging, exceptions, HTTP middleware
-│   ├── infra/                  # Opik integration
 │   └── evals/                  # dataset generation and Opik evaluation
-└── tests/                      # pytest suite (fake LLM, in-memory checkpointer)
+└── tests/
+    ├── unit/                   # one module at a time (fake LLM, in-memory checkpointer)
+    └── contract/               # the HTTP and WebSocket API as clients see it
 ```
 
 ## Deployment
 
 ```bash
-make docker-up     # builds the image and runs MongoDB + the API
+make -C ../../infra up   # MongoDB
+make docker-up           # build the image and run the API on the infra network
 ```
 
-The image runs `mentoragent serve` as a non-root user with JSON logs and a
+The image runs `mentor-agent serve` as a non-root user with JSON logs and a
 `/health` healthcheck. In production set `ENVIRONMENT=prod` (hides the docs),
 `API_KEY`, `LOG_JSON=true`, and point `MONGO_URI` at your Atlas cluster. Scale
-with `mentoragent serve --workers N` or more replicas: the app is stateless,
+with `mentor-agent serve --workers N` or more replicas: the app is stateless,
 all state lives in MongoDB.
 
 ## Project status

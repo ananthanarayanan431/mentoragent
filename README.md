@@ -9,14 +9,12 @@ long-term memory built out of that person's own public work.
 
 [![CI](https://github.com/ananthanarayanan431/mentoragent/actions/workflows/ci.yml/badge.svg)](https://github.com/ananthanarayanan431/mentoragent/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](backend/.python-version)
-[![React 19](https://img.shields.io/badge/react-19-61dafb.svg)](frontend/package.json)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](.python-version)
+[![React 19](https://img.shields.io/badge/react-19-61dafb.svg)](web/package.json)
 
 </div>
 
 ---
-
-## What it is
 
 A mentor is a name, an area of expertise, a perspective and a speaking style.
 Behind each one sits a retrieval-augmented agent: the person's PDFs, Wikipedia
@@ -24,129 +22,72 @@ pages, YouTube transcripts and tweets are extracted, de-duplicated, embedded and
 stored in MongoDB Atlas, then retrieved as context when you ask a question.
 Replies stream back token by token.
 
+| Service      | Where                         | Port  | Docs                                                             |
+| ------------ | ----------------------------- | ----- | ---------------------------------------------------------------- |
+| Mentor agent | `agents/mentor_agent`         | 8000  | [`agents/mentor_agent/CLAUDE.md`](agents/mentor_agent/CLAUDE.md) |
+| Web app      | `web/`                        | 5173  | [`web/CLAUDE.md`](web/CLAUDE.md)                                 |
+| API contract | `libs/mentor-agent-contracts` |       | [`libs/README.md`](libs/README.md)                               |
+| MongoDB      | `infra/`                      | 27017 | [`infra/docker-compose.yml`](infra/docker-compose.yml)           |
+
 ```text
-                  ┌──────────────────────────────────────────┐
-  Browser ───────▶│  frontend/   React 19 · Vite · Tailwind   │
-   :8080          └───────────────────┬──────────────────────┘
-                     REST + WebSocket │  (nginx proxies /api in production)
-                  ┌───────────────────▼──────────────────────┐
-                  │  backend/    FastAPI · LangGraph agent    │
-                  │              ├── retrieval (RAG)          │
-                  │              ├── short-term memory        │
-                  │              └── long-term memory         │
-                  └───────────────────┬──────────────────────┘
-                  ┌───────────────────▼──────────────────────┐
-                  │  MongoDB Atlas Local                      │
-                  │  documents · vector index · checkpoints   │
-                  └──────────────────────────────────────────┘
+  Browser ──▶ web/ (React 19, Vite; nginx in Docker)
+                │  REST + WebSocket, /api proxied to the agent
+                ▼
+              agents/mentor_agent/ (FastAPI, LangGraph agent, RAG)
+                │
+                ▼
+              MongoDB Atlas Local (documents, vector index, checkpoints)
 
-  Ingestion:  PDFs · Wikipedia · YouTube · X  ──▶  split ──▶ embed ──▶ Atlas
+  Ingestion:  PDFs · Wikipedia · YouTube · X ──▶ split ──▶ embed ──▶ Atlas
 ```
 
-| Layer      | Stack                                                               |
-| ---------- | ------------------------------------------------------------------- |
-| Frontend   | React 19, TypeScript, Vite 8, Tailwind CSS v4                       |
-| API        | FastAPI, Uvicorn, WebSocket streaming                               |
-| Agent      | LangGraph with MongoDB checkpoints                                  |
-| LLM        | OpenRouter (OpenAI SDK), Groq                                       |
-| Retrieval  | LangChain splitters, OpenAI embeddings, MongoDB Atlas vector search |
-| Storage    | MongoDB Atlas Local 8.0                                             |
-| Evaluation | Opik                                                                |
+## Run it
 
-## Quick start
-
-Prerequisites: **Docker** with the Compose plugin, **Python 3.12** with
-[uv](https://docs.astral.sh/uv/), and **Node 26**.
+Prerequisites: Docker with the Compose plugin, [uv](https://docs.astral.sh/uv/),
+and Node (see `.nvmrc`) with pnpm 10.
 
 ```bash
-git clone https://github.com/ananthanarayanan431/mentoragent.git
-cd mentoragent
-
-# 1. Configure — fill in the API keys the backend needs
-cd backend && make env && $EDITOR .env
-
-# 2. Start MongoDB and the API (http://localhost:8000/docs)
-make install
-make seed        # first run only: load mentors, build long-term memory
-make serve
-
-# 3. In a second terminal, start the web app (http://localhost:5173)
-cd ../frontend && npm install && npm run dev
+cp infra/.env.example infra/.env                            # MongoDB credentials
+make -C infra up                                            # MongoDB, waits until healthy
+make -C agents/mentor_agent env                             # then fill in OPENROUTER_API_KEY
+make -C agents/mentor_agent seed                            # first run only: mentors + long-term memory
+agents/mentor_agent/run.sh                                  # API on :8000 (docs at /docs)
+pnpm install && pnpm dev                                    # web app on :5173
 ```
 
-The dev server proxies `/api` to port 8000, including the WebSocket, so there
-is no CORS setup to do.
+The web dev server proxies `/api` (WebSocket included) to the agent, so there is
+no CORS setup. To run everything in containers instead:
+`make -C infra stack-up`, then open <http://localhost:8080>.
 
-### Or run the whole stack in Docker
-
-```bash
-cp backend/.env.example backend/.env   # then fill in the keys
-docker compose --profile app up --build
-```
-
-The app is then on <http://localhost:8080>, with nginx proxying `/api` to the
-API container, so both run on one origin.
-
-### Required keys
-
-`make env` copies [`backend/.env.example`](backend/.env.example), which
-documents every variable. These have no default and must be filled in:
-
-| Variable                           | Used for                  |
-| ---------------------------------- | ------------------------- |
-| `OPENROUTER_API_KEY`               | Chat completions          |
-| `OPENAI_API_KEY`                   | Embeddings and evaluation |
-| `GROQ_API_KEY`                     | Groq models               |
-| `ARCADE_API_KEY`, `ARCADE_USER_ID` | Fetching tweets           |
-| `LANGSMITH_API_KEY`                | Tracing                   |
-
-`.env` is gitignored. Only the example file is committed.
+`OPENROUTER_API_KEY` is the only required key: chat and embeddings both go through
+OpenRouter. Arcade (tweets), LangSmith and Comet/Opik (tracing, evaluation) are
+optional; `agents/mentor_agent/.env.example` documents every variable.
 
 ## Repository layout
 
 ```text
 mentoragent/
-├── backend/              # FastAPI service, LangGraph agent, RAG pipeline
-│   ├── src/mentoragent/  # the package (src layout)
-│   ├── tests/
-│   ├── Dockerfile
-│   ├── docker-compose.yml   # MongoDB + api + web
-│   └── Makefile          # make help lists every target
-├── frontend/             # React single-page app
-│   ├── src/
-│   ├── Dockerfile        # build with Node, serve with nginx
-│   └── nginx.conf.template
-├── docker-compose.yml    # includes backend/docker-compose.yml
-├── scripts/ci/           # the quality gates CI runs, one script per half
-├── .githooks/            # commit-msg and pre-commit hooks
-└── .github/              # CI, PR labels, CODEOWNERS, Dependabot
+├── agents/mentor_agent/   # FastAPI service, LangGraph agent, RAG pipeline (package mentor_agent)
+├── web/                   # React app (pnpm workspace package @mentoragent/web)
+├── libs/                  # shared TypeScript packages: the agent's API contract
+├── infra/                 # compose files (MongoDB, agent, web) and their Makefile
+├── scripts/ci/            # python-checks.sh: the Python gate CI runs
+├── pyproject.toml         # Ruff, Pyright and pytest rules for every Python package
+├── package.json           # pnpm workspace root: format, lint, typecheck, test, build
+├── .githooks/             # commit-msg and pre-commit hooks
+└── .github/               # CI, PR labels, CODEOWNERS, Dependabot
 ```
-
-Each half has its own README with the detail:
-**[backend/README.md](backend/README.md)** ·
-**[frontend/README.md](frontend/README.md)**
 
 ## Development
 
-|                    | Backend (`cd backend`) | Frontend (`cd frontend`)           |
-| ------------------ | ---------------------- | ---------------------------------- |
-| Install            | `make install`         | `npm install`                      |
-| Run                | `make serve`           | `npm run dev`                      |
-| Lint               | `make lint`            | `npm run lint`                     |
-| Types              | `make typecheck`       | `npm run typecheck`                |
-| Test               | `make test`            | `npm test`                         |
-| Everything CI runs | `make check`           | `../scripts/ci/frontend-checks.sh` |
+```bash
+scripts/ci/python-checks.sh agents/mentor_agent all   # ruff, pyright strict, pytest + coverage, pip-audit
+pnpm check                                            # prettier, oxlint, tsc, vitest, build
+make -C agents/mentor_agent openapi                   # after an API change: refresh the web contract
+```
 
-CI runs `scripts/ci/python-checks.sh` and `scripts/ci/frontend-checks.sh`; run
-them from the repo root with `all` to include the dependency audits.
-`make help` in `backend/` lists every target, including the data pipeline
-(`make seed`, `make load-mentors`, `make create-memory`) and evaluation
-(`make evaluate`).
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the setup, the conventions each half
-follows, and what CI checks before a change lands.
+CI runs exactly these. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, the
+conventions each part follows, and the commit rules.
 
 ## License
 

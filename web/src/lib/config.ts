@@ -2,7 +2,7 @@
  * Runtime configuration, read from the VITE_* variables baked in at build time.
  *
  * `VITE_API_URL` is empty by default, which means "same origin as the app".
- * That is what both `npm run dev` (Vite proxies to the backend) and the nginx
+ * That is what both `pnpm dev` (Vite proxies to the agent) and the nginx
  * image (which reverse-proxies /api) rely on.
  */
 

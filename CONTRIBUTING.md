@@ -1,40 +1,53 @@
 # Contributing
 
 Thanks for taking a look. This file covers getting set up, the conventions each
-half of the repo follows, and what CI checks before a change lands.
+part of the repo follows, and what CI checks before a change lands.
 
 ## Setup
 
-Prerequisites: Docker with the Compose plugin, Python 3.12 with
-[uv](https://docs.astral.sh/uv/), and Node 26.
+Prerequisites: Docker with the Compose plugin, [uv](https://docs.astral.sh/uv/)
+(it installs the Python in `.python-version`), and Node (`.nvmrc`) with pnpm 10.
 
 ```bash
-cd backend
-make install     # sync the virtualenv from uv.lock
-make env         # create .env from .env.example, then fill in the keys
-make hooks       # use the repo's git hooks in .githooks/
-make up          # start MongoDB
-
-cd ../frontend
-npm install
+git config core.hooksPath .githooks         # the repo's commit-msg and pre-commit hooks
+cp infra/.env.example infra/.env            # MongoDB credentials
+make -C infra up                            # start MongoDB
+make -C agents/mentor_agent install env     # agent venv and .env (fill in the keys)
+pnpm install                                # web app and libs
 ```
 
-`make help` in `backend/` lists every target.
+`make` in `infra/`, `agents/mentor_agent/` and `web/` lists each folder's shortcuts.
+
+## Where things go
+
+| You are adding...                 | It goes in                                                  |
+| --------------------------------- | ----------------------------------------------------------- |
+| A Python service                  | `agents/<name>_agent/`, laid out like `agents/mentor_agent` |
+| An agent route / its request body | `routes/v1/<area>.py` / `schemas/v1/<area>.py`              |
+| An agent setting                  | `config/<group>.py`, read as `settings.<group>.<FIELD>`     |
+| A web feature                     | `web/src/features/<name>/` (page, components, hooks, tests) |
+| UI shared by features             | `web/src/components/`                                       |
+| A framework-free web helper       | `web/src/lib/`                                              |
+| Shared TypeScript code            | `libs/<name>/`, a workspace package                         |
+| A container or compose service    | `infra/` (images build from the repo root)                  |
 
 ## Before you push
 
 Run the same checks CI runs, from the repo root:
 
 ```bash
-scripts/ci/python-checks.sh all     # ruff, pyright strict, pytest + coverage floor, pip-audit
-scripts/ci/frontend-checks.sh all   # prettier, oxlint, tsc, vitest, build, npm audit
+scripts/ci/python-checks.sh agents/mentor_agent all   # ruff, pyright strict, pytest + coverage floor, pip-audit
+pnpm check                                            # prettier, oxlint, tsc, vitest, build
 ```
 
-CI calls exactly these scripts, so a local pass means a CI pass. On pull
-requests CI skips the half a change does not touch; pushes to `main` always
-run everything, plus a Docker build of each image.
+CI runs exactly these, plus the API contract check, `pnpm audit`, the compose
+files and a Docker build of every image. On pull requests CI skips the areas a
+change does not touch; pushes to `main` always run everything.
 
-- **Coverage** must stay at or above the floor in `backend/pyproject.toml`
+- **API contract**: after changing an agent's routes or schemas, run
+  `make -C agents/mentor_agent openapi` and commit `libs/mentor-agent-contracts`.
+  CI fails if the committed contract is stale.
+- **Coverage** must stay at or above the floor in the agent's `pyproject.toml`
   (`[tool.coverage.report] fail_under`). Raise it when coverage grows; never
   lower it.
 - **Dependency audits are blocking.** Fix a finding by upgrading the package.
@@ -43,10 +56,11 @@ run everything, plus a Docker build of each image.
 
 ## Conventions
 
-### Backend
+### Python agents
 
-Enforced by ruff and pyright (strict); the full reasoning is in
-[backend/README.md](backend/README.md).
+Enforced by ruff and pyright (strict), configured once in the root
+`pyproject.toml`; the full reasoning is in
+[agents/mentor_agent/README.md](agents/mentor_agent/README.md).
 
 - Every module starts with `from __future__ import annotations`. Imports used
   only in annotations go under `if TYPE_CHECKING:` — except types used in
@@ -59,18 +73,23 @@ Enforced by ruff and pyright (strict); the full reasoning is in
 - No side effects at import: no DB connections or clients at module level.
 - Never construct a `MongoClient` directly; use the shared helpers.
 
-### Frontend
+### Web app
 
+- **Layout.** `src/app/` is the shell, `src/components/` holds UI shared by
+  features, `src/features/<name>/` holds everything one feature needs, and
+  `src/lib/` holds framework-free helpers. File names are kebab-case; imports
+  across folders use `@/`.
+- **REST types come from the contract** (`@mentoragent/mentor-agent-contracts`),
+  never declared by hand.
 - **Colours are semantic.** Use `bg-canvas`, `text-muted`, `border-line` and
-  friends, defined once per theme in `src/index.css`. No raw palette steps
+  friends, defined once per theme in `src/app/globals.css`. No raw palette steps
   (`bg-zinc-800`) in components, so light and dark cannot drift apart.
 - **Protocol logic stays pure.** The streaming state machine is a reducer in
-  `src/lib/chat-state.ts`, tested without a DOM or a socket. Prefer adding to it
+  `src/features/chat/chat-state.ts`, tested without a DOM or a socket. Prefer adding to it
   over adding state to a component.
 - **Wrap every `localStorage` access**; it throws in private windows and when
   site data is blocked, and the app must work without it.
 - **Normalise errors** into `ApiError` with a message fit to show a user.
-- Components stay small and live in `src/components/`, pages in `src/pages/`.
 - **Lint is oxlint** with the `correctness`, `suspicious` and `perf`
   categories as errors (`.oxlintrc.json`); `--deny-warnings` in the hook.
   Deliberately off: `react-in-jsx-scope` (the automatic JSX runtime makes it
@@ -92,7 +111,7 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/). The
 ```
 
 - Types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `perf`,
-  `build`, `style`, `revert`. Scopes are usually `backend`, `frontend`, `ci`
+  `build`, `style`, `revert`. Scopes are usually `agent`, `web`, `infra`, `ci`
   or `deps`.
 - Plain hyphens only: the hook rejects em and en dashes.
 - No AI attribution: the hook strips `Co-Authored-By` lines for AI tools and
@@ -100,7 +119,8 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/). The
 - One logical change per commit; keep unrelated changes apart.
 
 The `pre-commit` hook checks only the staged files: no private keys, nothing
-over 1 MB, ruff on backend Python, prettier and oxlint on frontend files.
+over 1 MB, ruff on each agent's Python, Prettier on every file it understands,
+and oxlint on web code.
 Never skip hooks with `--no-verify`; fix what they report.
 
 ## Reporting a security issue
