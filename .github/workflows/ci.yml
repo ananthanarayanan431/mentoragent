@@ -2,6 +2,8 @@
 #   Python:  scripts/ci/python-checks.sh <package-dir> [unit|audit]
 #   Web:     pnpm format:check | lint | typecheck | test | build, then pnpm audit
 #   Build:   the compose files validate, and every image builds from the repo root
+#   E2E:     Playwright against the Docker stack (make -C infra stack-up), mentors
+#            loaded; no chat message is sent, so no model is called
 #
 # Pull requests run only the gates for the areas they touch. Pushes to main and
 # manual runs always run everything. A skipped job reports as "skipped", which
@@ -53,6 +55,7 @@ jobs:
               - *ci
               - web/**
               - libs/**
+              - e2e-tests/**
               # The contract check exports the agent's OpenAPI document.
               - agents/**
               - package.json
@@ -192,3 +195,58 @@ jobs:
           push: false
           cache-from: type=gha,scope=web
           cache-to: type=gha,scope=web,mode=max,ignore-error=true
+
+  e2e:
+    name: End-to-end (Docker stack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [changes, quality, web]
+    if: >-
+      !cancelled() && !contains(needs.*.result, 'failure') &&
+      (needs.changes.outputs.python == 'true' || needs.changes.outputs.web == 'true' ||
+       needs.changes.outputs.infra == 'true')
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Start the stack and load the mentors
+        # The example settings are enough: the suite never sends a chat message, so the
+        # agent needs no model key. load-mentors only reads data/extraction_metadata.json.
+        run: |
+          cp infra/.env.example infra/.env
+          cp agents/mentor_agent/.env.example agents/mentor_agent/.env
+          make -C infra stack-up
+          docker exec mentoragent-mentor-agent-api mentor-agent load-mentors
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install Chromium
+        run: pnpm --filter @mentoragent/e2e-tests exec playwright install --with-deps chromium
+      - name: End-to-end tests
+        run: pnpm e2e
+      - name: Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e-tests/playwright-report
+            e2e-tests/test-results
+          retention-days: 7
+      - name: Stack logs on failure
+        if: failure()
+        run: |
+          docker compose -f infra/docker-compose.backend.yml logs --no-color --tail 200
+          docker compose -f infra/docker-compose.frontend.yml logs --no-color --tail 200
+      - name: Stop the stack
+        if: always()
+        run: |
+          make -C infra stack-down
+          make -C infra down

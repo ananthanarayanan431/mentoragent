@@ -14,7 +14,8 @@
     "test": "pnpm -r run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "e2e": "pnpm --filter @mentoragent/e2e-tests e2e"
   },
   "devDependencies": {
     "prettier": "^3.9.10"

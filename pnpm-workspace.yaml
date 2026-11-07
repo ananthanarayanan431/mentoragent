@@ -1,3 +1,4 @@
 packages:
   - web
   - libs/*
+  - e2e-tests

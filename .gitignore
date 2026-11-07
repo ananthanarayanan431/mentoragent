@@ -4,6 +4,10 @@
 # Node (the pnpm workspace root)
 node_modules/
 
+# Playwright output
+e2e-tests/test-results/
+e2e-tests/playwright-report/
+
 # Python tool caches and coverage data. Ruff, pytest and coverage take their
 # config from the root pyproject.toml, so they write these at the repo root.
 __pycache__/

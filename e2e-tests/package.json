@@ -1,0 +1,17 @@
+{
+  "name": "@mentoragent/e2e-tests",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Playwright end-to-end tests for the web app, run against the Docker stack (make -C infra stack-up).",
+  "type": "module",
+  "scripts": {
+    "e2e": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.65.0",
+    "@types/node": "^26.6.6",
+    "typescript": "~6.0.3"
+  }
+}

@@ -15,6 +15,7 @@
 .vscode
 docs
 infra
+e2e-tests
 scripts
 **/tests
 **/.env
