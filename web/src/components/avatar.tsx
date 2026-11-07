@@ -42,7 +42,7 @@ export function Avatar({ name, src, size = 48, className = '' }: Props) {
     <span
       aria-hidden="true"
       style={{ ...style, fontSize: Math.max(11, size * 0.36) }}
-      className={`grid shrink-0 place-items-center rounded-full bg-accent-soft font-semibold text-accent ring-1 ring-line ${className}`}
+      className={`grid shrink-0 place-items-center rounded-full bg-accent-soft font-semibold text-ink ring-1 ring-line ${className}`}
     >
       {initials(name)}
     </span>

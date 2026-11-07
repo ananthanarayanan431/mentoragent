@@ -36,7 +36,8 @@ export function Header({ theme, onThemeChange }: Props) {
 
 function navClass({ isActive }: { isActive: boolean }): string {
   return `rounded-md px-2.5 py-1.5 font-medium transition-colors ${
-    isActive ? 'bg-accent-soft text-accent' : 'text-muted hover:bg-raised hover:text-ink'
+    // Active: the same colours as the primary buttons, which meet contrast in both themes.
+    isActive ? 'bg-accent text-on-accent' : 'text-muted hover:bg-raised hover:text-ink'
   }`
 }
 
