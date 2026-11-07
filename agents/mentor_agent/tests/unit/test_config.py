@@ -69,6 +69,8 @@ def test_every_value_in_env_example_parses(monkeypatch: pytest.MonkeyPatch) -> N
             continue
         name, value = line.split("=", 1)
         monkeypatch.setenv(name.strip(), value.strip())
+    # The one value a fresh install must fill in (the example ships it blank).
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
 
     settings = Settings()
 
@@ -99,3 +101,9 @@ def test_agent_dir_can_be_set_for_an_installed_package(tmp_path: Path) -> None:
         [sys.executable, "-c", script], env=env, capture_output=True, text=True, check=True
     )
     assert result.stdout.strip() == str(tmp_path / "data" / "extraction_metadata.json")
+
+
+def test_a_blank_openrouter_key_fails_with_a_clear_message(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "  ")
+    with pytest.raises(ValidationError, match=r"set OPENROUTER_API_KEY in \.env"):
+        OpenRouterSettings()  # pyright: ignore[reportCallIssue] - API_KEY from env

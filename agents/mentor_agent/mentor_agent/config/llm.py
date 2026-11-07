@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings
 
 from mentor_agent.config.base import OptionalStr, settings_config
@@ -36,6 +36,16 @@ class OpenRouterSettings(BaseSettings):
     MAX_RETRIES: int = Field(default=2, ge=0)
     APP_URL: OptionalStr = None
     APP_NAME: OptionalStr = "mentoragent"
+
+    @field_validator("API_KEY")
+    @classmethod
+    def key_is_set(cls, value: SecretStr) -> SecretStr:
+        """A blank key (as .env.example ships it) fails here with a clear message,
+        instead of as a deep traceback from the OpenAI client at start-up."""
+        if not value.get_secret_value().strip():
+            msg = "is empty: set OPENROUTER_API_KEY in .env (keys: https://openrouter.ai/keys)"
+            raise ValueError(msg)
+        return value
 
     @property
     def default_headers(self) -> dict[str, str]:

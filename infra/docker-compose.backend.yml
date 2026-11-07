@@ -19,6 +19,10 @@ services:
     # because inside the network MongoDB is reached by container name.
     env_file: ../agents/mentor_agent/.env
     environment:
+      # The .env is written for local development (autoreload, console logs); the
+      # container always runs the production server settings.
+      RELOAD: "false"
+      LOG_JSON: "true"
       MONGO_URI: mongodb://${MONGO_USER:-mentor_user}:${MONGO_PASSWORD:-mentor_password}@mentoragent-mongo:27017/?directConnection=true
     ports:
       - "${MENTOR_AGENT_PORT:-8000}:8000"

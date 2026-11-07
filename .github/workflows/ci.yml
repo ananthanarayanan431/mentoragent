@@ -215,11 +215,12 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Start the stack and load the mentors
-        # The example settings are enough: the suite never sends a chat message, so the
-        # agent needs no model key. load-mentors only reads data/extraction_metadata.json.
+        # The example settings plus a placeholder key: the suite never sends a chat
+        # message, so no model is called. load-mentors only reads the mentor data file.
         run: |
           cp infra/.env.example infra/.env
-          cp agents/mentor_agent/.env.example agents/mentor_agent/.env
+          sed 's/^OPENROUTER_API_KEY=.*/OPENROUTER_API_KEY=ci-placeholder/' \
+            agents/mentor_agent/.env.example > agents/mentor_agent/.env
           make -C infra stack-up
           docker exec mentoragent-mentor-agent-api mentor-agent load-mentors
       - name: Cache Playwright browsers
