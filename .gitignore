@@ -4,6 +4,16 @@
 # Node (the pnpm workspace root)
 node_modules/
 
+# Python tool caches and coverage data. Ruff, pytest and coverage take their
+# config from the root pyproject.toml, so they write these at the repo root.
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
 # Secrets — only .env.example files are committed
 .env
 .env.*

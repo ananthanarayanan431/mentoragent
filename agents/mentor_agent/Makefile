@@ -61,6 +61,6 @@ docker-logs: ## Follow the agent's Docker logs
 docker-ps: ## Show the agent's container
 	$(COMPOSE) ps -a $(SERVICE)
 
-clean: ## Remove Python build and cache files
-	find . -type d -name __pycache__ -prune -exec rm -rf {} +
-	rm -rf .pytest_cache .ruff_cache .coverage coverage.xml
+clean: ## Remove bytecode here and the shared tool caches at the repo root
+	find . -type d -name __pycache__ -not -path './.venv/*' -prune -exec rm -rf {} +
+	rm -rf $(ROOT)/.pytest_cache $(ROOT)/.ruff_cache $(ROOT)/.coverage

@@ -57,6 +57,8 @@ packages = ["mentor_agent"]
 # fails under the floor. Raise the floor as coverage grows; never lower it.
 
 [tool.coverage.run]
+# Next to the other tool caches at the repo root, not inside the agent.
+data_file = "../../.coverage"
 source = ["mentor_agent"]
 branch = true
 
