@@ -15,8 +15,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-install-project
 
 COPY agents/mentor_agent/mentor_agent ./mentor_agent
+# --reinstall-package: the uv cache mount keeps a built wheel of this project, keyed
+# by its version, so without it a code change could ship the previous build.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --no-editable
+    uv sync --locked --no-dev --no-editable --reinstall-package mentor-agent
 
 # ---- runtime: slim image, non-root user ------------------------------------
 FROM python:3.12-slim AS runtime
@@ -27,10 +29,9 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PORT=8000 \
     RELOAD=false \
     LOG_JSON=true \
-    # The package is installed into site-packages, so the data files cannot be
-    # found relative to it; point at the copy below explicitly.
-    EXTRACTION_METADATA_FILE_PATH=/app/data/extraction_metadata.json \
-    EVALUATION_DATASET_FILE_PATH=/app/data/evaluation_dataset.json
+    # The package lives in site-packages; data/ (and any .env) live here, and
+    # relative paths such as EXTRACTION_METADATA_FILE_PATH resolve against this.
+    MENTOR_AGENT_DIR=/app
 
 RUN useradd --create-home --uid 1000 app
 WORKDIR /app

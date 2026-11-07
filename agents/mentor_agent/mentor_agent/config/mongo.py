@@ -3,7 +3,7 @@ from __future__ import annotations
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
-from mentor_agent.config.base import settings_config
+from mentor_agent.config.base import OptionalInt, settings_config
 
 
 class MongoSettings(BaseSettings):
@@ -36,4 +36,4 @@ class MongoSettings(BaseSettings):
     STATE_CHECKPOINT_COLLECTION: str = "mentor_state_checkpoints"
     STATE_WRITES_COLLECTION: str = "mentor_state_writes"
     LONG_TERM_MEMORY_COLLECTION: str = "mentor_long_term_memory"
-    CONVERSATION_TTL_SECONDS: int | None = Field(default=None, gt=0)
+    CONVERSATION_TTL_SECONDS: OptionalInt = Field(default=None, gt=0)

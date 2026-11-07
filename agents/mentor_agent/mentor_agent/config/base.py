@@ -1,15 +1,19 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Annotated
 
 from pydantic import BeforeValidator, SecretStr
 from pydantic_settings import SettingsConfigDict
 
-# The agent's folder (agents/mentor_agent), resolved from this file so settings
-# load the same .env no matter which directory the process is started from.
-# Keep the parents index in step with this file's depth in the package.
-AGENT_DIR = Path(__file__).resolve().parents[2]
+# The agent's folder: where .env and data/ live. Relative data paths resolve against
+# it, so settings load the same files whatever directory the process starts from.
+#
+# From a source checkout it is found from this file (agents/mentor_agent; keep the
+# parents index in step with this file's depth). An installed package (the Docker
+# image) lives in site-packages instead, so the image sets MENTOR_AGENT_DIR=/app.
+AGENT_DIR = Path(os.environ.get("MENTOR_AGENT_DIR") or Path(__file__).resolve().parents[2])
 ENV_FILE = AGENT_DIR / ".env"
 
 
@@ -20,6 +24,8 @@ def _blank_to_none(value: object) -> object:
 # An optional secret where a blank value (``COMET_API_KEY=``) means "unset".
 OptionalSecret = Annotated[SecretStr | None, BeforeValidator(_blank_to_none)]
 OptionalStr = Annotated[str | None, BeforeValidator(_blank_to_none)]
+# An optional integer where a blank value (``MONGO_CONVERSATION_TTL_SECONDS=``) means "unset".
+OptionalInt = Annotated[int | None, BeforeValidator(_blank_to_none)]
 
 
 def settings_config(prefix: str = "") -> SettingsConfigDict:
