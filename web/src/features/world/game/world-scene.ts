@@ -8,7 +8,9 @@ import * as Phaser from 'phaser'
 import type { WorldBridge } from '../world-bridge'
 import { appearanceFor, PLAYER_APPEARANCE, type Appearance } from './appearance'
 import {
+  ART_SCALE,
   CHARACTER_H,
+  CHARACTER_TEXTURE,
   CHARACTER_W,
   characterFrame,
   drawBuilding,
@@ -16,6 +18,7 @@ import {
   drawFountain,
   drawTileset,
   FACINGS,
+  TILESET_TILE,
   WALK_FRAMES,
 } from './art'
 import {
@@ -25,6 +28,7 @@ import {
   groundUnder,
   isGround,
   TILE,
+  TILE_KIND_COUNT,
   TileKind,
   type WorldMap,
 } from './map'
@@ -142,6 +146,8 @@ export class WorldScene extends Phaser.Scene {
 
   private createTerrain(): Phaser.Tilemaps.TilemapLayer[] {
     this.textures.addCanvas('tiles', drawTileset())
+    // Collision needs a tileset too; a blank one at world size will do (never drawn).
+    this.textures.addCanvas('collision-tiles', blankTileset())
     const { tiles } = this.map
 
     const groundData = tiles.map((row, r) =>
@@ -149,9 +155,13 @@ export class WorldScene extends Phaser.Scene {
     )
     const objectData = tiles.map((row) => row.map((kind) => (isGround(kind) ? -1 : kind)))
 
-    const ground = this.layer(groundData, 0)
+    // What you see: 64px art at half size. What you bump into: the same tiles as
+    // invisible 32px layers, so collision is unchanged by the art's resolution.
+    this.artLayer(groundData, 0)
+    this.artLayer(objectData, 1)
+    const ground = this.collisionLayer(groundData)
     ground.setCollision(TileKind.Water)
-    const objects = this.layer(objectData, 1)
+    const objects = this.collisionLayer(objectData)
     // Every object tile (tree, hedge, bench, lamp, building, fountain) is solid.
     objects.setCollisionByExclusion([-1])
 
@@ -161,6 +171,7 @@ export class WorldScene extends Phaser.Scene {
       this.add
         .image(building.col * TILE, building.row * TILE, key)
         .setOrigin(0)
+        .setScale(1 / ART_SCALE)
         .setDepth((building.row + building.rows) * TILE)
     }
 
@@ -169,6 +180,7 @@ export class WorldScene extends Phaser.Scene {
     this.add
       .image(fountain.col * TILE, fountain.row * TILE, 'fountain')
       .setOrigin(0)
+      .setScale(1 / ART_SCALE)
       .setDepth((fountain.row + fountain.rows) * TILE)
 
     const width = tiles[0]!.length * TILE
@@ -177,15 +189,31 @@ export class WorldScene extends Phaser.Scene {
     return [ground, objects]
   }
 
-  private layer(data: number[][], depth: number): Phaser.Tilemaps.TilemapLayer {
-    const tilemap = this.make.tilemap({ data, tileWidth: TILE, tileHeight: TILE })
-    const tileset = tilemap.addTilesetImage('tiles', 'tiles', TILE, TILE, 0, 0)
+  private tilemapLayer(
+    data: number[][],
+    tileSize: number,
+    textureKey: string,
+  ): Phaser.Tilemaps.TilemapLayer {
+    const tilemap = this.make.tilemap({ data, tileWidth: tileSize, tileHeight: tileSize })
+    const tileset = tilemap.addTilesetImage(textureKey, textureKey, tileSize, tileSize, 0, 0)
     const layer = tileset ? tilemap.createLayer(0, tileset, 0, 0) : null
     // Phaser 4 can also return a GPU layer; we ask for (and collide with) the standard one.
     if (!(layer instanceof Phaser.Tilemaps.TilemapLayer)) {
       throw new Error('Could not build a tilemap layer')
     }
-    return layer.setDepth(depth)
+    return layer
+  }
+
+  /** A visible layer of the 64px tile art, scaled to the world's 32px grid. */
+  private artLayer(data: number[][], depth: number): void {
+    this.tilemapLayer(data, TILESET_TILE, 'tiles')
+      .setScale(1 / ART_SCALE)
+      .setDepth(depth)
+  }
+
+  /** An invisible layer at world size, only for collision. */
+  private collisionLayer(data: number[][]): Phaser.Tilemaps.TilemapLayer {
+    return this.tilemapLayer(data, TILE, 'collision-tiles').setVisible(false)
   }
 
   // --- Characters ----------------------------------------------------------------
@@ -194,13 +222,14 @@ export class WorldScene extends Phaser.Scene {
     const texture = this.textures.addCanvas(key, drawCharacterSheet(look))
     if (!texture) throw new Error(`Could not create the ${key} texture`)
     for (let i = 0; i < FACINGS.length * WALK_FRAMES; i++) {
+      const { width, height } = CHARACTER_TEXTURE
       texture.add(
         i,
         0,
-        (i % WALK_FRAMES) * CHARACTER_W,
-        Math.floor(i / WALK_FRAMES) * CHARACTER_H,
-        CHARACTER_W,
-        CHARACTER_H,
+        (i % WALK_FRAMES) * width,
+        Math.floor(i / WALK_FRAMES) * height,
+        width,
+        height,
       )
     }
     for (const facing of FACINGS) {
@@ -216,8 +245,13 @@ export class WorldScene extends Phaser.Scene {
   private spawnActor(key: string, look: Appearance, at: Point): Actor {
     this.characterTexture(key, look)
     const sprite = this.physics.add.sprite(at.x, at.y - FEET_OFFSET, key, characterFrame('down', 0))
-    // Collide with the feet only, so characters can stand in front of walls.
-    sprite.body!.setSize(18, 10).setOffset((CHARACTER_W - 18) / 2, CHARACTER_H - 14)
+    sprite.setScale(1 / ART_SCALE)
+    // Collide with the feet only (18 x 10 world px), so characters can stand in front
+    // of walls. Body size and offset are in texture pixels, before the sprite's scale.
+    const s = ART_SCALE
+    sprite
+      .body!.setSize(18 * s, 10 * s)
+      .setOffset(((CHARACTER_W - 18) / 2) * s, (CHARACTER_H - 14) * s)
     sprite.setCollideWorldBounds(true)
     return { sprite, textureKey: key, facing: 'down' }
   }
@@ -273,11 +307,12 @@ export class WorldScene extends Phaser.Scene {
     this.mentors.push(added)
 
     if (arriving) {
-      added.sprite.setAlpha(0).setScale(0.6)
+      const scale = 1 / ART_SCALE
+      added.sprite.setAlpha(0).setScale(scale * 0.6)
       this.tweens.add({
         targets: added.sprite,
         alpha: 1,
-        scale: 1,
+        scale,
         duration: 600,
         ease: 'Back.Out',
       })
@@ -532,4 +567,12 @@ export class WorldScene extends Phaser.Scene {
       actor.sprite.setFrame(characterFrame(actor.facing, 0))
     }
   }
+}
+
+/** A transparent tileset at world size, for the invisible collision layers. */
+function blankTileset(): HTMLCanvasElement {
+  const element = document.createElement('canvas')
+  element.width = TILE * TILE_KIND_COUNT
+  element.height = TILE
+  return element
 }

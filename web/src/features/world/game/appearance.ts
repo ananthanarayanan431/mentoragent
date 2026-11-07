@@ -17,7 +17,16 @@ export interface Appearance {
 }
 
 const SKINS = ['#f6d3b3', '#eab68e', '#d39b6f', '#b07850', '#8a5a3b', '#6b4329']
-const HAIRS = ['#2b2118', '#5a3a22', '#8b5a2b', '#c9c3b8', '#e8e4dc', '#b5452a', '#3c3c44']
+const HAIRS = [
+  '#2b2118',
+  '#5a3a22',
+  '#8b5a2b',
+  '#c9c3b8',
+  '#e8e4dc',
+  '#b5452a',
+  '#3c3c44',
+  '#d4a24c',
+]
 const HAIR_STYLES: HairStyle[] = ['short', 'bald', 'long', 'side', 'bun']
 const OUTFITS = [
   '#3e5c8a',
@@ -28,10 +37,15 @@ const OUTFITS = [
   '#9c3d3d',
   '#3d6f7d',
   '#6b5b3e',
+  '#5b7f3a',
+  '#a0612f',
+  '#2c4f6f',
+  '#6d4f8f',
 ]
 const TRIMS = ['#e9c46a', '#f4f1de', '#e07a5f', '#81b29a', '#f2cc8f']
 const TROUSERS = ['#2d3142', '#3a3a3a', '#4f3b2a', '#283845']
-const ACCESSORIES: Accessory[] = ['none', 'glasses', 'tie', 'hat', 'scarf']
+// No hat: the player wears the only one, so they are easy to spot in a crowd.
+const ACCESSORIES: Accessory[] = ['none', 'glasses', 'tie', 'scarf']
 
 /** FNV-1a: a small, well-spread string hash. */
 export function hashString(value: string): number {
@@ -43,22 +57,21 @@ export function hashString(value: string): number {
   return hash >>> 0
 }
 
-function pick<T>(options: readonly T[], hash: number, salt: number): T {
-  // Mix the salt in so each attribute varies independently of the others.
-  const mixed = Math.imul(hash ^ Math.imul(salt, 0x9e3779b1), 0x85ebca6b) >>> 0
-  return options[mixed % options.length]!
+function pick<T>(options: readonly T[], id: string, attribute: string): T {
+  // Hash the id together with the attribute name, so each attribute varies on its
+  // own; mixing one shared hash left similar ids looking alike.
+  return options[hashString(`${id}#${attribute}`) % options.length]!
 }
 
 export function appearanceFor(id: string): Appearance {
-  const hash = hashString(id)
   return {
-    skin: pick(SKINS, hash, 1),
-    hair: pick(HAIRS, hash, 2),
-    hairStyle: pick(HAIR_STYLES, hash, 3),
-    outfit: pick(OUTFITS, hash, 4),
-    trim: pick(TRIMS, hash, 5),
-    trousers: pick(TROUSERS, hash, 6),
-    accessory: pick(ACCESSORIES, hash, 7),
+    skin: pick(SKINS, id, 'skin'),
+    hair: pick(HAIRS, id, 'hair'),
+    hairStyle: pick(HAIR_STYLES, id, 'hairStyle'),
+    outfit: pick(OUTFITS, id, 'outfit'),
+    trim: pick(TRIMS, id, 'trim'),
+    trousers: pick(TROUSERS, id, 'trousers'),
+    accessory: pick(ACCESSORIES, id, 'accessory'),
   }
 }
 
