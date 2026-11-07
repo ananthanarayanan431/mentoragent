@@ -46,7 +46,7 @@ class Models:
             headers["X-Title"] = config.APP_NAME
 
         self.client = AsyncOpenAI(
-            api_key=config.API_KEY.get_secret_value(),
+            api_key=config.require_api_key().get_secret_value(),
             base_url=config.BASE_URL,
             default_headers=headers,
         )

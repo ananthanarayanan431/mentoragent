@@ -117,3 +117,21 @@ def test_call_command_reports_an_unknown_mentor_without_a_traceback(
     assert "error: Mentor for id nobody not found." in result.stderr
     assert "Traceback" not in result.output
     assert result.stdout == ""
+
+
+def test_call_command_explains_a_missing_api_key(
+    monkeypatch: pytest.MonkeyPatch, cli_services: list[str], mentor_extract: MentorExtract
+) -> None:
+    import mentor_agent.bootstrap
+    from mentor_agent.config.base import MissingSettingError
+
+    def no_key() -> None:
+        msg = "OPENROUTER_API_KEY is empty: set it in .env"
+        raise MissingSettingError(msg)
+
+    monkeypatch.setattr(mentor_agent.bootstrap, "build_conversation_service", no_key)
+    result = CliRunner().invoke(app, ["call", "--mentor-id", mentor_extract.id, "--query", "Hi"])
+
+    assert result.exit_code == 1
+    assert "error: OPENROUTER_API_KEY is empty" in result.stderr
+    assert "Traceback" not in result.output

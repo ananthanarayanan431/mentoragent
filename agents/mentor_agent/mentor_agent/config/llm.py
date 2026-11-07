@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings
 
-from mentor_agent.config.base import OptionalStr, settings_config
+from mentor_agent.config.base import MissingSettingError, OptionalStr, settings_config
 
 
 class OpenRouterSettings(BaseSettings):
@@ -37,15 +37,19 @@ class OpenRouterSettings(BaseSettings):
     APP_URL: OptionalStr = None
     APP_NAME: OptionalStr = "mentoragent"
 
-    @field_validator("API_KEY")
-    @classmethod
-    def key_is_set(cls, value: SecretStr) -> SecretStr:
-        """A blank key (as .env.example ships it) fails here with a clear message,
-        instead of as a deep traceback from the OpenAI client at start-up."""
-        if not value.get_secret_value().strip():
-            msg = "is empty: set OPENROUTER_API_KEY in .env (keys: https://openrouter.ai/keys)"
-            raise ValueError(msg)
-        return value
+    def require_api_key(self) -> SecretStr:
+        """The key, for code about to call OpenRouter.
+
+        Checked here rather than when settings load, so commands that never call a
+        model (load-mentors, reset-conversations) work without one.
+
+        Raises:
+            MissingSettingError: If the key is blank (as .env.example ships it).
+        """
+        if not self.API_KEY.get_secret_value().strip():
+            msg = "OPENROUTER_API_KEY is empty: set it in .env (keys: https://openrouter.ai/keys)"
+            raise MissingSettingError(msg)
+        return self.API_KEY
 
     @property
     def default_headers(self) -> dict[str, str]:

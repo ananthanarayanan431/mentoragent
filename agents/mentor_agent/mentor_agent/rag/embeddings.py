@@ -26,7 +26,7 @@ def build_embedding_model(model_name: str | None = None) -> OpenAIEmbeddings:
 
     return OpenAIEmbeddings(
         model=model_name,
-        api_key=config.API_KEY,
+        api_key=config.require_api_key(),
         base_url=config.BASE_URL,
         default_headers=config.default_headers,
         timeout=config.TIMEOUT_SECONDS,

@@ -17,7 +17,7 @@ def build_chat_model(model: str | None = None, temperature: float | None = None)
     config = settings.openrouter
     return ChatOpenAI(
         model=model or config.LLM_MODEL,
-        api_key=config.API_KEY,
+        api_key=config.require_api_key(),
         base_url=config.BASE_URL,
         default_headers=config.default_headers,
         temperature=config.TEMPERATURE if temperature is None else temperature,

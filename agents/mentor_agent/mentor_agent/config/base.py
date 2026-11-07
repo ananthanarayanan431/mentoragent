@@ -17,6 +17,10 @@ AGENT_DIR = Path(os.environ.get("MENTOR_AGENT_DIR") or Path(__file__).resolve().
 ENV_FILE = AGENT_DIR / ".env"
 
 
+class MissingSettingError(RuntimeError):
+    """A setting the current action needs is not set (raised with what to set)."""
+
+
 def _blank_to_none(value: object) -> object:
     return None if isinstance(value, str) and not value.strip() else value
 

@@ -16,7 +16,7 @@ from mentor_agent.config import (
     RagSettings,
     Settings,
 )
-from mentor_agent.config.base import AGENT_DIR
+from mentor_agent.config.base import AGENT_DIR, MissingSettingError
 
 
 @pytest.mark.parametrize(
@@ -69,9 +69,6 @@ def test_every_value_in_env_example_parses(monkeypatch: pytest.MonkeyPatch) -> N
             continue
         name, value = line.split("=", 1)
         monkeypatch.setenv(name.strip(), value.strip())
-    # The one value a fresh install must fill in (the example ships it blank).
-    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
-
     settings = Settings()
 
     assert settings.mongo.CONVERSATION_TTL_SECONDS is None  # blank means keep forever
@@ -103,7 +100,16 @@ def test_agent_dir_can_be_set_for_an_installed_package(tmp_path: Path) -> None:
     assert result.stdout.strip() == str(tmp_path / "data" / "extraction_metadata.json")
 
 
-def test_a_blank_openrouter_key_fails_with_a_clear_message(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_blank_openrouter_key_loads_but_cannot_call_a_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Commands that never call a model (load-mentors) must work without a key.
     monkeypatch.setenv("OPENROUTER_API_KEY", "  ")
-    with pytest.raises(ValidationError, match=r"set OPENROUTER_API_KEY in \.env"):
-        OpenRouterSettings()  # pyright: ignore[reportCallIssue] - API_KEY from env
+    openrouter = OpenRouterSettings()  # pyright: ignore[reportCallIssue] - API_KEY from env
+
+    with pytest.raises(MissingSettingError, match=r"OPENROUTER_API_KEY is empty: set it in \.env"):
+        openrouter.require_api_key()
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
+    key = OpenRouterSettings().require_api_key()  # pyright: ignore[reportCallIssue] - API_KEY from env
+    assert key.get_secret_value() == "sk-or-test"
