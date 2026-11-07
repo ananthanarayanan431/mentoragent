@@ -1,11 +1,11 @@
 import { Users } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
-import { MentorCard } from '../components/MentorCard'
-import { EmptyState, ErrorState, MentorCardSkeleton } from '../components/StateViews'
-import { ApiError, listMentors } from '../lib/api'
-import { API_BASE_URL } from '../lib/config'
-import type { Mentor } from '../types'
+import { MentorCard } from './mentor-card'
+import { EmptyState, ErrorState, MentorCardSkeleton } from '@/components/state-views'
+import { ApiError, listMentors } from '@/lib/api'
+import { API_BASE_URL } from '@/lib/config'
+import type { Mentor } from '@/lib/types'
 
 type Status = 'loading' | 'ready' | 'error'
 

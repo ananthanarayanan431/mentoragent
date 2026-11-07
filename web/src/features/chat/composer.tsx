@@ -2,7 +2,7 @@ import { SendHorizontal } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 
-import { MAX_MESSAGE_CHARS } from '../../lib/config'
+import { MAX_MESSAGE_CHARS } from '@/lib/config'
 
 /** Beyond this many characters the remaining count is shown. */
 const COUNTER_VISIBLE_FROM = MAX_MESSAGE_CHARS - 500

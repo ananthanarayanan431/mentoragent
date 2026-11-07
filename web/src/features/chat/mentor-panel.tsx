@@ -1,5 +1,5 @@
-import { Avatar } from '../Avatar'
-import type { Mentor } from '../../types'
+import { Avatar } from '@/components/avatar'
+import type { Mentor } from '@/lib/types'
 
 /** Mentor detail shown beside the conversation. */
 export function MentorPanel({ mentor }: { mentor: Mentor }) {

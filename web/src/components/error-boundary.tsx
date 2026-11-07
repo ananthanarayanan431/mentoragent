@@ -1,7 +1,7 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 
-import { ErrorState } from './StateViews'
+import { ErrorState } from './state-views'
 
 interface Props {
   children: ReactNode

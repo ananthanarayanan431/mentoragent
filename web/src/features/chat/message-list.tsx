@@ -1,8 +1,8 @@
 import { ArrowDown, Sparkles } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { MessageBubble } from './MessageBubble'
-import type { Mentor, Message } from '../../types'
+import { MessageBubble } from './message-bubble'
+import type { Mentor, Message } from '@/lib/types'
 
 /** How far from the bottom still counts as "following along". */
 const STICK_THRESHOLD_PX = 120

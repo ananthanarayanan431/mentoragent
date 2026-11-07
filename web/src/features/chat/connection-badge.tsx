@@ -1,4 +1,4 @@
-import type { SocketStatus } from '../../hooks/useChatSocket'
+import type { SocketStatus } from './use-chat-socket'
 
 const LABELS: Record<SocketStatus, { text: string; dot: string; tone: string }> = {
   connecting: { text: 'Connecting', dot: 'bg-faint animate-blink', tone: 'text-faint' },

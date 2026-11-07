@@ -5,7 +5,7 @@
  * (start -> chunk* -> end) testable without a socket or a DOM.
  */
 
-import type { Message, ServerEvent } from '../types'
+import type { Message, ServerEvent } from '@/lib/types'
 
 export interface ChatState {
   messages: Message[]

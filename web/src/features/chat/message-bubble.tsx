@@ -2,8 +2,8 @@ import { AlertCircle } from 'lucide-react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
-import { Avatar } from '../Avatar'
-import type { Message } from '../../types'
+import { Avatar } from '@/components/avatar'
+import type { Message } from '@/lib/types'
 
 interface Props {
   message: Message

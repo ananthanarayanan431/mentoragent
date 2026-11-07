@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 
-import { ThemeToggle } from './ThemeToggle'
-import type { Theme } from '../hooks/useTheme'
+import { ThemeToggle } from './theme-toggle'
+import type { Theme } from '@/lib/use-theme'
 
 interface Props {
   theme: Theme

@@ -8,7 +8,7 @@
 
 import type { ChatState } from './chat-state'
 import { initialChatState } from './chat-state'
-import type { Message, Role } from '../types'
+import type { Message, Role } from '@/lib/types'
 
 const PREFIX = 'mentoragent:conversation:'
 /** Keeps a long chat from outgrowing the ~5MB localStorage budget. */

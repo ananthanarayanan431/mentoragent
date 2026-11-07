@@ -1,8 +1,8 @@
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router'
 
-import { Avatar } from './Avatar'
-import type { Mentor } from '../types'
+import { Avatar } from '@/components/avatar'
+import type { Mentor } from '@/lib/types'
 
 export function MentorCard({ mentor }: { mentor: Mentor }) {
   return (

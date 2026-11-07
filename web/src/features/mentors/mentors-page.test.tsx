@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { MentorsPage } from './MentorsPage'
+import { MentorsPage } from './mentors-page'
 
 const mentor = {
   id: 'ada',

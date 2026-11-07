@@ -1,10 +1,10 @@
 import { BrowserRouter, Route, Routes } from 'react-router'
 
-import { Header } from './components/Header'
-import { useTheme } from './hooks/useTheme'
-import { ChatPage } from './pages/ChatPage'
-import { MentorsPage } from './pages/MentorsPage'
-import { NotFoundPage } from './pages/NotFoundPage'
+import { Header } from '@/components/header'
+import { useTheme } from '@/lib/use-theme'
+import { ChatPage } from '@/features/chat/chat-page'
+import { MentorsPage } from '@/features/mentors/mentors-page'
+import { NotFoundPage } from './not-found-page'
 
 export function App() {
   const { theme, setTheme } = useTheme()

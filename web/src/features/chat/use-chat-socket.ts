@@ -5,9 +5,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { API_PREFIX, wsUrl } from '../lib/config'
-import { parseServerEvent } from '../lib/chat-state'
-import type { ChatRequest, ServerEvent } from '../types'
+import { API_PREFIX, wsUrl } from '@/lib/config'
+import { parseServerEvent } from './chat-state'
+import type { ChatRequest, ServerEvent } from '@/lib/types'
 
 export type SocketStatus = 'connecting' | 'open' | 'reconnecting' | 'offline'
 

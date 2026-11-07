@@ -1,7 +1,7 @@
 /** Typed client for the MentorAgents API. */
 
 import { API_KEY, API_PREFIX, httpUrl } from './config'
-import type { ChatRequest, ChatResponse, Mentor } from '../types'
+import type { ChatRequest, ChatResponse, Mentor } from './types'
 
 /** An API call that failed, carrying a message fit to show the user. */
 export class ApiError extends Error {
