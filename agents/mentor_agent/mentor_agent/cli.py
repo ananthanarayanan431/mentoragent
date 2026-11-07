@@ -67,6 +67,7 @@ def call(
     """Ask a mentor one question and stream the reply to the terminal."""
     from mentor_agent.bootstrap import build_conversation_service
     from mentor_agent.db.client import AsyncMongoRepository, close_mongo_clients
+    from mentor_agent.errors import MentorAgentError
     from mentor_agent.models.mentor_extract import MentorExtract
     from mentor_agent.services.mentors import MentorService
 
@@ -86,7 +87,13 @@ def call(
         finally:
             await close_mongo_clients()
 
-    used_id = asyncio.run(run())
+    try:
+        used_id = asyncio.run(run())
+    except MentorAgentError as exc:
+        # An expected failure (unknown mentor, the model not answering): a clean
+        # message and a non-zero exit, not a traceback.
+        typer.echo(f"error: {exc.message}", err=True)
+        raise typer.Exit(code=1) from exc
     # On stderr, so stdout carries only the reply and can be piped.
     typer.echo(f"\nconversation id: {used_id} (pass --conversation-id to continue)", err=True)
 
