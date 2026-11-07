@@ -54,8 +54,8 @@ export type BuildingKind = 'library' | 'market' | 'cafe'
 export interface Building extends Rect {
   kind: BuildingKind
   label: string
-  /** The wall the door is in; a path leads to it. */
-  door: 'north' | 'south'
+  /** The door is always in the south wall, the one the 3/4 view shows; a path leads to it. */
+  door: 'south'
 }
 
 export interface WorldMap {
@@ -71,7 +71,7 @@ export interface WorldMap {
 const BUILDINGS: Building[] = [
   { kind: 'library', label: 'Library', col: 4, row: 2, cols: 8, rows: 6, door: 'south' },
   { kind: 'market', label: 'Market Hall', col: 32, row: 2, cols: 9, rows: 6, door: 'south' },
-  { kind: 'cafe', label: 'Café', col: 4, row: 22, cols: 8, rows: 6, door: 'north' },
+  { kind: 'cafe', label: 'Café', col: 4, row: 22, cols: 8, rows: 6, door: 'south' },
 ]
 
 const FOUNTAIN: Rect = { col: 21, row: 15, cols: 2, rows: 2 }
@@ -91,11 +91,11 @@ const TREES: Cell[] = [
   [41, 19],
   [14, 22],
   [16, 26],
-  [13, 29],
+  [13, 27],
   [27, 23],
   [28, 28],
   [40, 29],
-  [18, 29],
+  [18, 27],
   [25, 29],
   [37, 10],
   [6, 11],
@@ -146,7 +146,9 @@ export function buildWorldMap(): WorldMap {
   // Side paths from each building's door to a street.
   fill(tiles, { col: 7, row: 8, cols: 2, rows: 7 }, TileKind.Path)
   fill(tiles, { col: 35, row: 8, cols: 2, rows: 7 }, TileKind.Path)
-  fill(tiles, { col: 7, row: 17, cols: 2, rows: 5 }, TileKind.Path)
+  // The cafe faces south: its path runs along the bottom of the square to the street.
+  fill(tiles, { col: 7, row: 28, cols: 2, rows: 2 }, TileKind.Path)
+  fill(tiles, { col: 9, row: 29, cols: 12, rows: 1 }, TileKind.Path)
 
   fill(tiles, { col: 16, row: 11, cols: 12, rows: 10 }, TileKind.Plaza)
   fill(tiles, FOUNTAIN, TileKind.Fountain)
@@ -228,10 +230,53 @@ export function reachableFrom(map: WorldMap, start: Cell): Set<string> {
 
 /** The cell just outside a building's door (the doorway is two tiles wide, centred). */
 export function doorstep(building: Building): Cell {
-  const col = building.col + Math.floor(building.cols / 2) - 1
-  return building.door === 'south'
-    ? { col, row: building.row + building.rows }
-    : { col, row: building.row - 1 }
+  return {
+    col: building.col + Math.floor(building.cols / 2) - 1,
+    row: building.row + building.rows,
+  }
+}
+
+const GROUND: ReadonlySet<TileKind> = new Set<TileKind>([
+  TileKind.Grass,
+  TileKind.Flowers,
+  TileKind.Path,
+  TileKind.Plaza,
+  TileKind.Water,
+])
+
+export function isGround(kind: TileKind): boolean {
+  return GROUND.has(kind)
+}
+
+/**
+ * What to draw under an object tile (tree, bench, lamp...): the most common plain
+ * ground among its neighbours, so a bench on the plaza sits on stone and a tree in
+ * a field on grass. Ground tiles are their own ground.
+ */
+export function groundUnder(map: WorldMap, cell: Cell): TileKind {
+  const own = tileAt(map, cell)
+  if (own !== undefined && isGround(own)) return own
+  const counts = new Map<TileKind, number>()
+  for (const [dc, dr] of [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ] as const) {
+    const kind = tileAt(map, { col: cell.col + dc, row: cell.row + dr })
+    if (kind === TileKind.Grass || kind === TileKind.Path || kind === TileKind.Plaza) {
+      counts.set(kind, (counts.get(kind) ?? 0) + 1)
+    }
+  }
+  let best: TileKind = TileKind.Grass
+  let bestCount = 0
+  for (const [kind, count] of counts) {
+    if (count > bestCount) {
+      best = kind
+      bestCount = count
+    }
+  }
+  return best
 }
 
 /** The pixel centre of a cell. */

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildWorldMap,
   doorstep,
+  groundUnder,
   isWalkable,
   MAP_COLS,
   MAP_ROWS,
@@ -58,6 +59,13 @@ describe('world map', () => {
         reachable: reachable.has(`${step.col},${step.row}`),
       }).toEqual({ building: building.label, doorstep: TileKind.Path, reachable: true })
     }
+  })
+
+  it('puts objects on the ground around them', () => {
+    // A plaza bench sits on stone, a tree in a field on grass, the ground stays itself.
+    expect(groundUnder(map, { col: 17, row: 12 })).toBe(TileKind.Plaza)
+    expect(groundUnder(map, { col: 14, row: 3 })).toBe(TileKind.Grass)
+    expect(groundUnder(map, map.playerSpawn)).toBe(TileKind.Path)
   })
 
   it('keeps buildings and the fountain solid', () => {
