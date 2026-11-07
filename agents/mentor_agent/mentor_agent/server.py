@@ -6,6 +6,8 @@ service, the mentor catalogue) and torn down. Entry point: ``mentor_agent.main``
 
 from __future__ import annotations
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from functools import partial
 from typing import TYPE_CHECKING
@@ -40,6 +42,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     restart the process instead of serving errors.
     """
     configure_logging()
+    # Sync libraries called from async code (checkpointer, retriever, tracing) run
+    # on the loop's default executor; size it from settings rather than the CPU count.
+    executor = ThreadPoolExecutor(
+        max_workers=settings.server.WORKER_THREADS, thread_name_prefix="mentor-agent"
+    )
+    asyncio.get_running_loop().set_default_executor(executor)
     tracing = await run_in_threadpool(configure_opik)
     # Blocking: connects to MongoDB and creates checkpoint indexes.
     app.state.conversations = await run_in_threadpool(
@@ -48,14 +56,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.mentors = MentorService(
         AsyncMongoRepository(MentorExtract, settings.mongo.MENTORS_COLLECTION)
     )
-    app.state.pool = _load_pool()
+    app.state.pool = await run_in_threadpool(_load_pool)
     app.state.memory = MentorMemoryBuilder(app.state.mentors, _rebuild_one)
     logger.info("{} API ready ({})", settings.app.PROJECT_NAME, settings.app.ENVIRONMENT)
     try:
         yield
     finally:
         await close_mongo_clients()
+        executor.shutdown(wait=False, cancel_futures=True)
         logger.info("Shutdown complete")
+        await logger.complete()
 
 
 def _load_pool() -> list[MentorExtract]:

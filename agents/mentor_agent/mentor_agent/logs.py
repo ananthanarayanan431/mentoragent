@@ -98,6 +98,8 @@ def configure_logging(app_settings: AppSettings | None = None) -> None:
         # Variable values in tracebacks can include secrets; only show them locally.
         backtrace=app_settings.LOCAL_DEVELOPMENT,
         diagnose=app_settings.LOCAL_DEVELOPMENT,
+        # Write from a background thread so a slow stdout never stalls the event loop.
+        enqueue=True,
     )
 
     logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)

@@ -14,6 +14,7 @@ from mentor_agent.config import (
     OpenRouterSettings,
     PathSettings,
     RagSettings,
+    ServerSettings,
     Settings,
 )
 from mentor_agent.config.base import AGENT_DIR, MissingSettingError
@@ -37,6 +38,12 @@ def test_cors_origins_parse_separators(
 def test_rag_rejects_overlap_not_smaller_than_chunk() -> None:
     with pytest.raises(ValidationError, match="must be smaller"):
         RagSettings(CHUNK_SIZE=100, CHUNK_OVERLAP=100)
+
+
+def test_worker_threads_must_be_positive(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("WORKER_THREADS", "0")
+    with pytest.raises(ValidationError):
+        ServerSettings()
 
 
 def test_api_keys_are_masked_in_repr() -> None:

@@ -50,6 +50,10 @@ class ServerSettings(BaseSettings):
         HOST: The interface the server binds to.
         PORT: The port the server listens on.
         RELOAD: Whether to enable autoreload.
+        WORKER_THREADS: Size of the event loop's default thread pool. Sync
+            libraries called from async code (the LangGraph checkpointer, the
+            hybrid retriever, embeddings, tracing) run there, so it caps how
+            many of those calls run at once.
     """
 
     model_config = settings_config()
@@ -57,3 +61,4 @@ class ServerSettings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = Field(default=8000, ge=1, le=65535)
     RELOAD: bool = False
+    WORKER_THREADS: int = Field(default=64, ge=1, le=1024)
