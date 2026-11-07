@@ -233,4 +233,29 @@ describe('WorldPage', () => {
     await user.click(screen.getByRole('button', { name: /resume/i }))
     expect(lastPaused()).toBe(false)
   })
+
+  it('closes the pause menu with Escape and keeps Tab inside it', async () => {
+    const user = userEvent.setup()
+    await renderWorld()
+    await user.click(screen.getByRole('button', { name: /enter the square/i }))
+    fromGame((bridge) => bridge.events.emit('pause', {}))
+
+    const pause = screen.getByRole('dialog', { name: 'Paused' })
+    for (let i = 0; i < 5; i++) {
+      // Key presses are sequential by nature; they cannot run in parallel.
+      // oxlint-disable-next-line no-await-in-loop
+      await user.tab()
+      expect(pause).toContainElement(document.activeElement as HTMLElement)
+    }
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Paused' })).not.toBeInTheDocument()
+    expect(lastPaused()).toBe(false)
+  })
+
+  it('shows an error when the scene cannot build the world', async () => {
+    await renderWorld()
+    fromGame((bridge) => bridge.events.emit('failed', { message: 'no textures' }))
+    expect(screen.getByText('Mentor Square could not start')).toBeInTheDocument()
+  })
 })

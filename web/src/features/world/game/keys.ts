@@ -1,17 +1,21 @@
+/** Marks the element that holds the game; keys aimed inside it are game keys. */
+export const WORLD_ROOT_ATTRIBUTE = 'data-world-root'
+
 /**
- * True when a key event was typing in a text field (the dialogue's text box, the
- * header's controls...). The game must ignore those keys.
+ * True when a key event is for the game: focus is on the page itself or inside the
+ * game's container. Keys aimed at anything else (the dialogue's text box, a focused
+ * link or button in the header or a menu) belong to that element, and the game
+ * must neither act on them nor cancel them.
  *
- * Phaser queues DOM key events and handles them on its next frame, so checking
- * "is game input enabled?" is not enough: a Space typed into the dialogue can be
- * handled after Escape has closed it and re-enabled input, and would open it
- * again. The event's target says what the key was for, whatever the timing.
+ * Phaser listens on `window` and handles its queued key events on the next frame,
+ * so "is game input enabled?" alone is not enough: the target says what the key was
+ * for, whatever the timing.
  */
-export function isTypingIntoField(event: Pick<KeyboardEvent, 'target'>): boolean {
+export function isForTheGame(event: Pick<KeyboardEvent, 'target'>): boolean {
   const target = event.target
-  if (!(target instanceof HTMLElement)) return false
-  if (target.isContentEditable) return true
-  return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT'
+  if (!(target instanceof Element)) return true // window or document
+  if (target === document.body || target === document.documentElement) return true
+  return target.closest(`[${WORLD_ROOT_ATTRIBUTE}]`) !== null
 }
 
 /**

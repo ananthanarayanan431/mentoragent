@@ -15,6 +15,8 @@ export interface GameEvents {
   pause: Record<string, never>
   /** The scene has built the world and is running. */
   ready: Record<string, never>
+  /** The scene could not build the world (the page shows an error instead of a spinner). */
+  failed: { message: string }
 }
 
 /** Commands React sends to the game. */

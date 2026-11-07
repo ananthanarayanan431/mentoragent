@@ -27,7 +27,7 @@ import {
   TileKind,
   type WorldMap,
 } from './map'
-import { isTypingIntoField, oncePerEvent } from './keys'
+import { isForTheGame, oncePerEvent } from './keys'
 import {
   facingFor,
   facingTowards,
@@ -93,6 +93,11 @@ export class WorldScene extends Phaser.Scene {
   // Frozen until the page says otherwise (it shows the title screen first).
   private inputEnabled = false
   private paused = true
+  /** False until create() finished; update() does nothing on a half-built world. */
+  private built = false
+  /** For tap-to-walk: where the player was last frame, and for how long they have not moved. */
+  private lastPlayerFeet: Point = { x: 0, y: 0 }
+  private stuckMs = 0
   /** Where a tap asked the player to walk, and who to talk to on arrival. */
   private pointerTarget: { point: Point; mentor: MentorActor | null } | null = null
   private unsubscribe: (() => void)[] = []
@@ -103,18 +108,29 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.map = buildWorldMap()
-    const blockers = this.createTerrain()
-    this.createPlayer(blockers)
-    this.createMentors(blockers)
-    this.createPrompt()
-    this.createInput()
-    this.createCamera()
-    this.listenToReact()
+    // game.destroy() emits DESTROY, not SHUTDOWN; release the bridge on either.
+    const release = () => {
+      for (const off of this.unsubscribe.splice(0)) off()
+    }
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, release)
+    this.events.once(Phaser.Scenes.Events.DESTROY, release)
 
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      for (const off of this.unsubscribe) off()
-    })
+    try {
+      this.map = buildWorldMap()
+      const blockers = this.createTerrain()
+      this.createPlayer(blockers)
+      this.createMentors(blockers)
+      this.createPrompt()
+      this.createInput()
+      this.createCamera()
+      this.listenToReact()
+    } catch (error) {
+      // Tell the page, which would otherwise wait for `ready` forever.
+      const message = error instanceof Error ? error.message : String(error)
+      this.options.bridge.events.emit('failed', { message })
+      return
+    }
+    this.built = true
     this.options.bridge.events.emit('ready', {})
   }
 
@@ -288,7 +304,7 @@ export class WorldScene extends Phaser.Scene {
     // Talk on the keydown event itself, not by polling the key each frame: a quick
     // tap (down and up between two frames) would otherwise be missed.
     const talk = oncePerEvent((event: KeyboardEvent) => {
-      if (isTypingIntoField(event)) return
+      if (!isForTheGame(event)) return
       if (!this.inputEnabled || !this.nearby || this.nearby.talking) return
       // The dialogue's text box takes focus during this same key press; without
       // this the Space (or Enter) would also be typed into it.
@@ -300,7 +316,7 @@ export class WorldScene extends Phaser.Scene {
     keyboard.on(
       'keydown-ESC',
       oncePerEvent((event: KeyboardEvent) => {
-        if (this.inputEnabled && !isTypingIntoField(event)) {
+        if (this.inputEnabled && isForTheGame(event)) {
           this.options.bridge.events.emit('pause', {})
         }
       }),
@@ -315,6 +331,7 @@ export class WorldScene extends Phaser.Scene {
         this.mentors.map((m) => ({ x: m.sprite.x, y: m.sprite.y, mentor: m })),
         TILE,
       )
+      this.stuckMs = 0
       this.pointerTarget = mentor
         ? { point: this.feet(mentor.mentor), mentor: mentor.mentor }
         : { point, mentor: null }
@@ -364,6 +381,7 @@ export class WorldScene extends Phaser.Scene {
   // --- Frame update ----------------------------------------------------------------
 
   override update(_time: number, delta: number): void {
+    if (!this.built) return
     if (this.paused) {
       // A frozen world: everyone stands still and the wander timers do not run.
       for (const actor of [this.player, ...this.mentors]) {
@@ -372,7 +390,7 @@ export class WorldScene extends Phaser.Scene {
       }
       return
     }
-    this.updatePlayer()
+    this.updatePlayer(delta)
     for (const mentor of this.mentors) this.updateMentor(mentor, delta)
     this.updateNearby()
     for (const actor of [this.player, ...this.mentors]) actor.sprite.setDepth(this.feet(actor).y)
@@ -382,7 +400,7 @@ export class WorldScene extends Phaser.Scene {
     return { x: actor.sprite.x, y: actor.sprite.y + FEET_OFFSET }
   }
 
-  private updatePlayer(): void {
+  private updatePlayer(delta: number): void {
     const sprite = this.player.sprite
     if (!this.inputEnabled) {
       this.animate(this.player, { x: 0, y: 0 })
@@ -401,19 +419,27 @@ export class WorldScene extends Phaser.Scene {
       this.pointerTarget = null // the keyboard takes over from a tap
     } else if (this.pointerTarget) {
       const feet = this.feet(this.player)
-      const dx = this.pointerTarget.point.x - feet.x
-      const dy = this.pointerTarget.point.y - feet.y
-      const distance = Math.hypot(dx, dy)
       const target = this.pointerTarget.mentor
+      // Follow a mentor who wanders off, rather than walking to where they were.
+      const goal = target ? this.feet(target) : this.pointerTarget.point
+      const dx = goal.x - feet.x
+      const dy = goal.y - feet.y
+      const distance = Math.hypot(dx, dy)
       const stopAt = target ? TALK_REACH * 0.8 : 4
+      const moved = Math.hypot(feet.x - this.lastPlayerFeet.x, feet.y - this.lastPlayerFeet.y)
+      this.stuckMs = moved < 0.05 ? this.stuckMs + delta : 0
       if (distance <= stopAt) {
         this.pointerTarget = null
         if (target) this.startTalk(target)
+      } else if (this.stuckMs > 400) {
+        // Walking into water or a hedge: give up instead of pushing forever.
+        this.pointerTarget = null
       } else {
         vx = dx / distance
         vy = dy / distance
       }
     }
+    this.lastPlayerFeet = this.feet(this.player)
 
     const length = Math.hypot(vx, vy) || 1
     const velocity = { x: (vx / length) * PLAYER_SPEED, y: (vy / length) * PLAYER_SPEED }

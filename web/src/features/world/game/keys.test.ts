@@ -1,29 +1,34 @@
 import { describe, expect, it } from 'vitest'
 
-import { isTypingIntoField, oncePerEvent } from './keys'
+import { isForTheGame, oncePerEvent, WORLD_ROOT_ATTRIBUTE } from './keys'
 
 function keyOn(target: EventTarget | null) {
   return { target }
 }
 
-describe('isTypingIntoField', () => {
-  it('is true for text boxes, inputs, selects and editable elements', () => {
-    expect(isTypingIntoField(keyOn(document.createElement('textarea')))).toBe(true)
-    expect(isTypingIntoField(keyOn(document.createElement('input')))).toBe(true)
-    expect(isTypingIntoField(keyOn(document.createElement('select')))).toBe(true)
-    const editable = document.createElement('div')
-    editable.contentEditable = 'true'
-    // jsdom does not compute isContentEditable from the attribute.
-    Object.defineProperty(editable, 'isContentEditable', { value: true })
-    expect(isTypingIntoField(keyOn(editable))).toBe(true)
+describe('isForTheGame', () => {
+  it('is true for the page itself and anything inside the game container', () => {
+    const root = document.createElement('div')
+    root.setAttribute(WORLD_ROOT_ATTRIBUTE, '')
+    const canvas = document.createElement('canvas')
+    root.append(canvas)
+    document.body.append(root)
+
+    expect(isForTheGame(keyOn(window))).toBe(true)
+    expect(isForTheGame(keyOn(document))).toBe(true)
+    expect(isForTheGame(keyOn(document.body))).toBe(true)
+    expect(isForTheGame(keyOn(root))).toBe(true)
+    expect(isForTheGame(keyOn(canvas))).toBe(true)
+    root.remove()
   })
 
-  it('is false for the page, the game and buttons', () => {
-    expect(isTypingIntoField(keyOn(document.body))).toBe(false)
-    expect(isTypingIntoField(keyOn(document.createElement('canvas')))).toBe(false)
-    expect(isTypingIntoField(keyOn(document.createElement('button')))).toBe(false)
-    expect(isTypingIntoField(keyOn(window))).toBe(false)
-    expect(isTypingIntoField(keyOn(null))).toBe(false)
+  it('is false for text boxes, links and buttons outside the game', () => {
+    for (const tag of ['textarea', 'input', 'select', 'button', 'a']) {
+      const element = document.createElement(tag)
+      document.body.append(element)
+      expect(isForTheGame(keyOn(element))).toBe(false)
+      element.remove()
+    }
   })
 })
 

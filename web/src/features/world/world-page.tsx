@@ -106,6 +106,7 @@ function World({ mentors }: { mentors: Mentor[] }) {
   useEffect(() => {
     const offs = [
       bridge.events.on('ready', () => setReady(true)),
+      bridge.events.on('failed', () => setGameError('The game could not draw the square.')),
       bridge.events.on('nearby', ({ mentorId }) => setNearbyId(mentorId)),
       bridge.events.on('talk', ({ mentorId }) => setMode({ kind: 'talking', mentorId })),
       bridge.events.on('pause', () => setMode({ kind: 'paused' })),
@@ -146,6 +147,7 @@ function World({ mentors }: { mentors: Mentor[] }) {
       <div
         ref={containerRef}
         tabIndex={-1}
+        data-world-root=""
         role="region"
         aria-label="Mentor Square. Use the arrow keys to walk."
         className="absolute inset-0 outline-none [&_canvas]:block"

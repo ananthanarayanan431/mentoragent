@@ -36,7 +36,8 @@ export function DialogueBox({ mentor, onClose, onMessageSent }: Props) {
   // so the game's own Escape (the pause menu) never sees it.
   useEffect(() => {
     function onKey(event: globalThis.KeyboardEvent) {
-      if (event.key !== 'Escape') return
+      // Escape during IME composition cancels the composition, not the conversation.
+      if (event.key !== 'Escape' || event.isComposing) return
       event.stopPropagation()
       onClose()
     }

@@ -29,10 +29,52 @@ function Controls() {
   )
 }
 
-function Panel({ children, label }: { children: React.ReactNode; label: string }) {
+interface PanelProps {
+  children: React.ReactNode
+  label: string
+  /** Escape does this (the pause menu resumes); without it Escape does nothing. */
+  onEscape?: () => void
+}
+
+/**
+ * A modal menu over the game. Being modal, it keeps keyboard focus inside itself
+ * (Tab and Shift+Tab cycle through its controls) and handles Escape.
+ */
+function Panel({ children, label, onEscape }: PanelProps) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onKey(event: globalThis.KeyboardEvent) {
+      const panel = ref.current
+      if (!panel) return
+      if (event.key === 'Escape') {
+        // Capture phase, so the game never sees this Escape and reopens the menu.
+        event.stopPropagation()
+        onEscape?.()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = [...panel.querySelectorAll<HTMLElement>('button, a[href]')]
+      if (!focusable.length) return
+      const first = focusable[0]!
+      const last = focusable.at(-1)!
+      const inside = panel.contains(document.activeElement)
+      if (event.shiftKey && (document.activeElement === first || !inside)) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && (document.activeElement === last || !inside)) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey, { capture: true })
+    return () => window.removeEventListener('keydown', onKey, { capture: true })
+  }, [onEscape])
+
   return (
     <div className="pointer-events-auto absolute inset-0 z-30 grid place-items-center bg-black/45 p-4 backdrop-blur-[2px]">
       <div
+        ref={ref}
         role="dialog"
         aria-modal="true"
         aria-label={label}
@@ -96,7 +138,7 @@ interface PauseProps {
 export function PauseMenu({ labelsVisible, onToggleLabels, onResume }: PauseProps) {
   const resumeRef = useAutoFocus<HTMLButtonElement>()
   return (
-    <Panel label="Paused">
+    <Panel label="Paused" onEscape={onResume}>
       <h2 className="font-mono text-2xl font-bold uppercase tracking-wide">Paused</h2>
       <Controls />
       <div className="flex flex-col gap-2">

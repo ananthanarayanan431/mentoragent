@@ -40,6 +40,21 @@ export function useMentorConversation(mentorId: string): MentorConversation {
     saveConversation(mentorId, state)
   }, [mentorId, state])
 
+  // Closing mid-reply (Escape in the world, leaving the page) would otherwise lose
+  // the player's message and the conversation id, since saves skip streaming state.
+  // Save it as an interrupted reply instead, so the next message continues it.
+  useEffect(
+    () => () => {
+      const current = stateRef.current
+      if (!mentorId || !current.isStreaming) return
+      saveConversation(
+        mentorId,
+        chatReducer(current, { type: 'failed', detail: 'The reply was interrupted.' }),
+      )
+    },
+    [mentorId],
+  )
+
   const handleEvent = useCallback((event: ServerEvent) => {
     dispatch({ type: 'server', event })
   }, [])

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -87,6 +87,12 @@ describe('DialogueBox', () => {
     await user.click(screen.getByRole('button', { name: /close/i }))
 
     expect(onClose).toHaveBeenCalledTimes(2)
+  })
+
+  it('lets Escape cancel an IME composition without closing', () => {
+    const { onClose, input } = renderBox()
+    fireEvent.keyDown(input, { key: 'Escape', isComposing: true })
+    expect(onClose).not.toHaveBeenCalled()
   })
 
   it('links to the same conversation on the full chat page', () => {

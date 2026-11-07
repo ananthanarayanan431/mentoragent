@@ -195,4 +195,31 @@ describe('useMentorConversation', () => {
 
     expect(window.localStorage.length).toBe(0)
   })
+
+  it('keeps the message and the conversation when closed mid-reply', () => {
+    const first = renderHook(() => useMentorConversation('ada'))
+    act(() => {
+      first.result.current.send('Hi')
+    })
+    serverSends({ type: 'start', conversation_id: 'c1' })
+    serverSends({ type: 'chunk', content: 'Hel' })
+
+    first.unmount() // e.g. Escape in the world
+
+    const again = renderHook(() => useMentorConversation('ada'))
+    const { messages, conversationId, isStreaming } = again.result.current.state
+    expect(conversationId).toBe('c1')
+    expect(isStreaming).toBe(false)
+    expect(messages[0]).toMatchObject({ role: 'user', content: 'Hi' })
+    expect(messages.at(-1)).toMatchObject({ failed: true })
+
+    act(() => {
+      again.result.current.send('Again')
+    })
+    expect(socket.sent.at(-1)).toEqual({
+      mentor_id: 'ada',
+      message: 'Again',
+      conversation_id: 'c1',
+    })
+  })
 })
