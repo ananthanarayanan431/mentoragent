@@ -61,4 +61,4 @@ class ServerSettings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = Field(default=8000, ge=1, le=65535)
     RELOAD: bool = False
-    WORKER_THREADS: int = Field(default=64, ge=1, le=1024)
+    WORKER_THREADS: int = Field(default=40, ge=1, le=1024)
