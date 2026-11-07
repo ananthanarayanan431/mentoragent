@@ -1,5 +1,5 @@
 import { ArrowLeft, Info, RotateCcw, X } from 'lucide-react'
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 
 import { Composer } from './composer'
@@ -7,11 +7,9 @@ import { ConnectionBadge } from './connection-badge'
 import { MentorPanel } from './mentor-panel'
 import { MessageList } from './message-list'
 import { ErrorState, Spinner } from '@/components/state-views'
-import { useChatSocket } from './use-chat-socket'
-import { ApiError, deleteConversation, getMentor, sendChat } from '@/lib/api'
-import { chatReducer, newId } from './chat-state'
-import { clearConversation, loadConversation, saveConversation } from './storage'
-import type { Mentor, ServerEvent } from '@/lib/types'
+import { ApiError, getMentor } from '@/lib/api'
+import type { Mentor } from '@/lib/types'
+import { useMentorConversation } from './use-mentor-conversation'
 
 export function ChatPage() {
   const { mentorId = '' } = useParams<{ mentorId: string }>()
@@ -25,17 +23,8 @@ function ChatView({ mentorId }: { mentorId: string }) {
   const [loadError, setLoadError] = useState<ApiError | null>(null)
   const [draft, setDraft] = useState('')
   const [panelOpen, setPanelOpen] = useState(false)
-  // Seeded from localStorage, so a reload paints the history immediately.
-  const [state, dispatch] = useReducer(chatReducer, mentorId, loadConversation)
-
-  // The reducer's own state, readable from callbacks without re-subscribing.
-  // Event handlers run after effects have flushed, so this is never stale.
-  const stateRef = useRef(state)
-  useEffect(() => {
-    stateRef.current = state
-  }, [state])
-
-  // --- Mentor ---------------------------------------------------------------
+  const conversation = useMentorConversation(mentorId)
+  const { state, send, startNewChat } = conversation
 
   useEffect(() => {
     const controller = new AbortController()
@@ -52,77 +41,12 @@ function ChatView({ mentorId }: { mentorId: string }) {
     return () => controller.abort()
   }, [mentorId])
 
-  // --- Persistence ----------------------------------------------------------
-
-  useEffect(() => {
-    // Skip while streaming: a half-written reply should not be restored.
-    if (!mentorId || state.isStreaming) return
-    saveConversation(mentorId, state)
-  }, [mentorId, state])
-
-  // --- Streaming socket -----------------------------------------------------
-
-  const handleEvent = useCallback((event: ServerEvent) => {
-    dispatch({ type: 'server', event })
-  }, [])
-
-  const handleDropped = useCallback(() => {
-    dispatch({ type: 'failed', detail: 'The connection dropped before the reply finished.' })
-  }, [])
-
-  const socket = useChatSocket({ onEvent: handleEvent, onDropped: handleDropped })
-  const socketSend = socket.send
-
-  // --- Sending --------------------------------------------------------------
-
-  const send = useCallback(
-    async (text: string) => {
-      const content = text.trim()
-      if (!content || stateRef.current.isStreaming) return
-
-      setDraft('')
-      dispatch({ type: 'send', id: newId(), content })
-
-      const conversationId = stateRef.current.conversationId
-      const request = {
-        mentor_id: mentorId,
-        message: content,
-        ...(conversationId ? { conversation_id: conversationId } : {}),
-      }
-
-      if (socketSend(request)) return
-
-      // Socket unavailable: fall back to the non-streaming endpoint so the
-      // conversation still works, just without token-by-token output.
-      try {
-        const reply = await sendChat(request)
-        dispatch({
-          type: 'server',
-          event: {
-            type: 'end',
-            conversation_id: reply.conversation_id,
-            response: reply.response,
-          },
-        })
-      } catch (cause) {
-        dispatch({
-          type: 'failed',
-          detail: cause instanceof ApiError ? cause.message : 'The message could not be sent.',
-        })
-      }
+  const submit = useCallback(
+    (text: string) => {
+      if (send(text)) setDraft('')
     },
-    [mentorId, socketSend],
+    [send],
   )
-
-  const startNewChat = useCallback(() => {
-    const { conversationId } = stateRef.current
-    dispatch({ type: 'reset' })
-    clearConversation(mentorId)
-    if (conversationId) {
-      // Best effort: local state is already cleared either way.
-      void deleteConversation(mentorId, conversationId).catch(() => {})
-    }
-  }, [mentorId])
 
   // --- Render ---------------------------------------------------------------
 
@@ -197,7 +121,7 @@ function ChatView({ mentorId }: { mentorId: string }) {
               <span className="sr-only">Mentor details</span>
             </button>
             <p className="truncate text-sm font-medium lg:hidden">{mentor.name}</p>
-            <ConnectionBadge status={socket.status} onReconnect={socket.reconnect} />
+            <ConnectionBadge status={conversation.status} onReconnect={conversation.reconnect} />
           </div>
 
           <button
@@ -211,12 +135,12 @@ function ChatView({ mentorId }: { mentorId: string }) {
           </button>
         </div>
 
-        <MessageList messages={state.messages} mentor={mentor} onSuggestion={send} />
+        <MessageList messages={state.messages} mentor={mentor} onSuggestion={submit} />
 
         <Composer
           value={draft}
           onChange={setDraft}
-          onSubmit={() => void send(draft)}
+          onSubmit={() => submit(draft)}
           disabled={state.isStreaming}
           mentorName={mentor.name}
         />
