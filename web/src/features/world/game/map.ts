@@ -1,0 +1,240 @@
+/**
+ * Mentor Square: the world map, built from named shapes rather than a hand-typed
+ * grid so it stays easy to edit. Pure data and functions; Phaser only draws it.
+ */
+
+export const TILE = 32
+export const MAP_COLS = 44
+export const MAP_ROWS = 32
+
+/** Tile kinds, in tileset order (the index is the tile's frame in the tileset texture). */
+export const TileKind = {
+  Grass: 0,
+  Flowers: 1,
+  Path: 2,
+  Plaza: 3,
+  Water: 4,
+  Tree: 5,
+  Hedge: 6,
+  Bench: 7,
+  Lamp: 8,
+  Building: 9,
+  Fountain: 10,
+} as const
+export type TileKind = (typeof TileKind)[keyof typeof TileKind]
+
+export const TILE_KIND_COUNT = 11
+
+const BLOCKING: ReadonlySet<TileKind> = new Set<TileKind>([
+  TileKind.Water,
+  TileKind.Tree,
+  TileKind.Hedge,
+  TileKind.Bench,
+  TileKind.Lamp,
+  TileKind.Building,
+  TileKind.Fountain,
+])
+
+export function isBlocking(kind: TileKind): boolean {
+  return BLOCKING.has(kind)
+}
+
+export interface Cell {
+  col: number
+  row: number
+}
+
+export interface Rect extends Cell {
+  cols: number
+  rows: number
+}
+
+export type BuildingKind = 'library' | 'market' | 'cafe'
+
+export interface Building extends Rect {
+  kind: BuildingKind
+  label: string
+  /** The wall the door is in; a path leads to it. */
+  door: 'north' | 'south'
+}
+
+export interface WorldMap {
+  /** tiles[row][col] */
+  tiles: TileKind[][]
+  buildings: Building[]
+  fountain: Rect
+  playerSpawn: Cell
+  /** Where mentors start, in order; the first mentor gets the first spot. */
+  mentorSpawns: Cell[]
+}
+
+const BUILDINGS: Building[] = [
+  { kind: 'library', label: 'Library', col: 4, row: 2, cols: 8, rows: 6, door: 'south' },
+  { kind: 'market', label: 'Market Hall', col: 32, row: 2, cols: 9, rows: 6, door: 'south' },
+  { kind: 'cafe', label: 'Café', col: 4, row: 22, cols: 8, rows: 6, door: 'north' },
+]
+
+const FOUNTAIN: Rect = { col: 21, row: 15, cols: 2, rows: 2 }
+
+const TREES: Cell[] = [
+  [2, 10],
+  [3, 13],
+  [2, 19],
+  [14, 3],
+  [16, 6],
+  [14, 9],
+  [26, 3],
+  [28, 7],
+  [27, 10],
+  [41, 11],
+  [40, 13],
+  [41, 19],
+  [14, 22],
+  [16, 26],
+  [13, 29],
+  [27, 23],
+  [28, 28],
+  [40, 29],
+  [18, 29],
+  [25, 29],
+  [37, 10],
+  [6, 11],
+  [10, 19],
+  [33, 20],
+].map(([col, row]) => ({ col: col!, row: row! }))
+
+const FLOWER_PATCHES: Rect[] = [
+  { col: 13, row: 11, cols: 3, rows: 2 },
+  { col: 28, row: 11, cols: 3, rows: 2 },
+  { col: 13, row: 19, cols: 3, rows: 2 },
+  { col: 28, row: 19, cols: 3, rows: 2 },
+  { col: 2, row: 28, cols: 3, rows: 2 },
+]
+
+const PLAYER_SPAWN: Cell = { col: 21, row: 26 }
+
+const MENTOR_SPAWNS: Cell[] = [
+  { col: 18, row: 13 },
+  { col: 25, row: 13 },
+  { col: 18, row: 18 },
+  { col: 25, row: 18 },
+  { col: 8, row: 11 },
+  { col: 35, row: 11 },
+  { col: 8, row: 19 },
+  { col: 35, row: 19 },
+]
+
+function fill(tiles: TileKind[][], rect: Rect, kind: TileKind): void {
+  for (let row = rect.row; row < rect.row + rect.rows; row++) {
+    for (let col = rect.col; col < rect.col + rect.cols; col++) {
+      if (row >= 0 && row < MAP_ROWS && col >= 0 && col < MAP_COLS) tiles[row]![col] = kind
+    }
+  }
+}
+
+/** Builds the map. Later shapes paint over earlier ones, so the order below matters. */
+export function buildWorldMap(): WorldMap {
+  const tiles: TileKind[][] = Array.from({ length: MAP_ROWS }, () =>
+    Array.from({ length: MAP_COLS }, (): TileKind => TileKind.Grass),
+  )
+
+  for (const patch of FLOWER_PATCHES) fill(tiles, patch, TileKind.Flowers)
+
+  // Main streets: east-west and north-south, crossing at the plaza.
+  fill(tiles, { col: 1, row: 15, cols: MAP_COLS - 2, rows: 2 }, TileKind.Path)
+  fill(tiles, { col: 21, row: 1, cols: 2, rows: MAP_ROWS - 2 }, TileKind.Path)
+  // Side paths from each building's door to a street.
+  fill(tiles, { col: 7, row: 8, cols: 2, rows: 7 }, TileKind.Path)
+  fill(tiles, { col: 35, row: 8, cols: 2, rows: 7 }, TileKind.Path)
+  fill(tiles, { col: 7, row: 17, cols: 2, rows: 5 }, TileKind.Path)
+
+  fill(tiles, { col: 16, row: 11, cols: 12, rows: 10 }, TileKind.Plaza)
+  fill(tiles, FOUNTAIN, TileKind.Fountain)
+  for (const col of [17, 26]) {
+    tiles[12]![col] = TileKind.Bench
+    tiles[19]![col] = TileKind.Bench
+  }
+  for (const [col, row] of [
+    [16, 11],
+    [27, 11],
+    [16, 20],
+    [27, 20],
+    [20, 6],
+    [23, 24],
+    [9, 14],
+    [34, 14],
+  ] as const) {
+    tiles[row]![col] = TileKind.Lamp
+  }
+
+  fill(tiles, { col: 30, row: 22, cols: 9, rows: 6 }, TileKind.Water)
+  fill(tiles, { col: 29, row: 21, cols: 11, rows: 1 }, TileKind.Hedge)
+
+  for (const building of BUILDINGS) fill(tiles, building, TileKind.Building)
+  for (const tree of TREES) tiles[tree.row]![tree.col] = TileKind.Tree
+
+  // A ring of forest keeps everyone inside the square.
+  for (let col = 0; col < MAP_COLS; col++) {
+    tiles[0]![col] = TileKind.Tree
+    tiles[MAP_ROWS - 1]![col] = TileKind.Tree
+  }
+  for (let row = 0; row < MAP_ROWS; row++) {
+    tiles[row]![0] = TileKind.Tree
+    tiles[row]![MAP_COLS - 1] = TileKind.Tree
+  }
+
+  return {
+    tiles,
+    buildings: BUILDINGS,
+    fountain: FOUNTAIN,
+    playerSpawn: PLAYER_SPAWN,
+    mentorSpawns: MENTOR_SPAWNS,
+  }
+}
+
+export function tileAt(map: WorldMap, cell: Cell): TileKind | undefined {
+  return map.tiles[cell.row]?.[cell.col]
+}
+
+export function isWalkable(map: WorldMap, cell: Cell): boolean {
+  const kind = tileAt(map, cell)
+  return kind !== undefined && !isBlocking(kind)
+}
+
+/** Every walkable cell reachable from `start` (4-neighbour flood fill), as "col,row" keys. */
+export function reachableFrom(map: WorldMap, start: Cell): Set<string> {
+  const key = (cell: Cell) => `${cell.col},${cell.row}`
+  const seen = new Set<string>()
+  if (!isWalkable(map, start)) return seen
+  const queue: Cell[] = [start]
+  seen.add(key(start))
+  while (queue.length) {
+    const cell = queue.shift()!
+    for (const [dc, dr] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      const next = { col: cell.col + dc, row: cell.row + dr }
+      if (!seen.has(key(next)) && isWalkable(map, next)) {
+        seen.add(key(next))
+        queue.push(next)
+      }
+    }
+  }
+  return seen
+}
+
+/** The cell just outside a building's door (the doorway is two tiles wide, centred). */
+export function doorstep(building: Building): Cell {
+  const col = building.col + Math.floor(building.cols / 2) - 1
+  return building.door === 'south'
+    ? { col, row: building.row + building.rows }
+    : { col, row: building.row - 1 }
+}
+
+/** The pixel centre of a cell. */
+export function cellCenter(cell: Cell): { x: number; y: number } {
+  return { x: cell.col * TILE + TILE / 2, y: cell.row * TILE + TILE / 2 }
+}
