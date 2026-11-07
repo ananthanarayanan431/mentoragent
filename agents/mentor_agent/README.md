@@ -65,15 +65,16 @@ database. Lint, type and test rules come from the root `pyproject.toml`.
 
 ## CLI
 
-| Command                                 | What it does                                       |
-| --------------------------------------- | -------------------------------------------------- |
-| `mentor-agent serve [--reload]`         | Run the API                                        |
-| `mentor-agent load-mentors`             | Upsert mentors from the metadata file (idempotent) |
-| `mentor-agent create-memory [--sample]` | Extract sources, chunk, dedupe, embed, index       |
-| `mentor-agent delete-memory`            | Drop the long-term memory                          |
-| `mentor-agent reset-conversations`      | Drop every conversation history                    |
-| `mentor-agent generate-dataset`         | Build a synthetic evaluation dataset               |
-| `mentor-agent evaluate`                 | Score the agent with Opik (needs `COMET_API_KEY`)  |
+| Command                                          | What it does                                                 |
+| ------------------------------------------------ | ------------------------------------------------------------ |
+| `mentor-agent serve [--reload]`                  | Run the API                                                  |
+| `mentor-agent call --mentor-id ID --query "..."` | Ask a mentor one question; the reply streams to the terminal |
+| `mentor-agent load-mentors`                      | Upsert mentors from the metadata file (idempotent)           |
+| `mentor-agent create-memory [--sample]`          | Extract sources, chunk, dedupe, embed, index                 |
+| `mentor-agent delete-memory`                     | Drop the long-term memory                                    |
+| `mentor-agent reset-conversations`               | Drop every conversation history                              |
+| `mentor-agent generate-dataset`                  | Build a synthetic evaluation dataset                         |
+| `mentor-agent evaluate`                          | Score the agent with Opik (needs `COMET_API_KEY`)            |
 
 Run them with `uv run mentor-agent ...`.
 

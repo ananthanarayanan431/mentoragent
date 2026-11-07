@@ -2,14 +2,23 @@
 
 from __future__ import annotations
 
+import asyncio
+import sys
+import uuid
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 from loguru import logger
 
 from mentor_agent.config import settings
 from mentor_agent.logs import configure_logging
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from mentor_agent.services.conversation import ConversationService
+    from mentor_agent.services.mentors import MentorService
 
 app = typer.Typer(
     name="mentor-agent",
@@ -45,6 +54,63 @@ def serve(
         access_log=False,  # requests are logged by our middleware, with request ids
         proxy_headers=True,
     )
+
+
+@app.command()
+def call(
+    mentor_id: Annotated[str, typer.Option(help="Id of the mentor to talk to.")],
+    query: Annotated[str, typer.Option(help="Your message.")],
+    conversation_id: Annotated[
+        str | None, typer.Option(help="Continue this conversation (default: start a new one).")
+    ] = None,
+) -> None:
+    """Ask a mentor one question and stream the reply to the terminal."""
+    from mentor_agent.bootstrap import build_conversation_service
+    from mentor_agent.db.client import AsyncMongoRepository, close_mongo_clients
+    from mentor_agent.models.mentor_extract import MentorExtract
+    from mentor_agent.services.mentors import MentorService
+
+    async def run() -> str:
+        mentors = MentorService(
+            AsyncMongoRepository(MentorExtract, settings.mongo.MENTORS_COLLECTION)
+        )
+        try:
+            return await call_mentor(
+                build_conversation_service(),
+                mentors,
+                mentor_id=mentor_id,
+                query=query,
+                conversation_id=conversation_id or uuid.uuid4().hex,
+                write=sys.stdout.write,
+            )
+        finally:
+            await close_mongo_clients()
+
+    used_id = asyncio.run(run())
+    # On stderr, so stdout carries only the reply and can be piped.
+    typer.echo(f"\nconversation id: {used_id} (pass --conversation-id to continue)", err=True)
+
+
+async def call_mentor(
+    conversations: ConversationService,
+    mentors: MentorService,
+    *,
+    mentor_id: str,
+    query: str,
+    conversation_id: str,
+    write: Callable[[str], object],
+) -> str:
+    """Stream one reply from ``mentor_id`` through ``write``; return the conversation id.
+
+    Raises:
+        MentorNotFoundError: If no mentor has this id.
+        ConversationError: If the agent fails to reply.
+    """
+    mentor = (await mentors.get_mentor(mentor_id)).to_mentor()
+    async for token in conversations.stream(mentor, query, conversation_id):
+        write(token)
+    write("\n")
+    return conversation_id
 
 
 @app.command("load-mentors")
