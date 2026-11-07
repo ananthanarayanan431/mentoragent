@@ -27,6 +27,7 @@ import {
   TileKind,
   type WorldMap,
 } from './map'
+import { isTypingIntoField, oncePerEvent } from './keys'
 import {
   facingFor,
   facingTowards,
@@ -89,7 +90,9 @@ export class WorldScene extends Phaser.Scene {
   private keys!: MoveKeys
   private prompt!: Phaser.GameObjects.Text
   private nearby: MentorActor | null = null
-  private inputEnabled = true
+  // Frozen until the page says otherwise (it shows the title screen first).
+  private inputEnabled = false
+  private paused = true
   /** Where a tap asked the player to walk, and who to talk to on arrival. */
   private pointerTarget: { point: Point; mentor: MentorActor | null } | null = null
   private unsubscribe: (() => void)[] = []
@@ -284,18 +287,24 @@ export class WorldScene extends Phaser.Scene {
     ) as MoveKeys
     // Talk on the keydown event itself, not by polling the key each frame: a quick
     // tap (down and up between two frames) would otherwise be missed.
-    const talk = (event: KeyboardEvent) => {
+    const talk = oncePerEvent((event: KeyboardEvent) => {
+      if (isTypingIntoField(event)) return
       if (!this.inputEnabled || !this.nearby || this.nearby.talking) return
       // The dialogue's text box takes focus during this same key press; without
       // this the Space (or Enter) would also be typed into it.
       event.preventDefault()
       this.startTalk(this.nearby)
-    }
+    })
     keyboard.on('keydown-SPACE', talk)
     keyboard.on('keydown-ENTER', talk)
-    keyboard.on('keydown-ESC', () => {
-      if (this.inputEnabled) this.options.bridge.events.emit('pause', {})
-    })
+    keyboard.on(
+      'keydown-ESC',
+      oncePerEvent((event: KeyboardEvent) => {
+        if (this.inputEnabled && !isTypingIntoField(event)) {
+          this.options.bridge.events.emit('pause', {})
+        }
+      }),
+    )
 
     this.input.on(Phaser.Input.Events.POINTER_DOWN, (pointer: Phaser.Input.Pointer) => {
       if (!this.inputEnabled) return
@@ -339,6 +348,9 @@ export class WorldScene extends Phaser.Scene {
         // Clear held keys, so a key released while a menu was open does not stick.
         if (this.input.keyboard) this.input.keyboard.resetKeys()
       }),
+      commands.on('paused', ({ paused }) => {
+        this.paused = paused
+      }),
       commands.on('labels', ({ visible }) => {
         for (const mentor of this.mentors) mentor.label.setVisible(visible)
       }),
@@ -352,6 +364,14 @@ export class WorldScene extends Phaser.Scene {
   // --- Frame update ----------------------------------------------------------------
 
   override update(_time: number, delta: number): void {
+    if (this.paused) {
+      // A frozen world: everyone stands still and the wander timers do not run.
+      for (const actor of [this.player, ...this.mentors]) {
+        actor.sprite.setVelocity(0, 0)
+        this.animate(actor, { x: 0, y: 0 })
+      }
+      return
+    }
     this.updatePlayer()
     for (const mentor of this.mentors) this.updateMentor(mentor, delta)
     this.updateNearby()

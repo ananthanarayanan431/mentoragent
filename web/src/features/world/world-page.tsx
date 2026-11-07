@@ -121,6 +121,12 @@ function World({ mentors }: { mentors: Mentor[] }) {
     bridge.commands.emit('input', { enabled: mode.kind === 'playing' })
   }, [bridge, mode, ready])
 
+  // The world stands still behind the title screen and the pause menu, but not during a
+  // conversation: the other mentors keep strolling while the player talks.
+  useEffect(() => {
+    bridge.commands.emit('paused', { paused: mode.kind === 'title' || mode.kind === 'paused' })
+  }, [bridge, mode, ready])
+
   useEffect(() => {
     labelsRef.current = labelsVisible
     bridge.commands.emit('labels', { visible: labelsVisible })
@@ -140,6 +146,7 @@ function World({ mentors }: { mentors: Mentor[] }) {
       <div
         ref={containerRef}
         tabIndex={-1}
+        role="region"
         aria-label="Mentor Square. Use the arrow keys to walk."
         className="absolute inset-0 outline-none [&_canvas]:block"
       />

@@ -22,6 +22,8 @@ export interface GameCommands {
   /** Keyboard and pointer control of the player; off while a menu or dialogue is open. */
   input: { enabled: boolean }
   labels: { visible: boolean }
+  /** Freeze the whole world (title screen, pause menu): nobody moves, timers stop. */
+  paused: { paused: boolean }
   /** The dialogue with this mentor closed: they go back to wandering. */
   endTalk: { mentorId: string }
 }

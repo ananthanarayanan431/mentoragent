@@ -30,7 +30,7 @@ vi.mock('./game/create-game', () => ({
     if (game.fail) throw new Error('WebGL unavailable')
     game.bridge = options.bridge
     game.started.push(options.mentors)
-    for (const name of ['input', 'labels', 'endTalk'] as const) {
+    for (const name of ['input', 'labels', 'endTalk', 'paused'] as const) {
       options.bridge.commands.on(name, (payload) => game.commands.push({ name, payload }))
     }
     return { destroy: () => (game.destroyed += 1) }
@@ -61,6 +61,11 @@ async function renderWorld() {
   )
   await waitFor(() => expect(game.bridge).not.toBeNull())
   fromGame((bridge) => bridge.events.emit('ready', {}))
+}
+
+function lastPaused(): boolean | undefined {
+  const paused = game.commands.filter((command) => command.name === 'paused')
+  return (paused.at(-1)?.payload as { paused: boolean } | undefined)?.paused
 }
 
 function lastInput(): boolean | undefined {
@@ -209,5 +214,23 @@ describe('WorldPage', () => {
     const before = game.destroyed
     unmount()
     expect(game.destroyed).toBe(before + 1)
+  })
+
+  it('freezes the world on the title screen and when paused, not while talking', async () => {
+    const user = userEvent.setup()
+    await renderWorld()
+    expect(lastPaused()).toBe(true)
+
+    await user.click(screen.getByRole('button', { name: /enter the square/i }))
+    expect(lastPaused()).toBe(false)
+
+    fromGame((bridge) => bridge.events.emit('talk', { mentorId: 'ada' }))
+    expect(lastPaused()).toBe(false)
+    await user.keyboard('{Escape}')
+
+    fromGame((bridge) => bridge.events.emit('pause', {}))
+    expect(lastPaused()).toBe(true)
+    await user.click(screen.getByRole('button', { name: /resume/i }))
+    expect(lastPaused()).toBe(false)
   })
 })
