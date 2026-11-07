@@ -1,7 +1,14 @@
 /** Typed client for the MentorAgents API. */
 
 import { API_KEY, API_PREFIX, httpUrl } from './config'
-import type { ChatRequest, ChatResponse, Mentor } from './types'
+import type {
+  ChatRequest,
+  ChatResponse,
+  Mentor,
+  MentorSources,
+  MentorUpdate,
+  PoolOut,
+} from './types'
 
 /** An API call that failed, carrying a message fit to show the user. */
 export class ApiError extends Error {
@@ -98,4 +105,35 @@ export function deleteConversation(mentorId: string, conversationId: string): Pr
     conversationId,
   )}`
   return request<void>(path, { method: 'DELETE' })
+}
+
+function mentorPath(mentorId: string, suffix = ''): string {
+  return `${API_PREFIX}/mentors/${encodeURIComponent(mentorId)}${suffix}`
+}
+
+/** How many pool mentors "Add a mentor" can still bring in. */
+export function getMentorPool(signal?: AbortSignal): Promise<PoolOut> {
+  return request<PoolOut>(`${API_PREFIX}/mentors/pool`, signal ? { signal } : {})
+}
+
+/** Adds a random mentor from the pool; their memory builds in the background. */
+export function addRandomMentor(): Promise<Mentor> {
+  return request<Mentor>(`${API_PREFIX}/mentors/random`, { method: 'POST' })
+}
+
+export function getMentorSources(mentorId: string, signal?: AbortSignal): Promise<MentorSources> {
+  return request<MentorSources>(mentorPath(mentorId, '/sources'), signal ? { signal } : {})
+}
+
+/** Changes a mentor's persona or sources (omitted fields stay as they are). */
+export function updateMentor(mentorId: string, changes: MentorUpdate): Promise<Mentor> {
+  return request<Mentor>(mentorPath(mentorId), {
+    method: 'PATCH',
+    body: JSON.stringify(changes),
+  })
+}
+
+/** Rebuilds the mentor's long-term memory from their sources, in the background. */
+export function rebuildMentorMemory(mentorId: string): Promise<Mentor> {
+  return request<Mentor>(mentorPath(mentorId, '/memory'), { method: 'POST' })
 }

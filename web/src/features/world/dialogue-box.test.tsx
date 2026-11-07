@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MAX_MESSAGE_CHARS } from '@/lib/config'
 import type { ChatRequest, Mentor } from '@/lib/types'
 import { DialogueBox } from './dialogue-box'
+import { levelFor } from './progress'
 
 const sent = vi.hoisted(() => ({ requests: [] as ChatRequest[] }))
 
@@ -22,12 +23,17 @@ vi.mock('@/features/chat/use-chat-socket', () => ({
 
 const ADA: Mentor = { id: 'ada', name: 'Ada', expertise: 'Engines', perspective: '', style: '' }
 
-function renderBox() {
+function renderBox(mentor: Mentor = ADA) {
   const onClose = vi.fn<() => void>()
   const onMessageSent = vi.fn<() => void>()
   render(
     <MemoryRouter>
-      <DialogueBox mentor={ADA} onClose={onClose} onMessageSent={onMessageSent} />
+      <DialogueBox
+        mentor={mentor}
+        level={levelFor(3)}
+        onClose={onClose}
+        onMessageSent={onMessageSent}
+      />
     </MemoryRouter>,
   )
   return { onClose, onMessageSent, input: screen.getByRole('textbox', { name: 'Message Ada' }) }
@@ -93,6 +99,20 @@ describe('DialogueBox', () => {
     const { onClose, input } = renderBox()
     fireEvent.keyDown(input, { key: 'Escape', isComposing: true })
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('shows the friendship level and progress', () => {
+    renderBox()
+    expect(screen.getByText('Lv 2 · Regular')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'Friendship with Ada' })).toHaveAttribute(
+      'aria-valuenow',
+      '0',
+    )
+  })
+
+  it('says when the mentor is still building or failed to build their memory', () => {
+    renderBox({ ...ADA, memory: 'failed' })
+    expect(screen.getByText(/background reading failed/)).toBeInTheDocument()
   })
 
   it('links to the same conversation on the full chat page', () => {

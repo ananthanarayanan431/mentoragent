@@ -8,9 +8,12 @@ import { MessageBubble } from '@/features/chat/message-bubble'
 import { useMentorConversation } from '@/features/chat/use-mentor-conversation'
 import { MAX_MESSAGE_CHARS } from '@/lib/config'
 import type { Mentor } from '@/lib/types'
+import type { Level } from './progress'
 
 interface Props {
   mentor: Mentor
+  /** How well the player knows this mentor (friendship level). */
+  level: Level
   onClose: () => void
   /** Called once per message the player sends (for the quest log). */
   onMessageSent: () => void
@@ -21,7 +24,7 @@ interface Props {
  * map. Mount it with `key={mentor.id}`; the conversation is the same one the
  * chat page shows, so the player can continue it there.
  */
-export function DialogueBox({ mentor, onClose, onMessageSent }: Props) {
+export function DialogueBox({ mentor, level, onClose, onMessageSent }: Props) {
   const { state, send, startNewChat } = useMentorConversation(mentor.id)
   const [draft, setDraft] = useState('')
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -81,6 +84,24 @@ export function DialogueBox({ mentor, onClose, onMessageSent }: Props) {
             {mentor.name}
           </h2>
           <p className="truncate text-xs text-muted">{mentor.expertise}</p>
+          <div className="mt-1 flex items-center gap-2" title={level.name}>
+            <span className="font-mono text-[11px] text-ink">
+              Lv {level.level} · {level.name}
+            </span>
+            <span
+              role="progressbar"
+              aria-label={`Friendship with ${mentor.name}`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(level.progress * 100)}
+              className="h-1.5 w-20 overflow-hidden rounded-full bg-raised"
+            >
+              <span
+                className="block h-full rounded-full bg-accent transition-[width]"
+                style={{ width: `${Math.round(level.progress * 100)}%` }}
+              />
+            </span>
+          </div>
         </div>
         <button
           type="button"
@@ -114,6 +135,18 @@ export function DialogueBox({ mentor, onClose, onMessageSent }: Props) {
         className="flex-1 space-y-4 overflow-y-auto px-4 py-3"
         aria-live="polite"
       >
+        {mentor.memory === 'building' && (
+          <p className="rounded-md bg-raised px-3 py-2 text-xs text-muted">
+            {mentor.name} just arrived and is still reading up on their own work; answers get richer
+            once that is done.
+          </p>
+        )}
+        {mentor.memory === 'failed' && (
+          <p className="rounded-md bg-raised px-3 py-2 text-xs text-muted">
+            {mentor.name}&rsquo;s background reading failed, so answers draw on general knowledge
+            only. It can be rebuilt from the classic view.
+          </p>
+        )}
         {state.messages.length === 0 ? (
           <p className="font-mono text-sm text-muted">
             {mentor.name} looks up. &ldquo;What would you like to talk about?&rdquo;

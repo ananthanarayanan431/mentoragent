@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 
 import type { Mentor } from '@/lib/types'
 import { useMediaQuery } from '@/lib/use-media-query'
+import { hasMet, levelFor, type Friendship } from './progress'
 
 const CONTROLS: [string, string][] = [
   ['Arrows / WASD', 'Walk'],
@@ -172,21 +173,21 @@ export function PauseMenu({ labelsVisible, onToggleLabels, onResume }: PauseProp
   )
 }
 
-/** Top-left HUD: who you've met so far. Collapsed to a small badge on narrow screens. */
-export function QuestLog({ mentors, met }: { mentors: Mentor[]; met: ReadonlySet<string> }) {
+/** Top-left HUD: who you have met, and how well you know them. */
+export function QuestLog({ mentors, friendship }: { mentors: Mentor[]; friendship: Friendship }) {
   const wide = useMediaQuery('(min-width: 640px)')
   const [open, setOpen] = useState(wide)
-  const count = mentors.filter((mentor) => met.has(mentor.id)).length
+  const count = mentors.filter((mentor) => hasMet(friendship, mentor.id)).length
   return (
     <aside
       aria-label="Mentors met"
-      className="pointer-events-auto absolute left-3 top-3 z-20 rounded-lg border-2 border-ink/70 bg-surface/95 shadow-[0_3px_0_0_rgba(0,0,0,0.25)]"
+      className="pointer-events-auto absolute left-3 top-3 z-20 max-h-[calc(100%-5rem)] overflow-y-auto rounded-lg border-2 border-ink/70 bg-surface/95 shadow-[0_3px_0_0_rgba(0,0,0,0.25)]"
     >
       <button
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className={`flex items-center justify-between gap-3 px-3 py-2 font-mono text-xs font-bold uppercase tracking-wide ${open ? 'w-56' : ''}`}
+        className={`flex items-center justify-between gap-3 px-3 py-2 font-mono text-xs font-bold uppercase tracking-wide ${open ? 'w-60' : ''}`}
       >
         <span>Mentors met</span>
         <span className="text-accent">
@@ -195,20 +196,33 @@ export function QuestLog({ mentors, met }: { mentors: Mentor[]; met: ReadonlySet
       </button>
       {open && (
         <div className="px-3 pb-3">
-          <ul className="space-y-1 text-sm">
+          <ul className="space-y-1.5 text-sm">
             {mentors.map((mentor) => {
-              const done = met.has(mentor.id)
+              const level = levelFor(friendship[mentor.id] ?? 0)
+              const met = level.level > 0
               return (
                 <li key={mentor.id} className="flex items-center gap-2">
                   <span
                     className={`grid size-4 shrink-0 place-items-center rounded-sm border ${
-                      done ? 'border-accent bg-accent text-on-accent' : 'border-line-strong'
+                      met ? 'border-accent bg-accent text-on-accent' : 'border-line-strong'
                     }`}
                   >
-                    {done && <Check size={11} strokeWidth={3} aria-hidden="true" />}
+                    {met && <Check size={11} strokeWidth={3} aria-hidden="true" />}
                   </span>
-                  <span className={done ? 'text-muted line-through' : ''}>{mentor.name}</span>
-                  <span className="sr-only">{done ? '(met)' : '(not met yet)'}</span>
+                  <span className={`min-w-0 flex-1 truncate ${met ? '' : 'text-muted'}`}>
+                    {mentor.name}
+                  </span>
+                  {met ? (
+                    <span
+                      title={level.name}
+                      className="shrink-0 rounded bg-raised px-1.5 font-mono text-[11px] text-ink"
+                    >
+                      Lv {level.level}
+                    </span>
+                  ) : null}
+                  <span className="sr-only">
+                    {met ? `(met, level ${level.level}: ${level.name})` : '(not met yet)'}
+                  </span>
                 </li>
               )
             })}

@@ -30,17 +30,23 @@ vi.mock('./game/create-game', () => ({
     if (game.fail) throw new Error('WebGL unavailable')
     game.bridge = options.bridge
     game.started.push(options.mentors)
-    for (const name of ['input', 'labels', 'endTalk', 'paused'] as const) {
+    for (const name of ['input', 'labels', 'endTalk', 'paused', 'addMentor'] as const) {
       options.bridge.commands.on(name, (payload) => game.commands.push({ name, payload }))
     }
     return { destroy: () => (game.destroyed += 1) }
   },
 }))
 
-const api = vi.hoisted(() => ({ listMentors: vi.fn<() => Promise<Mentor[]>>() }))
+const api = vi.hoisted(() => ({
+  listMentors: vi.fn<() => Promise<Mentor[]>>(),
+  getMentorPool: vi.fn<() => Promise<{ remaining: number; total: number }>>(),
+  addRandomMentor: vi.fn<() => Promise<Mentor>>(),
+}))
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   listMentors: api.listMentors,
+  getMentorPool: api.getMentorPool,
+  addRandomMentor: api.addRandomMentor,
 }))
 
 // No real socket in tests; the dialogue only needs the hook to render.
@@ -77,6 +83,7 @@ beforeEach(() => {
   window.localStorage.clear()
   game.bridge = null
   game.fail = false
+  api.getMentorPool.mockResolvedValue({ remaining: 5, total: 12 })
   game.started = []
   game.commands = []
   api.listMentors.mockResolvedValue(MENTORS)
@@ -131,7 +138,7 @@ describe('WorldPage', () => {
     expect(log).toHaveTextContent('1/2')
     // Collapsed by default where matchMedia is unavailable (as on narrow screens).
     await user.click(screen.getByRole('button', { name: /mentors met/i }))
-    expect(within(log).getByText('Bob').parentElement).toHaveTextContent('(met)')
+    expect(within(log).getByText('Bob').parentElement).toHaveTextContent('(met, level 1')
     expect(within(log).getByText('Ada').parentElement).toHaveTextContent('(not met yet)')
   })
 
@@ -173,7 +180,7 @@ describe('WorldPage', () => {
     expect(screen.queryByText('Drawing the square')).not.toBeInTheDocument()
   })
 
-  it('places at most eight mentors, one per spawn spot', async () => {
+  it('places every mentor, however many there are', async () => {
     api.listMentors.mockResolvedValue(
       Array.from({ length: 11 }, (_, i) => ({
         id: `m${i}`,
@@ -185,8 +192,57 @@ describe('WorldPage', () => {
     )
     await renderWorld()
 
-    expect(game.started.at(-1)).toHaveLength(8)
-    expect(screen.getByText(/8 mentors are strolling/)).toBeInTheDocument()
+    expect(game.started.at(-1)).toHaveLength(11)
+    expect(screen.getByText(/11 mentors are strolling/)).toBeInTheDocument()
+  })
+
+  it('adds a random mentor: the game gets them and the arrival is announced', async () => {
+    const user = userEvent.setup()
+    const graham: Mentor = {
+      id: 'graham',
+      name: 'Benjamin Graham',
+      expertise: 'Value',
+      perspective: '',
+      style: '',
+      memory: 'building',
+    }
+    api.addRandomMentor.mockResolvedValueOnce(graham)
+    await renderWorld()
+    await user.click(screen.getByRole('button', { name: /enter the square/i }))
+
+    await user.click(await screen.findByRole('button', { name: /add a mentor/i }))
+
+    expect(
+      await screen.findByText('Benjamin Graham has arrived in the square!'),
+    ).toBeInTheDocument()
+    expect(game.commands).toContainEqual({
+      name: 'addMentor',
+      payload: { id: 'graham', name: 'Benjamin Graham' },
+    })
+    expect(screen.getByRole('complementary', { name: 'Mentors met' })).toHaveTextContent('0/3')
+    // The new mentor can be talked to straight away, with a note that they are still reading up.
+    fromGame((bridge) => bridge.events.emit('talk', { mentorId: 'graham' }))
+    expect(screen.getByText(/still reading up on their own work/)).toBeInTheDocument()
+  })
+
+  it('disables "Add a mentor" once everyone in the pool is here', async () => {
+    const user = userEvent.setup()
+    api.getMentorPool.mockResolvedValue({ remaining: 0, total: 12 })
+    await renderWorld()
+    await user.click(screen.getByRole('button', { name: /enter the square/i }))
+    expect(await screen.findByRole('button', { name: /everyone is here/i })).toBeDisabled()
+  })
+
+  it('announces a friendship level-up', async () => {
+    const user = userEvent.setup()
+    await renderWorld()
+    await user.click(screen.getByRole('button', { name: /enter the square/i }))
+    fromGame((bridge) => bridge.events.emit('talk', { mentorId: 'ada' }))
+
+    await user.type(screen.getByRole('textbox', { name: 'Message Ada' }), 'Hi{Enter}')
+
+    expect(screen.getByText('Level 1: you and Ada are now Acquaintances.')).toBeInTheDocument()
+    expect(screen.getByText(/Lv 1 · Acquaintance/)).toBeInTheDocument()
   })
 
   it('loads the mentors again when the player retries', async () => {
@@ -257,5 +313,26 @@ describe('WorldPage', () => {
     await renderWorld()
     fromGame((bridge) => bridge.events.emit('failed', { message: 'no textures' }))
     expect(screen.getByText('Mentor Square could not start')).toBeInTheDocument()
+  })
+
+  it('refreshes a building memory until it is ready, then stops polling', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const building = { ...MENTORS[0]!, memory: 'building' as const }
+      api.listMentors.mockResolvedValueOnce([building, MENTORS[1]!])
+      await renderWorld()
+      fromGame((bridge) => bridge.events.emit('talk', { mentorId: 'ada' }))
+      expect(screen.getByText(/still reading up on their own work/)).toBeInTheDocument()
+
+      api.listMentors.mockResolvedValue([{ ...building, memory: 'ready' }, MENTORS[1]!])
+      await act(() => vi.advanceTimersByTimeAsync(5000))
+
+      expect(screen.queryByText(/still reading up on their own work/)).not.toBeInTheDocument()
+      const calls = api.listMentors.mock.calls.length
+      await act(() => vi.advanceTimersByTimeAsync(15000))
+      expect(api.listMentors.mock.calls.length).toBe(calls) // nothing building: no more polls
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

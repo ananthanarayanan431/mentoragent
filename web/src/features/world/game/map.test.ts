@@ -5,6 +5,7 @@ import {
   doorstep,
   groundUnder,
   isWalkable,
+  mentorSpawnSpots,
   MAP_COLS,
   MAP_ROWS,
   reachableFrom,
@@ -87,5 +88,19 @@ describe('world map', () => {
     const keys = new Set(map.mentorSpawns.map((cell) => `${cell.col},${cell.row}`))
     expect(keys.size).toBe(map.mentorSpawns.length)
     expect(map.mentorSpawns.length).toBeGreaterThanOrEqual(8)
+  })
+
+  it('has room for any number of mentors, each on reachable ground and stable', () => {
+    const reachable = reachableFrom(map, map.playerSpawn)
+    for (const count of [0, 4, 16, 17, 40]) {
+      const spots = mentorSpawnSpots(map, count)
+      expect(spots).toHaveLength(count)
+      const keys = spots.map((cell) => `${cell.col},${cell.row}`)
+      expect(new Set(keys).size).toBe(count)
+      for (const key of keys) expect(reachable.has(key)).toBe(true)
+      expect(keys).not.toContain(`${map.playerSpawn.col},${map.playerSpawn.row}`)
+    }
+    // Growing the square never moves the mentors already there.
+    expect(mentorSpawnSpots(map, 40).slice(0, 25)).toEqual(mentorSpawnSpots(map, 25))
   })
 })

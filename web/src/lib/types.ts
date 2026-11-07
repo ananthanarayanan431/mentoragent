@@ -5,9 +5,16 @@
  * backend change that breaks them fails type-checking. The WebSocket events are not
  * part of OpenAPI and are declared here, next to the UI-only types.
  */
-import type { ChatRequest, ChatResponse, MentorOut } from '@mentoragent/mentor-agent-contracts'
+import type {
+  ChatRequest,
+  ChatResponse,
+  MentorOut,
+  MentorSources,
+  MentorUpdate,
+  PoolOut,
+} from '@mentoragent/mentor-agent-contracts'
 
-export type { ChatRequest, ChatResponse }
+export type { ChatRequest, ChatResponse, MentorSources, MentorUpdate, PoolOut }
 export type Mentor = MentorOut
 
 /** Events the WebSocket sends, one per turn: start -> chunk* -> end, or error. */

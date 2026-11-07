@@ -21,6 +21,7 @@ import {
 import {
   buildWorldMap,
   cellCenter,
+  mentorSpawnSpots,
   groundUnder,
   isGround,
   TILE,
@@ -87,6 +88,8 @@ export class WorldScene extends Phaser.Scene {
   private map!: WorldMap
   private player!: Actor
   private mentors: MentorActor[] = []
+  private blockers: Phaser.Tilemaps.TilemapLayer[] = []
+  private labelsVisible: boolean
   private keys!: MoveKeys
   private prompt!: Phaser.GameObjects.Text
   private nearby: MentorActor | null = null
@@ -105,6 +108,7 @@ export class WorldScene extends Phaser.Scene {
   constructor(options: WorldSceneOptions) {
     super('world')
     this.options = options
+    this.labelsVisible = options.labelsVisible
   }
 
   create(): void {
@@ -224,45 +228,59 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private createMentors(blockers: Phaser.Tilemaps.TilemapLayer[]): void {
-    const spawns = this.map.mentorSpawns
-    this.options.mentors.slice(0, spawns.length).forEach((mentor, index) => {
-      const home = cellCenter(spawns[index]!)
-      const actor = this.spawnActor(`mentor-${mentor.id}`, appearanceFor(mentor.id), home)
-      actor.sprite.setPushable(false)
-      const rng = seededRng(index + 1)
-      const label = this.add
-        .text(home.x, home.y, mentor.name, {
-          fontFamily: 'ui-monospace, Menlo, monospace',
-          fontSize: '11px',
-          color: '#fdfcf7',
-          backgroundColor: '#1f2937cc',
-          padding: { x: 4, y: 2 },
-        })
-        .setOrigin(0.5, 1)
-        .setResolution(2)
-        .setVisible(this.options.labelsVisible)
+    this.blockers = blockers
+    for (const mentor of this.options.mentors) this.spawnMentor(mentor, false)
+  }
 
-      this.mentors.push({
-        ...actor,
-        id: mentor.id,
-        name: mentor.name,
-        label,
-        home,
-        rng,
-        wander: startWander(home, rng),
-        talking: false,
-        lastPosition: home,
+  /**
+   * Puts a mentor in the square at the next free spot (see mentorSpawnSpots, which
+   * has room for any number). `arriving` fades them in, for one added during play.
+   */
+  private spawnMentor(mentor: WorldMentor, arriving: boolean): void {
+    if (this.mentors.some((existing) => existing.id === mentor.id)) return
+    const index = this.mentors.length
+    const spot = mentorSpawnSpots(this.map, index + 1)[index]!
+    const home = cellCenter(spot)
+    const actor = this.spawnActor(`mentor-${mentor.id}`, appearanceFor(mentor.id), home)
+    actor.sprite.setPushable(false)
+    const rng = seededRng(index + 1)
+    const label = this.add
+      .text(home.x, home.y, mentor.name, {
+        fontFamily: 'ui-monospace, Menlo, monospace',
+        fontSize: '11px',
+        color: '#fdfcf7',
+        backgroundColor: '#1f2937cc',
+        padding: { x: 4, y: 2 },
       })
-    })
+      .setOrigin(0.5, 1)
+      .setResolution(2)
+      .setVisible(this.labelsVisible)
 
-    for (const mentor of this.mentors) {
-      for (const layer of blockers) this.physics.add.collider(mentor.sprite, layer)
-      this.physics.add.collider(this.player.sprite, mentor.sprite)
+    const added: MentorActor = {
+      ...actor,
+      id: mentor.id,
+      name: mentor.name,
+      label,
+      home,
+      rng,
+      wander: startWander(home, rng),
+      talking: false,
+      lastPosition: home,
     }
-    for (let i = 0; i < this.mentors.length; i++) {
-      for (let j = i + 1; j < this.mentors.length; j++) {
-        this.physics.add.collider(this.mentors[i]!.sprite, this.mentors[j]!.sprite)
-      }
+    for (const layer of this.blockers) this.physics.add.collider(added.sprite, layer)
+    this.physics.add.collider(this.player.sprite, added.sprite)
+    for (const other of this.mentors) this.physics.add.collider(other.sprite, added.sprite)
+    this.mentors.push(added)
+
+    if (arriving) {
+      added.sprite.setAlpha(0).setScale(0.6)
+      this.tweens.add({
+        targets: added.sprite,
+        alpha: 1,
+        scale: 1,
+        duration: 600,
+        ease: 'Back.Out',
+      })
     }
   }
 
@@ -369,8 +387,10 @@ export class WorldScene extends Phaser.Scene {
         this.paused = paused
       }),
       commands.on('labels', ({ visible }) => {
+        this.labelsVisible = visible
         for (const mentor of this.mentors) mentor.label.setVisible(visible)
       }),
+      commands.on('addMentor', (mentor) => this.spawnMentor(mentor, true)),
       commands.on('endTalk', ({ mentorId }) => {
         const mentor = this.mentors.find((m) => m.id === mentorId)
         if (mentor) mentor.talking = false

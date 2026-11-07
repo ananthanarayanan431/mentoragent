@@ -26,6 +26,8 @@ export interface GameCommands {
   labels: { visible: boolean }
   /** Freeze the whole world (title screen, pause menu): nobody moves, timers stop. */
   paused: { paused: boolean }
+  /** A mentor joined the square during play (Add a mentor): they appear at the next spot. */
+  addMentor: { id: string; name: string }
   /** The dialogue with this mentor closed: they go back to wandering. */
   endTalk: { mentorId: string }
 }

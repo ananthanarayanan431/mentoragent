@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, deleteConversation, listMentors, sendChat } from './api'
+import {
+  addRandomMentor,
+  ApiError,
+  deleteConversation,
+  listMentors,
+  rebuildMentorMemory,
+  sendChat,
+  updateMentor,
+} from './api'
 
 function mockFetch(response: Response | Promise<never>) {
   const fetchMock = vi.fn<() => Promise<Response>>(() =>
@@ -86,5 +94,44 @@ describe('deleteConversation', () => {
       '/api/v1/conversations/a%20b/c%2F1',
       expect.objectContaining({ method: 'DELETE' }),
     )
+  })
+
+  it('adds a random mentor, edits one and rebuilds its memory', async () => {
+    const fetchMock = mockFetch(new Response(JSON.stringify({ id: 'graham' }), { status: 201 }))
+    await addRandomMentor()
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      '/api/v1/mentors/random',
+      expect.objectContaining({ method: 'POST' }),
+    )
+
+    mockFetch(new Response(JSON.stringify({ id: 'a b' }), { status: 200 }))
+    const patch = vi.mocked(fetch)
+    await updateMentor('a b', { style: 'Brief.' })
+    const [url, init] = patch.mock.lastCall as unknown as [string, RequestInit]
+    expect(url).toBe('/api/v1/mentors/a%20b')
+    expect(init.method).toBe('PATCH')
+    expect(JSON.parse(init.body as string)).toEqual({ style: 'Brief.' })
+
+    const rebuild = mockFetch(new Response(JSON.stringify({ id: 'a' }), { status: 202 }))
+    await rebuildMentorMemory('a')
+    expect(rebuild).toHaveBeenLastCalledWith(
+      '/api/v1/mentors/a/memory',
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
+  it('surfaces a used-up pool as a readable error', async () => {
+    mockFetch(
+      new Response(
+        JSON.stringify({ detail: 'Every mentor in the pool is already in the square.' }),
+        {
+          status: 409,
+        },
+      ),
+    )
+    await expect(addRandomMentor()).rejects.toMatchObject({
+      status: 409,
+      message: 'Every mentor in the pool is already in the square.',
+    })
   })
 })

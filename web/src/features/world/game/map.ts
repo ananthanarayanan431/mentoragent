@@ -126,6 +126,15 @@ const MENTOR_SPAWNS: Cell[] = [
   { col: 35, row: 11 },
   { col: 8, row: 19 },
   { col: 35, row: 19 },
+  // Further out: by the buildings, the pond and the lanes.
+  { col: 12, row: 9 },
+  { col: 30, row: 9 },
+  { col: 14, row: 25 },
+  { col: 26, row: 24 },
+  { col: 39, row: 16 },
+  { col: 3, row: 16 },
+  { col: 19, row: 4 },
+  { col: 39, row: 28 },
 ]
 
 function fill(tiles: TileKind[][], rect: Rect, kind: TileKind): void {
@@ -286,4 +295,49 @@ export function groundUnder(map: WorldMap, cell: Cell): TileKind {
 /** The pixel centre of a cell. */
 export function cellCenter(cell: Cell): { x: number; y: number } {
   return { x: cell.col * TILE + TILE / 2, y: cell.row * TILE + TILE / 2 }
+}
+
+/**
+ * Where `count` mentors start. The hand-placed spots come first; beyond them the
+ * square still grows: further spots are picked from reachable ground (grass,
+ * path, plaza), at least three tiles from other spots where possible. The same
+ * count always gives the same spots, so a mentor keeps their place across visits.
+ */
+export function mentorSpawnSpots(map: WorldMap, count: number): Cell[] {
+  const spots = map.mentorSpawns.slice(0, count)
+  if (spots.length >= count) return spots
+
+  const reachable = reachableFrom(map, map.playerSpawn)
+  const taken = new Set([...spots, map.playerSpawn].map((cell) => `${cell.col},${cell.row}`))
+  const candidates: Cell[] = []
+  for (const key of reachable) {
+    if (taken.has(key)) continue
+    const [col, row] = key.split(',').map(Number) as [number, number]
+    candidates.push({ col, row })
+  }
+  // A fixed shuffle (seeded), so the spots are spread out but stable.
+  let seed = 0x9e3779b1
+  const random = () => {
+    seed = (Math.imul(seed ^ (seed >>> 15), 0x2c1b3c6d) + 0x6d2b79f5) >>> 0
+    return seed / 4294967296
+  }
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1))
+    ;[candidates[i], candidates[j]] = [candidates[j]!, candidates[i]!]
+  }
+
+  const farEnough = (cell: Cell, minTiles: number) =>
+    [...spots, map.playerSpawn].every(
+      (other) => Math.hypot(other.col - cell.col, other.row - cell.row) >= minTiles,
+    )
+  for (const minTiles of [3, 2, 0]) {
+    for (const cell of candidates) {
+      if (spots.length >= count) return spots
+      if (!taken.has(`${cell.col},${cell.row}`) && farEnough(cell, minTiles)) {
+        spots.push(cell)
+        taken.add(`${cell.col},${cell.row}`)
+      }
+    }
+  }
+  return spots
 }
