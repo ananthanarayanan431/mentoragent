@@ -111,7 +111,11 @@ const FLOWER_PATCHES: Rect[] = [
   { col: 2, row: 28, cols: 3, rows: 2 },
 ]
 
-const PLAYER_SPAWN: Cell = { col: 21, row: 26 }
+/**
+ * On the plaza just south of the fountain: every plaza mentor is in view on arrival,
+ * even at desktop zoom, and none is close enough to talk to yet.
+ */
+const PLAYER_SPAWN: Cell = { col: 21, row: 18 }
 
 const MENTOR_SPAWNS: Cell[] = [
   { col: 18, row: 13 },

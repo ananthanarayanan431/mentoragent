@@ -38,6 +38,14 @@ describe('world map', () => {
     }
   })
 
+  it('starts the player out of talking reach of every mentor, but within a few steps', () => {
+    for (const spawn of map.mentorSpawns.slice(0, 4)) {
+      const tiles = Math.hypot(spawn.col - map.playerSpawn.col, spawn.row - map.playerSpawn.row)
+      expect(tiles).toBeGreaterThan(2)
+      expect(tiles).toBeLessThan(7)
+    }
+  })
+
   it('lets the player reach every mentor spawn', () => {
     const reachable = reachableFrom(map, map.playerSpawn)
     for (const spawn of map.mentorSpawns) {
@@ -65,7 +73,7 @@ describe('world map', () => {
     // A plaza bench sits on stone, a tree in a field on grass, the ground stays itself.
     expect(groundUnder(map, { col: 17, row: 12 })).toBe(TileKind.Plaza)
     expect(groundUnder(map, { col: 14, row: 3 })).toBe(TileKind.Grass)
-    expect(groundUnder(map, map.playerSpawn)).toBe(TileKind.Path)
+    expect(groundUnder(map, map.playerSpawn)).toBe(TileKind.Plaza)
   })
 
   it('keeps buildings and the fountain solid', () => {
