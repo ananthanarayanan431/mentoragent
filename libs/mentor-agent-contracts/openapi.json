@@ -87,7 +87,7 @@
         "type": "object"
       },
       "MentorOut": {
-        "description": "Public view of a mentor (sources are not exposed).",
+        "description": "Public view of a mentor (sources are at ``/mentors/{id}/sources``).",
         "properties": {
           "expertise": {
             "title": "Expertise",
@@ -107,6 +107,23 @@
               }
             ],
             "title": "Image Url"
+          },
+          "memory": {
+            "anyOf": [
+              {
+                "enum": [
+                  "building",
+                  "ready",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Memory build status for mentors added or rebuilt through the API.",
+            "title": "Memory"
           },
           "name": {
             "title": "Name",
@@ -129,6 +146,187 @@
           "style"
         ],
         "title": "MentorOut",
+        "type": "object"
+      },
+      "MentorSources": {
+        "description": "Where a mentor's long-term memory comes from (Wikipedia is searched by name).",
+        "properties": {
+          "pdfs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Pdfs",
+            "type": "array"
+          },
+          "twitter_handle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Twitter Handle"
+          },
+          "websites": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Websites",
+            "type": "array"
+          },
+          "youtube_videos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Youtube Videos",
+            "type": "array"
+          }
+        },
+        "title": "MentorSources",
+        "type": "object"
+      },
+      "MentorUpdate": {
+        "additionalProperties": false,
+        "description": "Changes to a mentor; omitted fields stay as they are. Changing sources does\nnot rebuild the memory by itself: call ``POST /mentors/{id}/memory`` after.",
+        "properties": {
+          "expertise": {
+            "anyOf": [
+              {
+                "maxLength": 600,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expertise"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 600,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "pdfs": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 2000,
+                  "pattern": "^https://\\S+$",
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pdfs"
+          },
+          "perspective": {
+            "anyOf": [
+              {
+                "maxLength": 600,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Perspective"
+          },
+          "style": {
+            "anyOf": [
+              {
+                "maxLength": 600,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style"
+          },
+          "twitter_handle": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_]{1,15}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Twitter Handle"
+          },
+          "websites": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 2000,
+                  "pattern": "^https://\\S+$",
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Websites"
+          },
+          "youtube_videos": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 2000,
+                  "pattern": "^https://\\S+$",
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Youtube Videos"
+          }
+        },
+        "title": "MentorUpdate",
+        "type": "object"
+      },
+      "PoolOut": {
+        "description": "How many pool mentors can still be added.",
+        "properties": {
+          "remaining": {
+            "title": "Remaining",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "remaining",
+          "total"
+        ],
+        "title": "PoolOut",
         "type": "object"
       },
       "ResetMemoryResponse": {
@@ -329,6 +527,60 @@
         ]
       }
     },
+    "/api/v1/mentors/pool": {
+      "get": {
+        "description": "How many mentors \"Add a mentor\" can still bring into the square.",
+        "operationId": "mentor_pool_api_v1_mentors_pool_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoolOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Mentor Pool",
+        "tags": [
+          "mentors"
+        ]
+      }
+    },
+    "/api/v1/mentors/random": {
+      "post": {
+        "description": "Add a random mentor from the pool, and build their memory in the background.\n\nThe mentor can be talked to at once; answers draw on their memory once its\nstatus turns ``ready``. 409 when every pool mentor is already here.",
+        "operationId": "add_random_mentor_api_v1_mentors_random_post",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MentorOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Add Random Mentor",
+        "tags": [
+          "mentors"
+        ]
+      }
+    },
     "/api/v1/mentors/{mentor_id}": {
       "get": {
         "description": "Return one mentor.",
@@ -372,6 +624,158 @@
           }
         ],
         "summary": "Get Mentor",
+        "tags": [
+          "mentors"
+        ]
+      },
+      "patch": {
+        "description": "Change a mentor's persona or sources. Rebuild the memory to use new sources.",
+        "operationId": "update_mentor_api_v1_mentors__mentor_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mentor_id",
+            "required": true,
+            "schema": {
+              "title": "Mentor Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MentorUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MentorOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Update Mentor",
+        "tags": [
+          "mentors"
+        ]
+      }
+    },
+    "/api/v1/mentors/{mentor_id}/memory": {
+      "post": {
+        "description": "Rebuild the mentor's long-term memory in the background (409 if already running).",
+        "operationId": "rebuild_mentor_memory_api_v1_mentors__mentor_id__memory_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mentor_id",
+            "required": true,
+            "schema": {
+              "title": "Mentor Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MentorOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Rebuild Mentor Memory",
+        "tags": [
+          "mentors"
+        ]
+      }
+    },
+    "/api/v1/mentors/{mentor_id}/sources": {
+      "get": {
+        "description": "Where the mentor's long-term memory is built from.",
+        "operationId": "get_mentor_sources_api_v1_mentors__mentor_id__sources_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mentor_id",
+            "required": true,
+            "schema": {
+              "title": "Mentor Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MentorSources"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Get Mentor Sources",
         "tags": [
           "mentors"
         ]

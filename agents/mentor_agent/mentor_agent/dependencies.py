@@ -11,7 +11,9 @@ from starlette.requests import HTTPConnection
 
 from mentor_agent.config import settings
 from mentor_agent.errors import PermissionDeniedError
+from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.services.conversation import ConversationService
+from mentor_agent.services.memory import MemoryBuilder
 from mentor_agent.services.mentors import MentorService
 
 API_KEY_HEADER = "X-API-Key"
@@ -57,3 +59,26 @@ def get_mentor_service(connection: HTTPConnection) -> MentorService:
 
 ConversationServiceDep = Annotated[ConversationService, Depends(get_conversation_service)]
 MentorServiceDep = Annotated[MentorService, Depends(get_mentor_service)]
+
+
+def get_memory_builder(connection: HTTPConnection) -> MemoryBuilder:
+    builder: MemoryBuilder = connection.app.state.memory
+    return builder
+
+
+def get_mentor_pool(connection: HTTPConnection) -> list[MentorExtract]:
+    pool: list[MentorExtract] = connection.app.state.pool
+    return pool
+
+
+MemoryBuilderDep = Annotated[MemoryBuilder, Depends(get_memory_builder)]
+MentorPoolDep = Annotated[list[MentorExtract], Depends(get_mentor_pool)]
+
+
+async def require_api_key_in_production() -> None:
+    """Changes that cost money or delete data (adding mentors, building memory,
+    resetting conversations) need an API key in production; locally they are open.
+    """
+    if settings.app.is_production and settings.app.API_KEY is None:
+        msg = "This action requires API_KEY to be configured in production"
+        raise PermissionDeniedError(msg)

@@ -54,6 +54,25 @@ class ConversationError(MentorAgentError):
     default_message = "The mentor could not respond right now. Please try again."
 
 
+class ConflictError(MentorAgentError):
+    """The request conflicts with the current state."""
+
+    status_code = 409
+    default_message = "The request conflicts with the current state"
+
+
+class PoolExhaustedError(ConflictError):
+    """Every mentor in the pool has already been added."""
+
+    default_message = "Every mentor in the pool is already in the square."
+
+
+class MemoryBuildInProgressError(ConflictError):
+    """A memory build for this mentor is already running."""
+
+    default_message = "This mentor's memory is already being built."
+
+
 class NotFoundError(MentorAgentError):
     """A requested object does not exist."""
 

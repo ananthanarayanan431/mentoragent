@@ -12,11 +12,13 @@ import typer
 from loguru import logger
 
 from mentor_agent.config import settings
+from mentor_agent.errors import MentorAgentError
 from mentor_agent.logs import configure_logging
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from mentor_agent.models.mentor_extract import MentorExtract
     from mentor_agent.services.conversation import ConversationService
     from mentor_agent.services.mentors import MentorService
 
@@ -142,6 +144,70 @@ def load_mentors(
     repository.collection.create_index("id", unique=True)
     count = repository.upsert_documents(mentors)
     logger.info("Saved {} mentors", count)
+
+
+@app.command("add-mentor")
+def add_mentor(
+    mentor_id: Annotated[
+        str | None, typer.Option(help="A pool mentor's id (default: a random one).")
+    ] = None,
+    build_memory: Annotated[
+        bool, typer.Option(help="Build their long-term memory now (calls the embeddings API).")
+    ] = True,
+) -> None:
+    """Add a mentor from the pool (data/mentor_pool.json) to the square."""
+    import random
+
+    from mentor_agent.db.client import MongoRepository
+    from mentor_agent.models.mentor_extract import MentorExtract
+    from mentor_agent.services.pool import load_pool, pick_new_mentor
+
+    pool = load_pool(settings.paths.MENTOR_POOL_FILE_PATH)
+    if mentor_id is not None:
+        pool = [mentor for mentor in pool if mentor.id == mentor_id]
+        if not pool:
+            typer.echo(f"error: no mentor {mentor_id!r} in the pool", err=True)
+            raise typer.Exit(code=1)
+    repository = MongoRepository(MentorExtract, settings.mongo.MENTORS_COLLECTION)
+    existing = {mentor.id for mentor in repository.fetch_documents({})}
+    try:
+        mentor = pick_new_mentor(pool, existing, random.Random())  # noqa: S311 - not secret
+    except MentorAgentError as exc:
+        typer.echo(f"error: {exc.message}", err=True)
+        raise typer.Exit(code=1) from exc
+    repository.upsert_documents([mentor])
+    logger.info("Added {} ({})", mentor.name, mentor.id)
+    if build_memory:
+        _rebuild_memory_now(mentor)
+
+
+@app.command("rebuild-memory")
+def rebuild_memory(
+    mentor_id: Annotated[str, typer.Option(help="Whose memory to rebuild.")],
+) -> None:
+    """Rebuild one mentor's long-term memory from their sources (calls the embeddings API)."""
+    from mentor_agent.db.client import MongoRepository
+    from mentor_agent.models.mentor_extract import MentorExtract
+
+    repository = MongoRepository(MentorExtract, settings.mongo.MENTORS_COLLECTION)
+    mentor = repository.fetch_one({"id": mentor_id})
+    if mentor is None:
+        typer.echo(f"error: no mentor {mentor_id!r}", err=True)
+        raise typer.Exit(code=1)
+    _rebuild_memory_now(mentor)
+
+
+def _rebuild_memory_now(mentor: MentorExtract) -> None:
+    from mentor_agent.db.client import MongoRepository
+    from mentor_agent.models.mentor_extract import MentorExtract
+    from mentor_agent.rag.memory.long_term_memory_creator import LongTermMemoryCreator
+
+    repository = MongoRepository(MentorExtract, settings.mongo.MENTORS_COLLECTION)
+    repository.collection.update_one({"id": mentor.id}, {"$set": {"memory": "building"}})
+    chunks = LongTermMemoryCreator.build().rebuild_one(mentor)
+    status = "ready" if chunks else "failed"
+    repository.collection.update_one({"id": mentor.id}, {"$set": {"memory": status}})
+    logger.info("Memory for {}: {} ({} chunks)", mentor.id, status, chunks)
 
 
 @app.command("create-memory")

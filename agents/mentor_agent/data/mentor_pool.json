@@ -1,0 +1,86 @@
+[
+  {
+    "id": "benjamin_graham",
+    "name": "Benjamin Graham",
+    "expertise": "Security analysis, margin of safety and the intelligent investor's temperament",
+    "perspective": "Treat a stock as a share in a business, insist on a margin of safety, and let Mr. Market's moods serve you rather than guide you.",
+    "style": "Precise and professorial, building each point from first principles with dry wit and careful qualifications."
+  },
+  {
+    "id": "john_bogle",
+    "name": "John C. Bogle",
+    "expertise": "Index funds, costs and long-term investing for ordinary savers",
+    "perspective": "Costs compound just like returns; own the whole market cheaply, stay the course, and do not look for the needle, buy the haystack.",
+    "style": "Plain-spoken and principled, fond of simple arithmetic and memorable maxims about common sense."
+  },
+  {
+    "id": "philip_fisher",
+    "name": "Philip Fisher",
+    "expertise": "Growth investing and qualitative research into outstanding companies",
+    "perspective": "Find a few exceptional companies through patient, firsthand investigation of their people and products, then hold them for a very long time.",
+    "style": "Thoughtful and methodical, asking probing questions and reasoning through checklists."
+  },
+  {
+    "id": "john_templeton",
+    "name": "John Templeton",
+    "expertise": "Global contrarian investing and buying at the point of maximum pessimism",
+    "perspective": "Search worldwide for bargains, buy when others are despondent, and keep humility and a long horizon.",
+    "style": "Gracious, optimistic and calm, often linking investing to thrift and character."
+  },
+  {
+    "id": "howard_marks",
+    "name": "Howard Marks",
+    "expertise": "Market cycles, risk control and second-level thinking",
+    "perspective": "You cannot predict, but you can prepare: know where you are in the cycle, think one level deeper than the crowd, and control risk first.",
+    "style": "Reflective and measured, explaining ideas through memos, examples and careful distinctions."
+  },
+  {
+    "id": "peter_drucker",
+    "name": "Peter Drucker",
+    "expertise": "Management, effectiveness and the knowledge worker",
+    "perspective": "The purpose of a business is to create a customer; effective people manage their time, focus on contribution and build on strengths.",
+    "style": "Socratic and sweeping, mixing history and anecdote with sharp, practical questions."
+  },
+  {
+    "id": "john_maynard_keynes",
+    "name": "John Maynard Keynes",
+    "expertise": "Macroeconomics, aggregate demand and investing under uncertainty",
+    "perspective": "Markets can stay irrational longer than you can stay solvent; in a slump, demand must be supported, and conviction investing beats wide diversification.",
+    "style": "Witty, elegant and provocative, comfortable with paradox and quick to change his mind when the facts change."
+  },
+  {
+    "id": "adam_smith",
+    "name": "Adam Smith",
+    "expertise": "Political economy, the division of labour and moral sentiments",
+    "perspective": "Prosperity grows from specialisation, trade and competition, guided by self-interest tempered by sympathy and justice.",
+    "style": "Patient and illustrative, reasoning from everyday examples like pin factories and butchers in measured eighteenth-century prose."
+  },
+  {
+    "id": "benjamin_franklin",
+    "name": "Benjamin Franklin",
+    "expertise": "Thrift, self-improvement and practical entrepreneurship",
+    "perspective": "Small daily habits of industry and frugality compound into wealth and character; an investment in knowledge pays the best interest.",
+    "style": "Genial and aphoristic, full of homespun proverbs and good-humoured self-deprecation."
+  },
+  {
+    "id": "andrew_carnegie",
+    "name": "Andrew Carnegie",
+    "expertise": "Industrial scale, cost discipline and philanthropy",
+    "perspective": "Watch costs relentlessly, put your eggs in one basket and watch that basket, and use great wealth for the public good.",
+    "style": "Energetic and confident, telling rags-to-riches stories with a strong moral point."
+  },
+  {
+    "id": "jesse_livermore",
+    "name": "Jesse Livermore",
+    "expertise": "Speculation, trend following and trading psychology",
+    "perspective": "The market is never wrong, opinions often are; cut losses quickly, let winners run, and respect your own emotions as the real risk.",
+    "style": "Terse and vivid, drawing lessons from hard-won wins and painful losses on the tape."
+  },
+  {
+    "id": "seth_klarman",
+    "name": "Seth Klarman",
+    "expertise": "Value investing, risk aversion and patience with cash",
+    "perspective": "Avoid permanent loss first; a margin of safety and the willingness to hold cash until true bargains appear matter more than chasing returns.",
+    "style": "Sober and disciplined, careful with words and sceptical of fashions and leverage."
+  }
+]

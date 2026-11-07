@@ -61,6 +61,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mentors/pool": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mentor Pool
+         * @description How many mentors "Add a mentor" can still bring into the square.
+         */
+        get: operations["mentor_pool_api_v1_mentors_pool_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentors/random": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Random Mentor
+         * @description Add a random mentor from the pool, and build their memory in the background.
+         *
+         *     The mentor can be talked to at once; answers draw on their memory once its
+         *     status turns ``ready``. 409 when every pool mentor is already here.
+         */
+        post: operations["add_random_mentor_api_v1_mentors_random_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mentors/{mentor_id}": {
         parameters: {
             query?: never;
@@ -73,6 +116,50 @@ export interface paths {
          * @description Return one mentor.
          */
         get: operations["get_mentor_api_v1_mentors__mentor_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Mentor
+         * @description Change a mentor's persona or sources. Rebuild the memory to use new sources.
+         */
+        patch: operations["update_mentor_api_v1_mentors__mentor_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/mentors/{mentor_id}/memory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rebuild Mentor Memory
+         * @description Rebuild the mentor's long-term memory in the background (409 if already running).
+         */
+        post: operations["rebuild_mentor_memory_api_v1_mentors__mentor_id__memory_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentors/{mentor_id}/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Mentor Sources
+         * @description Where the mentor's long-term memory is built from.
+         */
+        get: operations["get_mentor_sources_api_v1_mentors__mentor_id__sources_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -186,7 +273,7 @@ export interface components {
         };
         /**
          * MentorOut
-         * @description Public view of a mentor (sources are not exposed).
+         * @description Public view of a mentor (sources are at ``/mentors/{id}/sources``).
          */
         MentorOut: {
             /** Expertise */
@@ -195,12 +282,64 @@ export interface components {
             id: string;
             /** Image Url */
             image_url?: string | null;
+            /**
+             * Memory
+             * @description Memory build status for mentors added or rebuilt through the API.
+             */
+            memory?: ("building" | "ready" | "failed") | null;
             /** Name */
             name: string;
             /** Perspective */
             perspective: string;
             /** Style */
             style: string;
+        };
+        /**
+         * MentorSources
+         * @description Where a mentor's long-term memory comes from (Wikipedia is searched by name).
+         */
+        MentorSources: {
+            /** Pdfs */
+            pdfs?: string[];
+            /** Twitter Handle */
+            twitter_handle?: string | null;
+            /** Websites */
+            websites?: string[];
+            /** Youtube Videos */
+            youtube_videos?: string[];
+        };
+        /**
+         * MentorUpdate
+         * @description Changes to a mentor; omitted fields stay as they are. Changing sources does
+         *     not rebuild the memory by itself: call ``POST /mentors/{id}/memory`` after.
+         */
+        MentorUpdate: {
+            /** Expertise */
+            expertise?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Pdfs */
+            pdfs?: string[] | null;
+            /** Perspective */
+            perspective?: string | null;
+            /** Style */
+            style?: string | null;
+            /** Twitter Handle */
+            twitter_handle?: string | null;
+            /** Websites */
+            websites?: string[] | null;
+            /** Youtube Videos */
+            youtube_videos?: string[] | null;
+        };
+        /**
+         * PoolOut
+         * @description How many pool mentors can still be added.
+         */
+        PoolOut: {
+            /** Remaining */
+            remaining: number;
+            /** Total */
+            total: number;
         };
         /**
          * ResetMemoryResponse
@@ -315,6 +454,46 @@ export interface operations {
             };
         };
     };
+    mentor_pool_api_v1_mentors_pool_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolOut"];
+                };
+            };
+        };
+    };
+    add_random_mentor_api_v1_mentors_random_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorOut"];
+                };
+            };
+        };
+    };
     get_mentor_api_v1_mentors__mentor_id__get: {
         parameters: {
             query?: never;
@@ -333,6 +512,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MentorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_mentor_api_v1_mentors__mentor_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mentor_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MentorUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rebuild_mentor_memory_api_v1_mentors__mentor_id__memory_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mentor_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_mentor_sources_api_v1_mentors__mentor_id__sources_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mentor_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorSources"];
                 };
             };
             /** @description Validation Error */

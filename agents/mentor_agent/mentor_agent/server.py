@@ -22,7 +22,9 @@ from mentor_agent.logs import configure_logging
 from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.request_context import install_middleware
 from mentor_agent.routes import health, v1
+from mentor_agent.services.memory import MentorMemoryBuilder
 from mentor_agent.services.mentors import MentorService
+from mentor_agent.services.pool import load_pool
 from mentor_agent.tracing import configure_opik
 
 if TYPE_CHECKING:
@@ -46,12 +48,32 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.mentors = MentorService(
         AsyncMongoRepository(MentorExtract, settings.mongo.MENTORS_COLLECTION)
     )
+    app.state.pool = _load_pool()
+    app.state.memory = MentorMemoryBuilder(app.state.mentors, _rebuild_one)
     logger.info("{} API ready ({})", settings.app.PROJECT_NAME, settings.app.ENVIRONMENT)
     try:
         yield
     finally:
         await close_mongo_clients()
         logger.info("Shutdown complete")
+
+
+def _load_pool() -> list[MentorExtract]:
+    """The "Add a mentor" pool; a missing file only means nothing can be added."""
+    path = settings.paths.MENTOR_POOL_FILE_PATH
+    try:
+        return load_pool(path)
+    except FileNotFoundError:
+        logger.warning("No mentor pool at {}; adding mentors is disabled", path)
+        return []
+
+
+def _rebuild_one(mentor: MentorExtract) -> int:
+    # Built per job (in a worker thread): the vector store and embeddings client
+    # are cheap to create and need no state between builds.
+    from mentor_agent.rag.memory.long_term_memory_creator import LongTermMemoryCreator
+
+    return LongTermMemoryCreator.build().rebuild_one(mentor)
 
 
 def create_app(

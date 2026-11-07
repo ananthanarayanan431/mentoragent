@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 from bson import ObjectId
 from loguru import logger
 from pydantic import BaseModel
-from pymongo import AsyncMongoClient, MongoClient
+from pymongo import AsyncMongoClient, MongoClient, ReturnDocument
 from pymongo.server_api import ServerApi
 
 from mentor_agent.config import settings
@@ -212,3 +212,23 @@ class AsyncMongoRepository[T: BaseModel]:
         """Return the first document matching ``query``, or ``None``."""
         document = await self.collection.find_one(query)
         return None if document is None else _to_model(self.model, document)
+
+    async def insert_one(self, document: T) -> T:
+        """Insert one document; returns it."""
+        await self.collection.insert_one(document.model_dump(exclude={"_id"}))
+        return document
+
+    async def update_one(self, query: Mapping[str, Any], changes: Mapping[str, Any]) -> T | None:
+        """Set ``changes`` on the first document matching ``query``, atomically.
+
+        Returns:
+            The updated document, or ``None`` when nothing matched.
+        """
+        document = await self.collection.find_one_and_update(
+            query, {"$set": dict(changes)}, return_document=ReturnDocument.AFTER
+        )
+        return None if document is None else _to_model(self.model, document)
+
+    async def ids(self) -> set[str]:
+        """The ``id`` of every document."""
+        return {doc["id"] async for doc in self.collection.find({}, {"id": 1}) if "id" in doc}

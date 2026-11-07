@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter
 
@@ -8,6 +8,11 @@ from mentor_agent.models.mentor import Mentor
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+#: Long-term memory of a mentor added or rebuilt through the API. ``None``: built
+#: offline (``mentor-agent create-memory``) or never built, so not tracked.
+MemoryStatus = Literal["building", "ready", "failed"]
 
 
 class MentorExtract(BaseModel):
@@ -34,6 +39,9 @@ class MentorExtract(BaseModel):
     )
     youtube_videos: list[str] = Field(
         default_factory=list, description="YouTube videos with information about the mentor"
+    )
+    memory: MemoryStatus | None = Field(
+        default=None, description="Long-term memory build status, when built through the API"
     )
 
     @classmethod

@@ -63,9 +63,9 @@ source = ["mentor_agent"]
 branch = true
 
 [tool.coverage.report]
-# 61% measured over every module, including the ones no test imports yet
-# (evals, memory creation, index management). Raise it as those get tests.
-fail_under = 60
+# Measured over every module, including ones no test imports yet (evals,
+# full memory creation). Raise it as those get tests; never lower it.
+fail_under = 65
 show_missing = true
 skip_covered = true
 exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]

@@ -17,12 +17,14 @@ class PathSettings(BaseSettings):
     Attributes:
         EXTRACTION_METADATA_FILE_PATH: JSON file listing mentors and their sources.
         EVALUATION_DATASET_FILE_PATH: Where the generated evaluation dataset is written.
+        MENTOR_POOL_FILE_PATH: Mentors the API can add at random ("Add a mentor").
     """
 
     model_config = settings_config()
 
     EXTRACTION_METADATA_FILE_PATH: Path = Path("data/extraction_metadata.json")
     EVALUATION_DATASET_FILE_PATH: Path = Path("data/evaluation_dataset.json")
+    MENTOR_POOL_FILE_PATH: Path = Path("data/mentor_pool.json")
 
     @field_validator("*")
     @classmethod

@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     from langchain_mongodb import MongoDBAtlasVectorSearch
     from langchain_text_splitters import TextSplitter
 
+    from mentor_agent.models.mentor_extract import MentorExtract
+
 
 class LongTermMemoryCreator:
     """Rebuild the mentors' long-term memory: extract, chunk, dedupe, embed, index.
@@ -82,3 +84,35 @@ class LongTermMemoryCreator:
         )
         logger.info("Long-term memory rebuilt with {} chunks", total)
         return total
+
+    def rebuild_one(self, mentor_extract: MentorExtract) -> int:
+        """Replace one mentor's long-term memory, leaving everyone else's alone.
+
+        Sources are extracted first and the mentor's old chunks deleted only right
+        before the new ones go in, so a slow extraction never leaves them empty,
+        and an extraction that finds nothing (a network failure, say) keeps them.
+
+        Returns:
+            The number of chunks ingested; 0 means nothing was found and the old
+            memory was kept.
+        """
+        docs = self.extractor.extract(mentor_extract)
+        chunks = self.deduplicator.remove_duplicates(self.splitter.split_documents(docs))
+        if not chunks:
+            logger.warning("No documents found for {}; keeping their memory", mentor_extract.id)
+            return 0
+        collection = vector_collection(self.vectorstore)
+        deleted = collection.delete_many({"mentor_id": mentor_extract.id}).deleted_count
+        self.vectorstore.add_documents(chunks)
+        create_search_indexes(
+            self.vectorstore,
+            embedding_dim=settings.rag.TEXT_EMBEDDING_MODEL_DIM,
+            fulltext_index=settings.rag.FULLTEXT_INDEX_NAME,
+        )
+        logger.info(
+            "Rebuilt memory for {}: {} chunks (replaced {})",
+            mentor_extract.id,
+            len(chunks),
+            deleted,
+        )
+        return len(chunks)

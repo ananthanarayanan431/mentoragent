@@ -17,15 +17,17 @@ from mentor_agent.chat.chains import Chains
 from mentor_agent.chat.graph import compile_graph
 from mentor_agent.chat.nodes import Nodes
 from mentor_agent.chat.tools import build_retrieve_context_tool
-from mentor_agent.errors import MentorNotFoundError
+from mentor_agent.errors import MemoryBuildInProgressError, MentorNotFoundError
 from mentor_agent.services.conversation import ConversationService
+from mentor_agent.services.pool import pick_new_mentor
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    import random
+    from collections.abc import Iterator, Mapping, Sequence
 
     from langchain_core.callbacks import CallbackManagerForLLMRun, CallbackManagerForRetrieverRun
 
-    from mentor_agent.models.mentor_extract import MentorExtract
+    from mentor_agent.models.mentor_extract import MemoryStatus, MentorExtract
 
 
 class ScriptedChatModel(BaseChatModel):
@@ -166,3 +168,37 @@ class InMemoryMentorService:
             return self.mentors[mentor_id]
         except KeyError:
             raise MentorNotFoundError(mentor_id) from None
+
+    async def ids(self) -> set[str]:
+        return set(self.mentors)
+
+    async def add_from_pool(
+        self, pool: Sequence[MentorExtract], rng: random.Random
+    ) -> MentorExtract:
+        mentor = pick_new_mentor(pool, set(self.mentors), rng)
+        self.mentors[mentor.id] = mentor
+        return mentor
+
+    async def update_mentor(self, mentor_id: str, changes: Mapping[str, Any]) -> MentorExtract:
+        mentor = await self.get_mentor(mentor_id)
+        self.mentors[mentor_id] = mentor.model_copy(update=dict(changes))
+        return self.mentors[mentor_id]
+
+    async def start_memory_build(self, mentor_id: str) -> MentorExtract:
+        mentor = await self.get_mentor(mentor_id)
+        if mentor.memory == "building":
+            raise MemoryBuildInProgressError
+        return await self.update_mentor(mentor_id, {"memory": "building"})
+
+    async def set_memory_status(self, mentor_id: str, status: MemoryStatus) -> None:
+        await self.update_mentor(mentor_id, {"memory": status})
+
+
+class RecordingMemoryBuilder:
+    """Records which mentors had a memory build requested; builds nothing."""
+
+    def __init__(self) -> None:
+        self.requested: list[str] = []
+
+    async def rebuild(self, mentor_id: str) -> None:
+        self.requested.append(mentor_id)
