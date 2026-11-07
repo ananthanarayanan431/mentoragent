@@ -14,17 +14,17 @@ history in MongoDB, summarising it as it grows.
 
 ## Tech stack
 
-| Concern | Choice |
-| --- | --- |
-| Language / packaging | Python 3.12, [uv](https://docs.astral.sh/uv/) |
-| LLM & embeddings | [OpenRouter](https://openrouter.ai) via `langchain-openai` (OpenAI-compatible API) |
-| Database & vector search | MongoDB Atlas Local 8.0 (Docker) |
-| RAG plumbing | LangChain loaders, splitters and `langchain-mongodb` |
-| Agent orchestration | LangGraph, conversations checkpointed in MongoDB |
-| Tweets | [Arcade](https://arcade.dev) `X.SearchRecentTweetsByUsername` |
-| Evaluation | [Opik](https://www.comet.com/site/products/opik/) |
-| API | FastAPI + Uvicorn (async, REST + WebSocket streaming) |
-| CLI | Typer (`uv run mentoragent --help`) |
+| Concern                  | Choice                                                                             |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| Language / packaging     | Python 3.12, [uv](https://docs.astral.sh/uv/)                                      |
+| LLM & embeddings         | [OpenRouter](https://openrouter.ai) via `langchain-openai` (OpenAI-compatible API) |
+| Database & vector search | MongoDB Atlas Local 8.0 (Docker)                                                   |
+| RAG plumbing             | LangChain loaders, splitters and `langchain-mongodb`                               |
+| Agent orchestration      | LangGraph, conversations checkpointed in MongoDB                                   |
+| Tweets                   | [Arcade](https://arcade.dev) `X.SearchRecentTweetsByUsername`                      |
+| Evaluation               | [Opik](https://www.comet.com/site/products/opik/)                                  |
+| API                      | FastAPI + Uvicorn (async, REST + WebSocket streaming)                              |
+| CLI                      | Typer (`uv run mentoragent --help`)                                                |
 
 ## Quick start
 
@@ -53,25 +53,25 @@ Run `make` with no arguments to list every target.
 
 ## Development
 
-| Command | What it does |
-| --- | --- |
-| `make format` | Auto-fix lint issues and format the code |
-| `make lint` | Lint with ruff |
-| `make typecheck` | Type-check with pyright (strict) |
-| `make test` | Run the pytest suite (no network or database needed) |
-| `make check` | All of the above; what CI should run |
+| Command          | What it does                                         |
+| ---------------- | ---------------------------------------------------- |
+| `make format`    | Auto-fix lint issues and format the code             |
+| `make lint`      | Lint with ruff                                       |
+| `make typecheck` | Type-check with pyright (strict)                     |
+| `make test`      | Run the pytest suite (no network or database needed) |
+| `make check`     | All of the above; what CI should run                 |
 
 ## CLI
 
-| Command | What it does |
-| --- | --- |
-| `mentoragent serve [--reload]` | Run the API |
-| `mentoragent load-mentors` | Upsert mentors from the metadata file (idempotent) |
-| `mentoragent create-memory [--sample]` | Extract sources, chunk, dedupe, embed, index |
-| `mentoragent delete-memory` | Drop the long-term memory |
-| `mentoragent reset-conversations` | Drop every conversation history |
-| `mentoragent generate-dataset` | Build a synthetic evaluation dataset |
-| `mentoragent evaluate` | Score the agent with Opik (needs `COMET_API_KEY`) |
+| Command                                | What it does                                       |
+| -------------------------------------- | -------------------------------------------------- |
+| `mentoragent serve [--reload]`         | Run the API                                        |
+| `mentoragent load-mentors`             | Upsert mentors from the metadata file (idempotent) |
+| `mentoragent create-memory [--sample]` | Extract sources, chunk, dedupe, embed, index       |
+| `mentoragent delete-memory`            | Drop the long-term memory                          |
+| `mentoragent reset-conversations`      | Drop every conversation history                    |
+| `mentoragent generate-dataset`         | Build a synthetic evaluation dataset               |
+| `mentoragent evaluate`                 | Score the agent with Opik (needs `COMET_API_KEY`)  |
 
 Run them with `uv run mentoragent ...`.
 
@@ -80,16 +80,16 @@ Run them with `uv run mentoragent ...`.
 All routes except the probes live under `/api/v1`. When `API_KEY` is set they
 require an `X-API-Key` header (WebSocket: `?api_key=...` query parameter).
 
-| Method & path | Purpose |
-| --- | --- |
-| `GET /health` | Liveness probe |
-| `GET /ready` | Readiness probe (checks MongoDB) |
-| `GET /api/v1/mentors` | List mentors |
-| `GET /api/v1/mentors/{mentor_id}` | One mentor |
-| `POST /api/v1/chat` | Send a message, get the full reply |
-| `WS /api/v1/ws/chat` | Send a message, stream the reply token by token |
-| `DELETE /api/v1/conversations/{mentor_id}/{conversation_id}` | Forget a conversation |
-| `POST /api/v1/reset-memory` | Drop every conversation (admin) |
+| Method & path                                                | Purpose                                         |
+| ------------------------------------------------------------ | ----------------------------------------------- |
+| `GET /health`                                                | Liveness probe                                  |
+| `GET /ready`                                                 | Readiness probe (checks MongoDB)                |
+| `GET /api/v1/mentors`                                        | List mentors                                    |
+| `GET /api/v1/mentors/{mentor_id}`                            | One mentor                                      |
+| `POST /api/v1/chat`                                          | Send a message, get the full reply              |
+| `WS /api/v1/ws/chat`                                         | Send a message, stream the reply token by token |
+| `DELETE /api/v1/conversations/{mentor_id}/{conversation_id}` | Forget a conversation                           |
+| `POST /api/v1/reset-memory`                                  | Drop every conversation (admin)                 |
 
 Start a conversation by omitting `conversation_id`. The response returns
 one; send it back to continue the same conversation:
@@ -152,12 +152,12 @@ Only `OPENROUTER_API_KEY` is required; it serves both chat and embeddings.
 Optional integrations switch on when their keys are set (a blank value counts
 as unset):
 
-| Variable | Enables |
-| --- | --- |
-| `API_KEY` | API-key protection for `/api/v1` |
-| `ARCADE_API_KEY`, `ARCADE_USER_ID` | Fetching tweets during ingestion |
-| `COMET_API_KEY` | Opik tracing, prompt versioning, `mentoragent evaluate` |
-| `LANGSMITH_API_KEY` + `LANGSMITH_TRACING=true` | LangSmith tracing |
+| Variable                                       | Enables                                                 |
+| ---------------------------------------------- | ------------------------------------------------------- |
+| `API_KEY`                                      | API-key protection for `/api/v1`                        |
+| `ARCADE_API_KEY`, `ARCADE_USER_ID`             | Fetching tweets during ingestion                        |
+| `COMET_API_KEY`                                | Opik tracing, prompt versioning, `mentoragent evaluate` |
+| `LANGSMITH_API_KEY` + `LANGSMITH_TRACING=true` | LangSmith tracing                                       |
 
 Every other variable has a default. [`.env.example`](.env.example) lists them all.
 
@@ -204,12 +204,12 @@ not the plain `mongo` image. Only Atlas Local has the `$vectorSearch` and
 check, which covers the search service too, so the database is ready for vector
 queries as soon as the command returns.
 
-| Command | What it does |
-| --- | --- |
-| `make up` / `make down` | Start or stop the database. Data is kept. |
-| `make logs` | Follow the database logs. |
-| `make mongo-shell` | Open `mongosh` inside the container. |
-| `make mongo-reset` | **Delete all local data** (asks you to confirm). |
+| Command                 | What it does                                     |
+| ----------------------- | ------------------------------------------------ |
+| `make up` / `make down` | Start or stop the database. Data is kept.        |
+| `make logs`             | Follow the database logs.                        |
+| `make mongo-shell`      | Open `mongosh` inside the container.             |
+| `make mongo-reset`      | **Delete all local data** (asks you to confirm). |
 
 ## Project layout
 
@@ -248,16 +248,16 @@ all state lives in MongoDB.
 
 ## Project status
 
-| Area | State |
-| --- | --- |
-| Settings, logging, exceptions, middleware | Done |
-| Source extractors, dedup, long-term memory ingestion | Done |
-| Hybrid retrieval scoped per mentor | Done |
-| LangGraph agent with checkpointed conversations | Done |
-| FastAPI app (REST + WebSocket streaming) | Done |
-| CLI, Docker image | Done |
-| Evaluation pipeline (Opik) | Done; needs `COMET_API_KEY` |
-| Authentication beyond a shared API key, rate limiting | Not started |
+| Area                                                  | State                       |
+| ----------------------------------------------------- | --------------------------- |
+| Settings, logging, exceptions, middleware             | Done                        |
+| Source extractors, dedup, long-term memory ingestion  | Done                        |
+| Hybrid retrieval scoped per mentor                    | Done                        |
+| LangGraph agent with checkpointed conversations       | Done                        |
+| FastAPI app (REST + WebSocket streaming)              | Done                        |
+| CLI, Docker image                                     | Done                        |
+| Evaluation pipeline (Opik)                            | Done; needs `COMET_API_KEY` |
+| Authentication beyond a shared API key, rate limiting | Not started                 |
 
 ## Conventions
 

@@ -2,5 +2,13 @@
   "semi": false,
   "singleQuote": true,
   "printWidth": 100,
-  "trailingComma": "all"
+  "trailingComma": "all",
+  "overrides": [
+    {
+      "files": ["*.yml", "*.yaml", "*.md"],
+      "options": {
+        "singleQuote": false
+      }
+    }
+  ]
 }

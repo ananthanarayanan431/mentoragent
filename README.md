@@ -43,15 +43,15 @@ Replies stream back token by token.
   Ingestion:  PDFs · Wikipedia · YouTube · X  ──▶  split ──▶ embed ──▶ Atlas
 ```
 
-| Layer | Stack |
-| --- | --- |
-| Frontend | React 19, TypeScript, Vite 8, Tailwind CSS v4 |
-| API | FastAPI, Uvicorn, WebSocket streaming |
-| Agent | LangGraph with MongoDB checkpoints |
-| LLM | OpenRouter (OpenAI SDK), Groq |
-| Retrieval | LangChain splitters, OpenAI embeddings, MongoDB Atlas vector search |
-| Storage | MongoDB Atlas Local 8.0 |
-| Evaluation | Opik |
+| Layer      | Stack                                                               |
+| ---------- | ------------------------------------------------------------------- |
+| Frontend   | React 19, TypeScript, Vite 8, Tailwind CSS v4                       |
+| API        | FastAPI, Uvicorn, WebSocket streaming                               |
+| Agent      | LangGraph with MongoDB checkpoints                                  |
+| LLM        | OpenRouter (OpenAI SDK), Groq                                       |
+| Retrieval  | LangChain splitters, OpenAI embeddings, MongoDB Atlas vector search |
+| Storage    | MongoDB Atlas Local 8.0                                             |
+| Evaluation | Opik                                                                |
 
 ## Quick start
 
@@ -92,13 +92,13 @@ API container, so both run on one origin.
 `make env` copies [`backend/.env.example`](backend/.env.example), which
 documents every variable. These have no default and must be filled in:
 
-| Variable | Used for |
-| --- | --- |
-| `OPENROUTER_API_KEY` | Chat completions |
-| `OPENAI_API_KEY` | Embeddings and evaluation |
-| `GROQ_API_KEY` | Groq models |
-| `ARCADE_API_KEY`, `ARCADE_USER_ID` | Fetching tweets |
-| `LANGSMITH_API_KEY` | Tracing |
+| Variable                           | Used for                  |
+| ---------------------------------- | ------------------------- |
+| `OPENROUTER_API_KEY`               | Chat completions          |
+| `OPENAI_API_KEY`                   | Embeddings and evaluation |
+| `GROQ_API_KEY`                     | Groq models               |
+| `ARCADE_API_KEY`, `ARCADE_USER_ID` | Fetching tweets           |
+| `LANGSMITH_API_KEY`                | Tracing                   |
 
 `.env` is gitignored. Only the example file is committed.
 
@@ -128,14 +128,14 @@ Each half has its own README with the detail:
 
 ## Development
 
-| | Backend (`cd backend`) | Frontend (`cd frontend`) |
-| --- | --- | --- |
-| Install | `make install` | `npm install` |
-| Run | `make serve` | `npm run dev` |
-| Lint | `make lint` | `npm run lint` |
-| Types | `make typecheck` | `npm run typecheck` |
-| Test | `make test` | `npm test` |
-| Everything CI runs | `make check` | `../scripts/ci/frontend-checks.sh` |
+|                    | Backend (`cd backend`) | Frontend (`cd frontend`)           |
+| ------------------ | ---------------------- | ---------------------------------- |
+| Install            | `make install`         | `npm install`                      |
+| Run                | `make serve`           | `npm run dev`                      |
+| Lint               | `make lint`            | `npm run lint`                     |
+| Types              | `make typecheck`       | `npm run typecheck`                |
+| Test               | `make test`            | `npm test`                         |
+| Everything CI runs | `make check`           | `../scripts/ci/frontend-checks.sh` |
 
 CI runs `scripts/ci/python-checks.sh` and `scripts/ci/frontend-checks.sh`; run
 them from the repo root with `all` to include the dependency audits.

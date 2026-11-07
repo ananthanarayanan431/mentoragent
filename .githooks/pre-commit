@@ -70,18 +70,16 @@ for pkg in ${py_packages[@]+"${py_packages[@]}"}; do
   ) || fail "ruff found problems in $pkg. Run \`make -C $pkg fmt\` to fix most of them."
 done
 
-# --- 3. Web app and formatting --------------------------------------------------
+# --- 3. Formatting (whole repo) and web lint --------------------------------------------------
 # Prettier (root config) checks the staged files it covers; oxlint checks web code.
 fmt_files=()
 lint_files=()
 for file in "${staged[@]}"; do
+  # Every file Prettier understands; it skips the rest (--ignore-unknown) and
+  # whatever .prettierignore lists.
+  fmt_files+=("$file")
   case "$file" in
-    web/*)
-      fmt_files+=("$file")
-      case "$file" in
-        *.ts | *.tsx | *.js | *.jsx) lint_files+=("${file#web/}") ;;
-      esac
-      ;;
+    web/*.ts | web/*.tsx | web/*.js | web/*.jsx) lint_files+=("${file#web/}") ;;
   esac
 done
 

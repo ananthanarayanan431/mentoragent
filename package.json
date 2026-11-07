@@ -12,8 +12,8 @@
     "lint": "pnpm -r run lint",
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test",
-    "format": "prettier --write web",
-    "format:check": "prettier --check web",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
