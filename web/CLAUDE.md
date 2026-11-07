@@ -23,6 +23,8 @@
 | `src/features/world/world-page.tsx`            | Mentor Square: loads Phaser lazily, owns every menu                     |
 | `src/features/world/world-bridge.ts`           | Typed events/commands: the only link to the game                        |
 | `src/features/world/game/`                     | The game: map, wandering, appearance, art, Phaser scene                 |
+| `src/features/world/progress.ts`               | Friendship levels per mentor (stored per browser)                       |
+| `src/features/mentors/mentor-editor.tsx`       | Edit a mentor's persona and sources; rebuild their memory               |
 | `src/features/chat/use-mentor-conversation.ts` | One conversation (socket, reducer, storage); chat page and dialogue box |
 | `src/features/chat/chat-state.ts`              | Pure reducer for the streaming protocol (no DOM, no socket)             |
 | `src/features/chat/use-chat-socket.ts`         | Socket lifecycle, reconnect with backoff                                |
@@ -40,8 +42,12 @@
   Menus and the dialogue are React; the two sides talk only through the bridge.
 - The game never captures keys: Space and the arrows must keep working in the
   dialogue's text box. React disables game input while a menu or dialogue is open.
-- All game art is drawn in code (`art.ts`). Do not add art from other games or
-  packs; a new mentor gets a sprite from `appearanceFor(id)` automatically.
+- All game art is drawn in code (`art.ts`) at `ART_SCALE` (2x) and shown at half
+  size; keep main shapes on a 2px grid. Do not add art from other games or packs;
+  a new mentor gets a sprite from `appearanceFor(id)` automatically.
+- Mentors join during play through the bridge (`addMentor`), never by rebuilding
+  the game; `mentorSpawnSpots` has room for any number of them.
+- No side effects inside React state updaters (they must stay pure).
 
 - Layout: `app/` is the shell, `components/` is UI shared by features,
   `features/<name>/` holds everything one feature needs (page, components, hooks,

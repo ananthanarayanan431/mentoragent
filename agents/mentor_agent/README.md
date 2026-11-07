@@ -69,6 +69,8 @@ database. Lint, type and test rules come from the root `pyproject.toml`.
 | ------------------------------------------------ | ------------------------------------------------------------ |
 | `mentor-agent serve [--reload]`                  | Run the API                                                  |
 | `mentor-agent call --mentor-id ID --query "..."` | Ask a mentor one question; the reply streams to the terminal |
+| `mentor-agent add-mentor [--mentor-id ID]`       | Add a pool mentor (random by default) and build their memory |
+| `mentor-agent rebuild-memory --mentor-id ID`     | Rebuild one mentor's memory from their sources               |
 | `mentor-agent load-mentors`                      | Upsert mentors from the metadata file (idempotent)           |
 | `mentor-agent create-memory [--sample]`          | Extract sources, chunk, dedupe, embed, index                 |
 | `mentor-agent delete-memory`                     | Drop the long-term memory                                    |
@@ -83,16 +85,32 @@ Run them with `uv run mentor-agent ...`.
 All routes except the probes live under `/api/v1`. When `API_KEY` is set they
 require an `X-API-Key` header (WebSocket: `?api_key=...` query parameter).
 
-| Method & path                                                | Purpose                                         |
-| ------------------------------------------------------------ | ----------------------------------------------- |
-| `GET /health`                                                | Liveness probe                                  |
-| `GET /ready`                                                 | Readiness probe (checks MongoDB)                |
-| `GET /api/v1/mentors`                                        | List mentors                                    |
-| `GET /api/v1/mentors/{mentor_id}`                            | One mentor                                      |
-| `POST /api/v1/chat`                                          | Send a message, get the full reply              |
-| `WS /api/v1/ws/chat`                                         | Send a message, stream the reply token by token |
-| `DELETE /api/v1/conversations/{mentor_id}/{conversation_id}` | Forget a conversation                           |
-| `POST /api/v1/reset-memory`                                  | Drop every conversation (admin)                 |
+| Method & path                                                | Purpose                                                   |
+| ------------------------------------------------------------ | --------------------------------------------------------- |
+| `GET /health`                                                | Liveness probe                                            |
+| `GET /ready`                                                 | Readiness probe (checks MongoDB)                          |
+| `GET /api/v1/mentors`                                        | List mentors                                              |
+| `GET /api/v1/mentors/{mentor_id}`                            | One mentor                                                |
+| `POST /api/v1/chat`                                          | Send a message, get the full reply                        |
+| `WS /api/v1/ws/chat`                                         | Send a message, stream the reply token by token           |
+| `DELETE /api/v1/conversations/{mentor_id}/{conversation_id}` | Forget a conversation                                     |
+| `POST /api/v1/reset-memory`                                  | Drop every conversation (admin)                           |
+| `GET /api/v1/mentors/pool`                                   | How many pool mentors can still be added                  |
+| `POST /api/v1/mentors/random`                                | Add a random pool mentor; memory builds in the background |
+| `PATCH /api/v1/mentors/{mentor_id}`                          | Edit persona or sources (https URLs only)                 |
+| `GET /api/v1/mentors/{mentor_id}/sources`                    | The mentor's sources                                      |
+| `POST /api/v1/mentors/{mentor_id}/memory`                    | Rebuild their memory (409 while one runs)                 |
+
+Adding, editing, rebuilding and resetting need `API_KEY` in production; locally
+they are open. Mentors added or rebuilt through the API carry a `memory` status:
+`building`, `ready` or `failed` (nothing was found in any source).
+
+### Growing the roster
+
+`data/mentor_pool.json` lists well-known figures "Add a mentor" can bring in, in
+the same shape as `data/extraction_metadata.json`; add entries there to grow the
+pool. A new mentor's memory is built from Wikipedia (searched by name) plus any
+sources listed; edit sources later and rebuild to deepen their answers.
 
 Start a conversation by omitting `conversation_id`. The response returns
 one; send it back to continue the same conversation:

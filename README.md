@@ -24,8 +24,11 @@ Replies stream back token by token.
 
 The web app opens on **Mentor Square**, a small pixel-art town where the mentors
 wander around. Walk up to one (arrow keys, WASD, or tap) and press Space to talk;
-the reply streams into a dialogue box. A quest log tracks who you've met. Prefer a
-plain chat? The classic list and chat pages are one click away.
+the reply streams into a dialogue box. The quest log tracks your friendship with
+each mentor, which levels up as you talk. **Add a mentor** brings a random
+well-known figure from a curated pool into the square; their memory builds in the
+background. Mentors can be edited (persona, sources) and their memory rebuilt from
+the classic list and chat pages, one click away.
 
 ![Mentor Square: the player next to Charlie Munger on the plaza](docs/images/mentor-square.png)
 

@@ -31,6 +31,9 @@
 | `mentor_agent/bootstrap.py`             | Composition root: models, retriever, graph, checkpointer          |
 | `mentor_agent/chat/graph.py`            | The LangGraph graph, and the `MentorGraph` / `Checkpointer` types |
 | `mentor_agent/services/conversation.py` | One chat turn (invoke or stream) and conversation deletion        |
+| `mentor_agent/services/mentors.py`      | The catalogue: list, add from the pool, edit, memory status       |
+| `mentor_agent/services/pool.py`         | The random pick from `data/mentor_pool.json` (pure, tested)       |
+| `mentor_agent/services/memory.py`       | One mentor's background memory build; records ready or failed     |
 | `mentor_agent/rag/`                     | Extractors, splitter, embeddings, hybrid retriever, memory        |
 | `mentor_agent/tracing.py`               | Opik tracing and dataset helpers (optional)                       |
 | `mentor_agent/export_openapi.py`        | The OpenAPI document the web contract is generated from           |
@@ -54,6 +57,10 @@
 - No side effects at import time; never construct a `MongoClient` directly
   (use `db.client.get_mongo_client()`).
 - Secrets are `SecretStr`; never log them, prompts or retrieved documents.
+- Read the OpenRouter key with `settings.openrouter.require_api_key()` where a model
+  is called, never at import: commands that call no model must work without it.
+- Anything that costs money or changes data (add, edit, rebuild, reset) depends on
+  `require_api_key_in_production`.
 - Tests never touch the network or a real database: use `tests/fakes.py`.
 
 ## Commands
