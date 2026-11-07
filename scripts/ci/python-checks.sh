@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# Quality gates for the backend. CI runs exactly this; run it locally too.
+# Quality gates for one Python package. CI runs exactly this; run it locally too.
 #
-#   scripts/ci/python-checks.sh [unit|audit|all]
+#   scripts/ci/python-checks.sh <package-dir> [unit|audit|all]
 #
 #   unit   lock check, ruff lint, ruff format check, pyright strict, pytest with
 #          the coverage floor from [tool.coverage.report] (default)
 #   audit  known-vulnerability scan of the locked runtime dependencies
 #   all    unit, then audit
 #
-# ruff, pyright and pytest come from backend/uv.lock, so this script, `make check`
-# and the git hooks always run the same versions. pip-audit is pinned here.
+# ruff, pyright and pytest come from the package's uv.lock, so this script, the
+# package Makefile and the git hooks always run the same versions. pip-audit is
+# pinned here.
 
 set -euo pipefail
 
@@ -28,20 +29,21 @@ AUDIT_IGNORES=(
   CVE-2026-112940
 )
 
-gate="${1:-unit}"
+package_dir="${1:?usage: $0 <package-dir> [unit|audit|all]}"
+gate="${2:-unit}"
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
-cd "$repo_root/backend"
+cd "$repo_root/$package_dir"
 
-step() { printf '\n==> backend: %s\n' "$1"; }
+step() { printf '\n==> %s: %s\n' "$package_dir" "$1"; }
 
 unit() {
   step "install (locked)"
   uv sync --locked --quiet
   step "ruff check"
-  uv run --locked ruff check src tests main.py
+  uv run --locked ruff check .
   step "ruff format --check"
-  uv run --locked ruff format --check src tests main.py
+  uv run --locked ruff format --check .
   step "pyright (strict)"
   uv run --locked pyright
   step "pytest (with coverage floor)"

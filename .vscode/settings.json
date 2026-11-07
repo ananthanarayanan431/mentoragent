@@ -10,7 +10,7 @@
     }
   },
 
-  "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python",
+  "python.defaultInterpreterPath": "${workspaceFolder}/agents/mentor_agent/.venv/bin/python",
   "python.analysis.typeCheckingMode": "strict",
 
   "typescript.tsdk": "frontend/node_modules/typescript/lib",
@@ -20,7 +20,7 @@
   "search.exclude": {
     "**/node_modules": true,
     "**/.venv": true,
-    "backend/uv.lock": true,
+    "**/uv.lock": true,
     "frontend/package-lock.json": true
   }
 }

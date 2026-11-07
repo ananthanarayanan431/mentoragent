@@ -1,7 +1,7 @@
 # Quality gates. CI runs exactly what developers run locally:
-#   Backend:   scripts/ci/python-checks.sh [unit|audit]
+#   Python:    scripts/ci/python-checks.sh <package-dir> [unit|audit]
 #   Frontend:  scripts/ci/frontend-checks.sh [unit|audit]
-#   Images:    a Docker build of backend/ and frontend/
+#   Images:    a Docker build of each agent and of frontend/
 #
 # Pull requests run only the gates for the areas they touch. Pushes to main and
 # manual runs always run everything. A skipped job reports as "skipped", which
@@ -45,7 +45,9 @@ jobs:
               - scripts/ci/**
             backend:
               - *ci
-              - backend/**
+              - agents/**
+              - pyproject.toml
+              - .python-version
               - docker-compose.yml
             frontend:
               - *ci
@@ -66,16 +68,16 @@ jobs:
         uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true
-          cache-dependency-glob: backend/uv.lock
+          cache-dependency-glob: "**/uv.lock"
 
       - name: Install Python
-        # Reads backend/.python-version, the same pin used locally.
-        working-directory: backend
+        # Reads .python-version, the same pin used locally.
+        working-directory: agents/mentor_agent
         run: uv python install
 
       - name: Unit gate
         # Also enforces the coverage floor from [tool.coverage.report].
-        run: scripts/ci/python-checks.sh unit
+        run: scripts/ci/python-checks.sh agents/mentor_agent unit
 
   backend-audit:
     name: Backend dependency audit
@@ -87,7 +89,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.3
       - name: Audit gate
-        run: scripts/ci/python-checks.sh audit
+        run: scripts/ci/python-checks.sh agents/mentor_agent audit
 
   frontend:
     name: Frontend lint, types, tests, build, audit
@@ -122,11 +124,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [backend, frontend]
+        include:
+          - image: mentor-agent
+            context: agents/mentor_agent
+            area: backend
+          - image: web
+            context: frontend
+            area: frontend
     steps:
       - name: Skip an image whose area did not change
         id: wanted
-        run: echo "build=${{ needs.changes.outputs[matrix.image] }}" >> "$GITHUB_OUTPUT"
+        run: echo "build=${{ needs.changes.outputs[matrix.area] }}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v7
         if: steps.wanted.outputs.build == 'true'
@@ -137,7 +145,7 @@ jobs:
         if: steps.wanted.outputs.build == 'true'
         uses: docker/build-push-action@v7
         with:
-          context: ${{ matrix.image }}
+          context: ${{ matrix.context }}
           push: false
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}

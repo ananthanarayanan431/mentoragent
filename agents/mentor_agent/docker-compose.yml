@@ -1,0 +1,79 @@
+# Explicit project name. Without it Compose derives one from the directory
+# ("backend"), which collides with every other repo that has a backend/ dir.
+name: mentoragent
+
+services:
+  mongo:
+    # Atlas Local ships the $vectorSearch / $search operators that
+    # langchain-mongodb's MongoDBAtlasVectorSearch depends on. A plain
+    # `mongo` image will connect fine but every RAG query will fail.
+    image: mongodb/mongodb-atlas-local:8.0
+    container_name: mentoragent-mongo
+    # Pin the hostname. Atlas Local writes the replica set config into
+    # /data/db using the container hostname, which otherwise changes on
+    # every recreate -- the persisted config then points at a host that no
+    # longer exists and mongod comes up stuck in InvalidReplicaSetConfig,
+    # never electing a primary. That makes `down` + `up` a one-way trip.
+    hostname: mentoragent-mongo
+    restart: unless-stopped
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    environment:
+      MONGODB_INITDB_ROOT_USERNAME: ${MONGO_USER:-mentor_user}
+      MONGODB_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-mentor_password}
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    healthcheck:
+      # The image's own check, which gates on BOTH mongod and mongot (the
+      # search service). That matters: mongot lags mongod by ~10s on a cold
+      # start, and a plain mongod ping reports healthy while $vectorSearch
+      # still errors with "Error connecting to Search Index Management
+      # service" -- so `make up` would hand back a database that fails every
+      # RAG query. A $listSearchIndexes probe does NOT work here either; it
+      # returns [] without ever contacting mongot.
+      # One run takes ~11s, hence the 20s timeout.
+      test: ["CMD", "runner", "healthcheck"]
+      interval: 10s
+      timeout: 20s
+      retries: 15
+      start_period: 30s
+
+  api:
+    # Opt-in: `docker compose --profile app up` (or `make docker-up`).
+    profiles: ["app"]
+    build: .
+    image: mentoragent-api
+    container_name: mentoragent-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Inside the compose network MongoDB is reachable by service name.
+      MONGO_URI: mongodb://${MONGO_USER:-mentor_user}:${MONGO_PASSWORD:-mentor_password}@mongo:27017/?directConnection=true
+    ports:
+      - "${PORT:-8000}:8000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  web:
+    # The React app, served by nginx. Same opt-in profile as the API.
+    profiles: ["app"]
+    # Context is ../../frontend so this stays the single compose file for the
+    # whole stack; paths inside it resolve relative to THIS file.
+    build: ../../frontend
+    image: mentoragent-web
+    container_name: mentoragent-web
+    restart: unless-stopped
+    environment:
+      # nginx reverse-proxies /api to the API service, so the browser talks to
+      # one origin and the bundle needs no VITE_API_URL.
+      BACKEND_HOST: api:8000
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    depends_on:
+      - api
+
+volumes:
+  mongo_data:
+  mongo_config:

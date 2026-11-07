@@ -1,9 +1,9 @@
 # Area labels for pull requests, applied by .github/workflows/pr-labels.yml from
 # the paths a PR touches. A PR gets every label whose paths it matches.
 
-backend:
+agent:
   - changed-files:
-      - any-glob-to-any-file: backend/**
+      - any-glob-to-any-file: agents/**
 
 frontend:
   - changed-files:
@@ -13,7 +13,7 @@ infra:
   - changed-files:
       - any-glob-to-any-file:
           - docker-compose.yml
-          - backend/docker-compose.yml
+          - agents/*/docker-compose.yml
           - "**/Dockerfile"
           - "**/.dockerignore"
           - frontend/nginx.conf.template
@@ -21,7 +21,7 @@ infra:
 dependencies:
   - changed-files:
       - any-glob-to-any-file:
-          - backend/uv.lock
+          - "**/uv.lock"
           - frontend/package-lock.json
 
 ci:

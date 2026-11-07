@@ -1,4 +1,4 @@
-# Weekly update PRs. Python dependencies are pinned in backend/uv.lock and
+# Weekly update PRs. Python dependencies are pinned in agents/*/uv.lock and
 # upgraded with `uv lock --upgrade`, which Dependabot does not manage.
 version: 2
 updates:
@@ -18,12 +18,12 @@ updates:
 
   - package-ecosystem: docker
     directories:
-      - /backend
+      - /agents/mentor_agent
       - /frontend
     schedule:
       interval: weekly
     ignore:
-      # The backend's Python version is one decision across backend/.python-version,
+      # The backend's Python version is one decision across .python-version,
       # pyproject.toml (ruff, pyright) and the Dockerfile. Bumping only the image
       # left CI testing one version while the image shipped another, and 3.15 broke
       # the build (no zstandard wheel). Upgrade Python by hand, everywhere at once.

@@ -4,5 +4,5 @@
 .githooks/* text eol=lf
 
 # Lockfiles are generated: collapse them in GitHub diffs and language stats.
-backend/uv.lock linguist-generated=true -diff
+**/uv.lock linguist-generated=true -diff
 frontend/package-lock.json linguist-generated=true -diff

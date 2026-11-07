@@ -8,7 +8,7 @@
 # Only staged files are checked, so a commit stays quick. CI runs the full suite
 # (scripts/ci/python-checks.sh, scripts/ci/frontend-checks.sh).
 #
-# Activate once per clone:  git config core.hooksPath .githooks   (or `make -C backend hooks`)
+# Activate once per clone:  git config core.hooksPath .githooks
 
 set -euo pipefail
 
@@ -45,21 +45,30 @@ for file in "${staged[@]}"; do
   fi
 done
 
-# --- 2. Backend Python ----------------------------------------------------------
-py_files=()
+# --- 2. Python packages (agents/*) ---------------------------------------------
+# Each agent has its own uv project; ruff runs from it, on that agent's files only.
+py_packages=()
 for file in "${staged[@]}"; do
   case "$file" in
-    backend/*.py) py_files+=("${file#backend/}") ;;
+    agents/*/*.py | agents/*/*/*.py | agents/*/*/*/*.py | agents/*/*/*/*/*.py)
+      pkg="$(printf '%s' "$file" | cut -d/ -f1-2)"
+      case " ${py_packages[*]-} " in *" $pkg "*) ;; *) py_packages+=("$pkg") ;; esac
+      ;;
   esac
 done
 
-if [ "${#py_files[@]}" -gt 0 ]; then
+for pkg in ${py_packages[@]+"${py_packages[@]}"}; do
+  pkg_files=()
+  for file in "${staged[@]}"; do
+    case "$file" in "$pkg"/*.py) pkg_files+=("${file#"$pkg"/}") ;; esac
+  done
+  [ "${#pkg_files[@]}" -gt 0 ] || continue
   (
-    cd backend
-    uv run --quiet ruff check "${py_files[@]}"
-    uv run --quiet ruff format --check "${py_files[@]}"
-  ) || fail "ruff found problems. Run \`make -C backend format\` to fix most of them."
-fi
+    cd "$pkg"
+    uv run --quiet ruff check "${pkg_files[@]}"
+    uv run --quiet ruff format --check "${pkg_files[@]}"
+  ) || fail "ruff found problems in $pkg. Run \`make -C $pkg fmt\` to fix most of them."
+done
 
 # --- 3. Frontend ----------------------------------------------------------------
 fe_files=()
