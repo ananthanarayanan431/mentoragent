@@ -5,4 +5,4 @@
 
 # Lockfiles are generated: collapse them in GitHub diffs and language stats.
 **/uv.lock linguist-generated=true -diff
-frontend/package-lock.json linguist-generated=true -diff
+pnpm-lock.yaml linguist-generated=true -diff

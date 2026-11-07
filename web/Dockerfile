@@ -6,15 +6,23 @@
 # secret - see .env.example. Leaving the warning on would train readers to
 # ignore build output.
 
+# Build from the repo root, like every image in this repo, so the pnpm
+# workspace lockfile is in the context:
+#   docker build -f web/Dockerfile .
+
 # ---- build: compile the static bundle --------------------------------------
 FROM node:26-alpine AS build
-WORKDIR /app
+# Same pnpm as "packageManager" in package.json (Node 25+ no longer ships corepack).
+RUN npm install -g pnpm@10.15.0
+WORKDIR /repo
 
 # Dependencies first, so editing source does not invalidate this layer.
-COPY package.json package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY web/package.json web/
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --filter @mentoragent/web
 
-COPY . .
+COPY web/ web/
 
 # VITE_* values are read at build time and baked into the bundle. The defaults
 # are empty, which makes the app call its own origin - what the nginx proxy
@@ -22,20 +30,21 @@ COPY . .
 ARG VITE_API_URL=""
 ARG VITE_API_KEY=""
 ENV VITE_API_URL=$VITE_API_URL VITE_API_KEY=$VITE_API_KEY
-RUN npm run build
+RUN pnpm --filter @mentoragent/web build
 
 # ---- runtime: nginx serving the bundle -------------------------------------
 # The unprivileged variant runs as uid 101 and listens on 8080.
 FROM nginxinc/nginx-unprivileged:1.31-alpine AS runtime
 
-# Where to reach the API. In compose this is the backend service name.
-ENV BACKEND_HOST=backend:8000
+# Where to reach the API. Compose sets it to the agent's container name
+# (infra/docker-compose.frontend.yml).
+ENV BACKEND_HOST=mentoragent-mentor-agent-api:8000
 # Substitute only BACKEND_*, leaving nginx's own $host, $uri and friends alone.
 ENV NGINX_ENVSUBST_FILTER="^BACKEND_"
 
-COPY nginx.conf.template /etc/nginx/templates/default.conf.template
-COPY security-headers.conf /etc/nginx/snippets/security-headers.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY web/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY web/security-headers.conf /etc/nginx/snippets/security-headers.conf
+COPY --from=build /repo/web/dist /usr/share/nginx/html
 
 EXPOSE 8080
 

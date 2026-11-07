@@ -1,7 +1,7 @@
 # Quality gates. CI runs exactly what developers run locally:
-#   Python:    scripts/ci/python-checks.sh <package-dir> [unit|audit]
-#   Frontend:  scripts/ci/frontend-checks.sh [unit|audit]
-#   Images:    a Docker build of each agent and of frontend/
+#   Python:  scripts/ci/python-checks.sh <package-dir> [unit|audit]
+#   Web:     pnpm format:check | lint | typecheck | test | build, then pnpm audit
+#   Build:   the compose files validate, and every image builds from the repo root
 #
 # Pull requests run only the gates for the areas they touch. Pushes to main and
 # manual runs always run everything. A skipped job reports as "skipped", which
@@ -15,13 +15,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 # A newer push to the same branch cancels the run still in progress.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
-
-permissions:
-  contents: read
 
 jobs:
   changes:
@@ -32,8 +32,9 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
-      backend: ${{ github.event_name != 'pull_request' || steps.filter.outputs.backend == 'true' }}
-      frontend: ${{ github.event_name != 'pull_request' || steps.filter.outputs.frontend == 'true' }}
+      python: ${{ github.event_name != 'pull_request' || steps.filter.outputs.python == 'true' }}
+      web: ${{ github.event_name != 'pull_request' || steps.filter.outputs.web == 'true' }}
+      infra: ${{ github.event_name != 'pull_request' || steps.filter.outputs.infra == 'true' }}
     steps:
       - uses: dorny/paths-filter@v3
         id: filter
@@ -43,26 +44,39 @@ jobs:
             ci: &ci
               - .github/workflows/ci.yml
               - scripts/ci/**
-            backend:
+            python:
               - *ci
               - agents/**
               - pyproject.toml
               - .python-version
+            web:
+              - *ci
+              - web/**
+              - package.json
+              - pnpm-lock.yaml
+              - pnpm-workspace.yaml
+              - .npmrc
+              - .nvmrc
+              - .prettierrc
+              - .prettierignore
+            infra:
+              - *ci
               - infra/**
               - .dockerignore
-            frontend:
-              - *ci
-              - frontend/**
+              - "**/Dockerfile"
 
-  backend:
-    name: Backend lint, types, tests
+  quality:
+    name: Lint, types, tests (${{ matrix.package }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: changes
-    if: needs.changes.outputs.backend == 'true'
+    if: needs.changes.outputs.python == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [agents/mentor_agent]
     steps:
       - uses: actions/checkout@v7
-
       - name: Install uv
         # Pinned exactly: this action publishes no floating major tag (`v10`
         # does not resolve). Dependabot keeps it current.
@@ -70,86 +84,94 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: "**/uv.lock"
-
       - name: Install Python
-        # Reads .python-version, the same pin used locally.
-        working-directory: agents/mentor_agent
+        # Reads the root .python-version, the same pin used locally.
         run: uv python install
-
       - name: Unit gate
-        # Also enforces the coverage floor from [tool.coverage.report].
-        run: scripts/ci/python-checks.sh agents/mentor_agent unit
+        # Also enforces the package's coverage floor ([tool.coverage.report]).
+        run: scripts/ci/python-checks.sh "${{ matrix.package }}" unit
 
-  backend-audit:
-    name: Backend dependency audit
+  audit:
+    name: Dependency audit (${{ matrix.package }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: changes
-    if: needs.changes.outputs.backend == 'true'
+    if: needs.changes.outputs.python == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [agents/mentor_agent]
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.3
       - name: Audit gate
-        run: scripts/ci/python-checks.sh agents/mentor_agent audit
+        run: scripts/ci/python-checks.sh "${{ matrix.package }}" audit
 
-  frontend:
-    name: Frontend lint, types, tests, build, audit
+  web:
+    name: Web format, lint, types, tests, build, audit
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+    if: needs.changes.outputs.web == 'true'
     steps:
       - uses: actions/checkout@v7
-
+      # pnpm's version comes from "packageManager" in package.json.
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v7
         with:
-          node-version-file: frontend/.nvmrc
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Format
+        run: pnpm format:check
+      - name: Lint
+        run: pnpm lint
+      - name: Types
+        run: pnpm typecheck
+      - name: Unit and component tests
+        run: pnpm test
+      - name: Build
+        run: pnpm build
+      - name: Dependency audit (production, high and above)
+        run: pnpm audit --prod --audit-level high
 
-      - name: Unit gate
-        run: scripts/ci/frontend-checks.sh unit
-
-      - name: Audit gate (production, high and above)
-        run: scripts/ci/frontend-checks.sh audit
-
-  docker:
-    name: Docker image (${{ matrix.image }})
+  build:
+    name: Compose config and images
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [changes, backend, frontend]
-    # Runs when the matching area changed and no gate failed (a skipped gate is fine).
+    # Runs when the gates for the changed areas passed (a skipped gate is fine).
+    needs: [changes, quality, web]
     if: >-
       !cancelled() && !contains(needs.*.result, 'failure') &&
-      (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true')
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - image: mentor-agent
-            context: .
-            file: agents/mentor_agent/Dockerfile
-            area: backend
-          - image: web
-            context: frontend
-            file: frontend/Dockerfile
-            area: frontend
+      (needs.changes.outputs.python == 'true' || needs.changes.outputs.web == 'true' ||
+       needs.changes.outputs.infra == 'true')
     steps:
-      - name: Skip an image whose area did not change
-        id: wanted
-        run: echo "build=${{ needs.changes.outputs[matrix.area] }}" >> "$GITHUB_OUTPUT"
-
       - uses: actions/checkout@v7
-        if: steps.wanted.outputs.build == 'true'
+      - name: Validate compose files and scripts
+        run: |
+          cp infra/.env.example infra/.env
+          cp agents/mentor_agent/.env.example agents/mentor_agent/.env
+          docker compose -f infra/docker-compose.yml config --quiet
+          docker compose -f infra/docker-compose.backend.yml config --quiet
+          docker compose -f infra/docker-compose.frontend.yml config --quiet
+          bash -n agents/mentor_agent/run.sh
+          bash -n web/run.sh
       - uses: docker/setup-buildx-action@v4
-        if: steps.wanted.outputs.build == 'true'
-
-      - name: Build ${{ matrix.image }}
-        if: steps.wanted.outputs.build == 'true'
+      # One cache scope per image, so the builds never overwrite each other's layers.
+      - name: Build mentor agent image
         uses: docker/build-push-action@v7
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.file }}
+          context: .
+          file: agents/mentor_agent/Dockerfile
           push: false
-          cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          cache-from: type=gha,scope=mentor-agent
+          cache-to: type=gha,scope=mentor-agent,mode=max,ignore-error=true
+      - name: Build web image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: web/Dockerfile
+          push: false
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max,ignore-error=true

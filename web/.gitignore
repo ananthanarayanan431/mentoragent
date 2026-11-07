@@ -13,7 +13,6 @@ coverage/
 
 # Logs
 *.log
-npm-debug.log*
 
 # Editors / OS
 .DS_Store

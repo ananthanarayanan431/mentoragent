@@ -1,0 +1,22 @@
+{
+  "name": "mentoragent",
+  "private": true,
+  "description": "MentorAgents: chat with AI mentors grounded in their published material.",
+  "packageManager": "pnpm@10.15.0",
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @mentoragent/web dev",
+    "build": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "format": "prettier --write web",
+    "format:check": "prettier --check web",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.10"
+  }
+}

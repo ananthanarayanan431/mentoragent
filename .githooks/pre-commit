@@ -2,11 +2,11 @@
 # pre-commit: fast checks on the files being committed.
 #
 #   1. No private keys and no files over 1 MB.
-#   2. Backend Python: ruff lint and format check.
-#   3. Frontend: prettier check and oxlint.
+#   2. Python (agents/*): ruff lint and format check, per agent.
+#   3. Web app: prettier check and oxlint.
 #
 # Only staged files are checked, so a commit stays quick. CI runs the full suite
-# (scripts/ci/python-checks.sh, scripts/ci/frontend-checks.sh).
+# (scripts/ci/python-checks.sh and the root package.json scripts).
 #
 # Activate once per clone:  git config core.hooksPath .githooks
 
@@ -70,31 +70,29 @@ for pkg in ${py_packages[@]+"${py_packages[@]}"}; do
   ) || fail "ruff found problems in $pkg. Run \`make -C $pkg fmt\` to fix most of them."
 done
 
-# --- 3. Frontend ----------------------------------------------------------------
-fe_files=()
+# --- 3. Web app and formatting --------------------------------------------------
+# Prettier (root config) checks the staged files it covers; oxlint checks web code.
+fmt_files=()
 lint_files=()
 for file in "${staged[@]}"; do
   case "$file" in
-    frontend/package-lock.json) ;;
-    frontend/*.ts | frontend/*.tsx | frontend/*.js | frontend/*.jsx)
-      fe_files+=("${file#frontend/}")
-      lint_files+=("${file#frontend/}")
-      ;;
-    frontend/*.css | frontend/*.json | frontend/*.md | frontend/*.html)
-      fe_files+=("${file#frontend/}")
+    web/*)
+      fmt_files+=("$file")
+      case "$file" in
+        *.ts | *.tsx | *.js | *.jsx) lint_files+=("${file#web/}") ;;
+      esac
       ;;
   esac
 done
 
-if [ "${#fe_files[@]}" -gt 0 ]; then
-  [ -d frontend/node_modules ] || fail "frontend/node_modules is missing. Run \`npm ci\` in frontend/."
-  (
-    cd frontend
-    npx --no-install prettier --check "${fe_files[@]}"
-    if [ "${#lint_files[@]}" -gt 0 ]; then
-      npx --no-install oxlint --deny-warnings "${lint_files[@]}"
-    fi
-  ) || fail "frontend checks failed. Run \`npm run format\` in frontend/ to fix formatting."
+if [ "${#fmt_files[@]}" -gt 0 ]; then
+  [ -d node_modules ] || fail "node_modules is missing. Run \`pnpm install\` at the repo root."
+  pnpm exec prettier --check --ignore-unknown "${fmt_files[@]}" \
+    || fail "prettier found unformatted files. Run \`pnpm format\` to fix them."
+  if [ "${#lint_files[@]}" -gt 0 ]; then
+    (cd web && pnpm exec oxlint --deny-warnings "${lint_files[@]}") \
+      || fail "oxlint found problems in web/."
+  fi
 fi
 
 exit 0

@@ -10,7 +10,8 @@ name: mentoragent-web
 services:
   web:
     build:
-      context: ../frontend
+      context: ..
+      dockerfile: web/Dockerfile
     image: mentoragent/web:local
     container_name: mentoragent-web
     restart: unless-stopped

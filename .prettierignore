@@ -1,0 +1,13 @@
+# Generated
+pnpm-lock.yaml
+**/uv.lock
+**/dist
+**/coverage
+
+# Python virtualenvs and caches
+**/.venv
+**/.pytest_cache
+**/.ruff_cache
+
+# Third-party agent skills and references, kept as published
+.claude

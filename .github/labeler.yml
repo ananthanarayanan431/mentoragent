@@ -5,24 +5,23 @@ agent:
   - changed-files:
       - any-glob-to-any-file: agents/**
 
-frontend:
+web:
   - changed-files:
-      - any-glob-to-any-file: frontend/**
+      - any-glob-to-any-file: web/**
 
 infra:
   - changed-files:
       - any-glob-to-any-file:
-          - docker-compose.yml
-          - agents/*/docker-compose.yml
+          - infra/**
           - "**/Dockerfile"
-          - "**/.dockerignore"
-          - frontend/nginx.conf.template
+          - .dockerignore
+          - web/nginx.conf.template
 
 dependencies:
   - changed-files:
       - any-glob-to-any-file:
           - "**/uv.lock"
-          - frontend/package-lock.json
+          - pnpm-lock.yaml
 
 ci:
   - changed-files:

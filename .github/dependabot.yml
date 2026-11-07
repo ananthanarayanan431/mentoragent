@@ -7,8 +7,9 @@ updates:
     schedule:
       interval: weekly
 
+  # The pnpm workspace: one lockfile at the root covers web/.
   - package-ecosystem: npm
-    directory: /frontend
+    directory: /
     schedule:
       interval: weekly
     groups:
@@ -19,7 +20,7 @@ updates:
   - package-ecosystem: docker
     directories:
       - /agents/mentor_agent
-      - /frontend
+      - /web
     schedule:
       interval: weekly
     ignore:

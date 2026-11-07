@@ -1,5 +1,8 @@
-# Repo-wide ignores. Language-specific rules live in backend/.gitignore and
-# frontend/.gitignore, next to the code they apply to.
+# Repo-wide ignores. Language-specific rules live in agents/<name>/.gitignore
+# and web/.gitignore, next to the code they apply to.
+
+# Node (the pnpm workspace root)
+node_modules/
 
 # Secrets — only .env.example files are committed
 .env

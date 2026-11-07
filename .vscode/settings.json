@@ -1,5 +1,5 @@
 {
-  // Prettier formats frontend files and Ruff formats Python; both read the repo's config.
+  // Prettier formats web and docs files, Ruff formats Python; both read the repo's config.
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "[python]": {
@@ -13,14 +13,14 @@
   "python.defaultInterpreterPath": "${workspaceFolder}/agents/mentor_agent/.venv/bin/python",
   "python.analysis.typeCheckingMode": "strict",
 
-  "typescript.tsdk": "frontend/node_modules/typescript/lib",
+  "typescript.tsdk": "web/node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
-  "oxc.configPath": "frontend/.oxlintrc.json",
+  "oxc.configPath": "web/.oxlintrc.json",
 
   "search.exclude": {
     "**/node_modules": true,
     "**/.venv": true,
     "**/uv.lock": true,
-    "frontend/package-lock.json": true
+    "pnpm-lock.yaml": true
   }
 }
