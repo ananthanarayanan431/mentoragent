@@ -37,7 +37,7 @@ mongo-reset: ## DESTRUCTIVE: remove the container AND its data volumes
 
 stack-up: up ## Start MongoDB, the agent API and the web app in Docker
 	$(BACKEND) up -d --build --wait
-	$(FRONTEND) up -d --build
+	$(FRONTEND) up -d --build --wait
 
 stack-down: ## Stop the web app and the agent API (MongoDB keeps running)
 	$(FRONTEND) down

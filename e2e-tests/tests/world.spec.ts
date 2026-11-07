@@ -95,7 +95,7 @@ test('pause menu: labels toggle and resume', async ({ page }) => {
   await walkToAMentor(page)
 })
 
-test('classic view and back, without leaking a second game', async ({ page, request }) => {
+test('classic view and back: the game is removed, then rebuilt', async ({ page, request }) => {
   const mentors = await mentorsFromApi(request)
   await enterSquare(page)
 
