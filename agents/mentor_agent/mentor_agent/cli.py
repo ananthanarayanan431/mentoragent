@@ -8,8 +8,8 @@ from typing import Annotated
 import typer
 from loguru import logger
 
-from mentor_agent.core.config import settings
-from mentor_agent.core.logging import configure_logging
+from mentor_agent.config import settings
+from mentor_agent.logs import configure_logging
 
 app = typer.Typer(
     name="mentor-agent",
@@ -36,12 +36,12 @@ def serve(
 
     use_reload = settings.server.RELOAD if reload is None else reload
     uvicorn.run(
-        "mentor_agent.api.main:app",
+        "mentor_agent.main:app",
         host=host or settings.server.HOST,
         port=port or settings.server.PORT,
         reload=use_reload,
         workers=None if use_reload else workers,
-        log_config=None,  # uvicorn logs flow through loguru (see core.logging)
+        log_config=None,  # uvicorn logs flow through loguru (see logs.py)
         access_log=False,  # requests are logged by our middleware, with request ids
         proxy_headers=True,
     )
@@ -131,7 +131,7 @@ def evaluate(
     """Upload the evaluation dataset to Opik and score the agent on it."""
     from mentor_agent.evals.evaluate import evaluate_agent
     from mentor_agent.evals.upload_dataset import upload_dataset
-    from mentor_agent.infra.opik_utils import configure_opik
+    from mentor_agent.tracing import configure_opik
 
     if not configure_opik():
         logger.error("Evaluation needs Opik: set COMET_API_KEY")

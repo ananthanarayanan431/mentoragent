@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from mentor_agent.core.exceptions import MentorNotFoundError
+from mentor_agent.errors import MentorNotFoundError
 
 if TYPE_CHECKING:
     from mentor_agent.db.client import AsyncMongoRepository

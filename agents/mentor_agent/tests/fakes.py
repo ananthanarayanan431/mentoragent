@@ -13,12 +13,12 @@ from langchain_core.retrievers import BaseRetriever
 from langgraph.checkpoint.memory import InMemorySaver
 from pydantic import PrivateAttr
 
-from mentor_agent.core.exceptions import MentorNotFoundError
+from mentor_agent.chat.chains import Chains
+from mentor_agent.chat.graph import compile_graph
+from mentor_agent.chat.nodes import Nodes
+from mentor_agent.chat.tools import build_retrieve_context_tool
+from mentor_agent.errors import MentorNotFoundError
 from mentor_agent.services.conversation import ConversationService
-from mentor_agent.workflow.chains import Chains
-from mentor_agent.workflow.graph import compile_graph
-from mentor_agent.workflow.nodes import Nodes
-from mentor_agent.workflow.tools import build_retrieve_context_tool
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence

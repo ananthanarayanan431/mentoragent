@@ -14,7 +14,7 @@ Repositories borrow these shared clients rather than opening their own.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any
 
 from bson import ObjectId
 from loguru import logger
@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from pymongo import AsyncMongoClient, MongoClient
 from pymongo.server_api import ServerApi
 
-from mentor_agent.core.config import settings
+from mentor_agent.config import settings
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -30,7 +30,6 @@ if TYPE_CHECKING:
     from pymongo.asynchronous.collection import AsyncCollection
     from pymongo.collection import Collection
 
-T = TypeVar("T", bound=BaseModel)
 
 MongoDocument = dict[str, Any]
 
@@ -77,14 +76,14 @@ async def close_mongo_clients() -> None:
     logger.debug("MongoDB clients closed")
 
 
-def _to_model(model: type[T], document: MongoDocument) -> T:
+def _to_model[T: BaseModel](model: type[T], document: MongoDocument) -> T:
     """Validate a raw document into ``model``, stringifying ObjectIds."""
     return model.model_validate(
         {k: str(v) if isinstance(v, ObjectId) else v for k, v in document.items()}
     )
 
 
-class MongoRepository(Generic[T]):
+class MongoRepository[T: BaseModel]:
     """Typed synchronous access to one collection.
 
     Args:
@@ -172,7 +171,7 @@ class MongoRepository(Generic[T]):
         return self.collection.count_documents({})
 
 
-class AsyncMongoRepository(Generic[T]):
+class AsyncMongoRepository[T: BaseModel]:
     """Typed asyncio access to one collection; the API's read path.
 
     Args:

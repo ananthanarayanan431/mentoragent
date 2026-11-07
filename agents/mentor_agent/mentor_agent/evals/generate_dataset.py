@@ -7,11 +7,11 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from loguru import logger
 
-from mentor_agent.core.config import settings
+from mentor_agent.chat.llm import build_chat_model
+from mentor_agent.chat.prompt import EVALUATE_DATASET_GENERATION_PROMPT
+from mentor_agent.config import settings
 from mentor_agent.models.evaluation import EvaluationDataset, EvaluationDatasetSample
 from mentor_agent.rag.extractor import Extractor
-from mentor_agent.workflow.llm import build_chat_model
-from mentor_agent.workflow.prompt import EVALUATE_DATASET_GENERATION_PROMPT
 
 if TYPE_CHECKING:
     from langchain_core.runnables import Runnable

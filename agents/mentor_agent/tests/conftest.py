@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-# Settings are validated when mentor_agent.core.config is first imported, so the
+# Settings are validated when mentor_agent.config is first imported, so the
 # environment must be in place before any test module imports the package.
 # Real environment variables take precedence over .env, which keeps the suite
 # hermetic without needing a .env file.

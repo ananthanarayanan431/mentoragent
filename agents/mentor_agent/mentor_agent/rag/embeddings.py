@@ -7,7 +7,7 @@ from functools import lru_cache
 from langchain_openai import OpenAIEmbeddings
 from loguru import logger
 
-from mentor_agent.core.config import settings
+from mentor_agent.config import settings
 
 
 @lru_cache(maxsize=4)

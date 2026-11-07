@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, cast
 from arcadepy import Arcade
 from loguru import logger
 
-from mentor_agent.core.config import settings
+from mentor_agent.config import settings
 from mentor_agent.rag.extractors.base import Source, make_document
 
 if TYPE_CHECKING:

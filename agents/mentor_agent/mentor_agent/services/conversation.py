@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Any, cast
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage
 from loguru import logger
 
-from mentor_agent.core.exceptions import ConversationError
-from mentor_agent.workflow.edges import CONVERSATION_NODE
+from mentor_agent.chat.edges import CONVERSATION_NODE
+from mentor_agent.errors import ConversationError
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
@@ -18,9 +18,9 @@ if TYPE_CHECKING:
     from langchain_core.callbacks import BaseCallbackHandler
     from langchain_core.runnables import RunnableConfig
 
+    from mentor_agent.chat.graph import MentorGraph
+    from mentor_agent.chat.state import MentorState
     from mentor_agent.models.mentor import Mentor
-    from mentor_agent.workflow.graph import MentorGraph
-    from mentor_agent.workflow.state import MentorState
 
 # Accepted message inputs: one user message, several, or role/content dicts
 # (``{"role": "user" | "assistant", "content": ...}``).

@@ -1,0 +1,119 @@
+# Root pyproject.toml: NOT a Python package.
+#
+# It holds the rules for all Python code in the repo (Ruff, Pyright, pytest) and
+# installs nothing: no [project] section, no dependencies, no lock file.
+#
+# Each agent has its own pyproject.toml (what it installs, its coverage floor) and
+# its own uv.lock (the exact versions). Each agent runs in its own container, so
+# each gets its own install.
+#
+# Ruff, Pyright and pytest find config by walking up from where they run, so one
+# copy here covers every agent. Do NOT add [tool.ruff], [tool.pyright] or
+# [tool.pytest.ini_options] to an agent: the nearer one would take over for that
+# agent and its rules would drift from the rest of the repo.
+
+# --- Ruff: lint and format rules ----------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+  "E", "W",  # pycodestyle
+  "F",       # pyflakes
+  "I",       # import sorting
+  "N",       # naming
+  "UP",      # pyupgrade: modern syntax (list[str], X | None, ...)
+  "FA",      # from __future__ import annotations
+  "B",       # bugbear
+  "SIM",     # simplifications
+  "C4",      # comprehensions
+  "RUF",     # ruff-specific
+  "PTH",     # prefer pathlib
+  "S",       # security (bandit)
+  "T20",     # no stray print()
+  "PIE",
+  "RET",
+  "ERA",     # commented-out code
+  "ASYNC",   # async pitfalls (blocking calls in coroutines)
+  "TC",      # type-checking-only imports
+  "TID",     # banned imports (see below)
+  # Error-handling standard
+  "BLE",     # no blind `except Exception:` that swallows errors
+  "TRY",     # exception anti-patterns
+  "EM",      # message in a variable first, so tracebacks don't print it twice
+]
+ignore = [
+  "S104",    # binding to 0.0.0.0 is intentional in containers
+  "RUF012",  # pydantic/class-level mutable defaults are fine
+  "SIM300",  # misfires on UPPER_CASE settings fields (treats them as constants)
+  "TRY003",  # long messages outside the exception class: EM already covers this
+]
+
+# --- Ruff: per-file exceptions (each with its reason) -------------------------
+
+[tool.ruff.lint.per-file-ignores]
+# Tests may use assert, subprocess and print, and raise inline messages as fixtures.
+"**/tests/**" = ["S", "T20", "EM"]
+# FastAPI resolves route signatures (including Depends parameter types) at
+# runtime, so those imports must not move under `if TYPE_CHECKING:`.
+"**/routes/**" = ["TC001", "TC002", "TC003"]
+"agents/*/*/dependencies.py" = ["TC001", "TC002", "TC003"]
+# Typer builds the CLI from the command signatures at runtime.
+"agents/*/*/cli.py" = ["TC001", "TC002", "TC003"]
+
+# FastAPI dependency markers are meant to be called as default values.
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+  "fastapi.Depends",
+  "fastapi.Security",
+  "fastapi.Query",
+  "fastapi.Path",
+  "fastapi.Body",
+  "fastapi.Header",
+]
+
+# --- Ruff: imports FastAPI and Pydantic need at runtime -----------------------
+# The TC rules move type-hint-only imports under `if TYPE_CHECKING:`. Pydantic and
+# FastAPI read annotations while the app runs, so moving those imports causes a
+# startup crash, not just a lint warning.
+
+[tool.ruff.lint.flake8-type-checking]
+exempt-modules = ["typing", "typing_extensions", "fastapi"]
+runtime-evaluated-base-classes = [
+  "pydantic.BaseModel",
+  "pydantic_settings.BaseSettings",
+  "typing.TypedDict",
+]
+runtime-evaluated-decorators = ["pydantic.validate_call"]
+
+# --- Ruff: banned imports (architecture rules as lint errors) -----------------
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"datetime.timezone".msg = "Use `from datetime import UTC` instead."
+
+# --- Ruff: import grouping ----------------------------------------------------
+# Every module starts with `from __future__ import annotations`; ruff adds it.
+# known-first-party tells the sorter which packages are ours. Add every new agent.
+
+[tool.ruff.lint.isort]
+required-imports = ["from __future__ import annotations"]
+known-first-party = ["mentor_agent"]
+
+# --- Pyright ------------------------------------------------------------------
+# Runs from an agent's folder through `uv run`, so it uses that agent's venv.
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+# langgraph and datasketch ship without a py.typed marker. Pyright still infers
+# their types from the source, so a missing stub is not worth an error.
+reportMissingTypeStubs = false
+
+# --- pytest -------------------------------------------------------------------
+# Each agent's tests run from that agent's folder (scripts/ci/python-checks.sh).
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers --import-mode=importlib"

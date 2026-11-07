@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Where human expertise meets AI"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard]>=0.115.8",
     "typer>=0.12.0",
@@ -51,107 +51,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["mentor_agent"]
-
-# --- Ruff -------------------------------------------------------------------
-
-[tool.ruff]
-target-version = "py311"
-line-length = 100
-src = [".", "tests"]
-
-[tool.ruff.lint]
-select = [
-    "E", "W",  # pycodestyle
-    "F",       # pyflakes
-    "I",       # isort
-    "N",       # pep8-naming
-    "UP",      # pyupgrade: modern syntax (list[str], X | None, ...)
-    "FA",      # flake8-future-annotations
-    "B",       # bugbear
-    "SIM",     # simplify
-    "C4",      # comprehensions
-    "RUF",     # ruff-specific
-    "PTH",     # prefer pathlib
-    "S",       # bandit (security)
-    "T20",     # no stray print()
-    "PIE",
-    "RET",
-    "ERA",     # commented-out code
-    "ASYNC",   # async pitfalls (blocking calls in coroutines)
-    "TC",      # type-checking-only imports
-    "TID",     # banned imports (see below)
-    # Error-handling standard
-    "BLE",     # no blind `except Exception:` that swallows errors
-    "TRY",     # exception anti-patterns
-    "EM",      # message in a variable first, so tracebacks don't print it twice
-]
-ignore = [
-    "S104",   # binding to 0.0.0.0 is intentional in containers
-    "RUF012", # pydantic/class-level mutable defaults are fine
-    "SIM300", # misfires on UPPER_CASE settings fields (treats them as constants)
-    "TRY003", # long messages outside the exception class: EM already covers this
-]
-
-[tool.ruff.lint.isort]
-# Every module starts with this import; ruff adds it when missing.
-required-imports = ["from __future__ import annotations"]
-known-first-party = ["mentor_agent"]
-
-[tool.ruff.lint.per-file-ignores]
-# Tests may use assert, subprocess and print, and raise inline messages as fixtures.
-"tests/**" = ["S", "T20", "EM"]
-"main.py" = ["T20"]
-# FastAPI resolves route signatures (including Depends parameter types) at
-# runtime, so those imports must not move under `if TYPE_CHECKING:`.
-"mentor_agent/api/routes/**" = ["TC001", "TC002", "TC003"]
-"mentor_agent/api/dependencies.py" = ["TC001", "TC002", "TC003"]
-# Typer builds the CLI from the command signatures at runtime.
-"mentor_agent/cli.py" = ["TC001", "TC002", "TC003"]
-
-# FastAPI dependency markers are meant to be called as default values.
-[tool.ruff.lint.flake8-bugbear]
-extend-immutable-calls = [
-    "fastapi.Depends",
-    "fastapi.Security",
-    "fastapi.Query",
-    "fastapi.Path",
-    "fastapi.Body",
-    "fastapi.Header",
-]
-
-# Pydantic and FastAPI read annotations while the app runs, so moving their
-# imports under `if TYPE_CHECKING:` would crash at startup, not just lint.
-[tool.ruff.lint.flake8-type-checking]
-exempt-modules = ["typing", "typing_extensions", "fastapi"]
-runtime-evaluated-base-classes = [
-    "pydantic.BaseModel",
-    "pydantic_settings.BaseSettings",
-    "typing.TypedDict",
-]
-runtime-evaluated-decorators = ["pydantic.validate_call"]
-
-# Architecture rules as lint errors.
-[tool.ruff.lint.flake8-tidy-imports.banned-api]
-"datetime.timezone".msg = "Use `from datetime import UTC` instead."
-
-# --- Pyright ----------------------------------------------------------------
-
-[tool.pyright]
-typeCheckingMode = "strict"
-pythonVersion = "3.12"
-include = ["mentor_agent", "tests", "main.py"]
-venvPath = "."
-venv = ".venv"
-# langgraph and datasketch ship without a py.typed marker. Pyright still infers
-# their types from the source, so a missing stub is not worth an error.
-reportMissingTypeStubs = false
-
-# --- Pytest -----------------------------------------------------------------
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-asyncio_mode = "auto"
-addopts = "-ra --strict-markers"
 
 # --- Coverage ---------------------------------------------------------------
 # scripts/ci/python-checks.sh measures coverage when this section exists and

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, cast
 from langchain_mongodb import MongoDBAtlasVectorSearch
 from langchain_mongodb.retrievers import MongoDBAtlasHybridSearchRetriever
 
-from mentor_agent.core.config import settings
+from mentor_agent.config import settings
 from mentor_agent.db.client import MongoDocument, get_mongo_client
 from mentor_agent.rag.embeddings import build_embedding_model
 

@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 
-from mentor_agent.infra.opik_utils import create_opik_dataset
 from mentor_agent.models.evaluation import EvaluationDataset
+from mentor_agent.tracing import create_opik_dataset
 
 if TYPE_CHECKING:
     from pathlib import Path

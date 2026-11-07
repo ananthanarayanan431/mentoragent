@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from mentor_agent.core.config import settings
+from mentor_agent.config import settings
 
 
 def build_text_splitter(

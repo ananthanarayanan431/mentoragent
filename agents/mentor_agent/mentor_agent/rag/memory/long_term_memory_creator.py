@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 
-from mentor_agent.core.config import settings
+from mentor_agent.config import settings
 from mentor_agent.db.indexes import create_search_indexes
 from mentor_agent.rag.deduplicate_documents import DeduplicateDocuments
 from mentor_agent.rag.extractor import Extractor

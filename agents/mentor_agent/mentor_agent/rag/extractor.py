@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from loguru import logger
 from tqdm import tqdm
 
-from mentor_agent.core.config import settings
+from mentor_agent.config import settings
 from mentor_agent.db.client import MongoRepository
 from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.rag.extractors import (

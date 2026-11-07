@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, cast
 from datasketch import MinHash, MinHashLSH
 from loguru import logger
 
-from mentor_agent.core.config import settings
+from mentor_agent.config import settings
 
 if TYPE_CHECKING:
     from langchain_core.documents import Document

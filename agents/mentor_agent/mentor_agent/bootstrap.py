@@ -10,22 +10,22 @@ from typing import TYPE_CHECKING
 
 from langgraph.checkpoint.mongodb import MongoDBSaver
 
-from mentor_agent.core.config import settings
+from mentor_agent.chat.chains import Chains
+from mentor_agent.chat.graph import compile_graph
+from mentor_agent.chat.llm import build_chat_model, build_summary_model
+from mentor_agent.chat.nodes import Nodes
+from mentor_agent.chat.tools import build_retrieve_context_tool
+from mentor_agent.config import settings
 from mentor_agent.db.client import get_mongo_client
 from mentor_agent.rag.retrievers import build_hybrid_retriever, build_vector_store
 from mentor_agent.services.conversation import ConversationService
-from mentor_agent.workflow.chains import Chains
-from mentor_agent.workflow.graph import compile_graph
-from mentor_agent.workflow.llm import build_chat_model, build_summary_model
-from mentor_agent.workflow.nodes import Nodes
-from mentor_agent.workflow.tools import build_retrieve_context_tool
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from langchain_core.callbacks import BaseCallbackHandler
 
-    from mentor_agent.workflow.graph import Checkpointer, MentorGraph
+    from mentor_agent.chat.graph import Checkpointer, MentorGraph
 
 
 def build_checkpointer() -> MongoDBSaver:

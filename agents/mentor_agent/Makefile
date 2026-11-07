@@ -90,17 +90,17 @@ shell: ## Open a Python REPL with the project environment loaded
 # --- Quality ---------------------------------------------------------------
 
 lint: ## Lint with ruff
-	$(UV) run ruff check src tests main.py
+	$(UV) run ruff check .
 
 format: ## Auto-fix lint issues and format the code
-	$(UV) run ruff check --fix src tests main.py
-	$(UV) run ruff format src tests main.py
+	$(UV) run ruff check --fix .
+	$(UV) run ruff format .
 
 typecheck: ## Type-check with pyright (strict)
 	$(UV) run pyright
 
 test: ## Run the test suite
-	$(UV) run pytest
+	$(UV) run pytest tests
 
 check: ## Everything CI runs: lint, format, pyright, tests with the coverage floor
 	cd ../.. && scripts/ci/python-checks.sh agents/mentor_agent unit

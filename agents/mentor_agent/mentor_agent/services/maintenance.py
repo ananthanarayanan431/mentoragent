@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from loguru import logger
 
-from mentor_agent.core.config import settings
+from mentor_agent.config import settings
 from mentor_agent.db.client import get_mongo_client
 
 
