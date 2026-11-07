@@ -30,6 +30,9 @@ export default defineConfig({
     // Source maps make production stack traces readable; they are separate
     // files, so browsers only fetch them when devtools are open.
     sourcemap: true,
+    // Phaser is one ~1.4 MB library loaded lazily with the world (create-game);
+    // it cannot be split further, so warn only above that.
+    chunkSizeWarningLimit: 1500,
   },
   test: {
     environment: 'jsdom',
