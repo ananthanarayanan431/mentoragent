@@ -1,9 +1,9 @@
-import { Users } from 'lucide-react'
+import { UserPlus, Users } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 import { MentorCard } from './mentor-card'
 import { EmptyState, ErrorState, MentorCardSkeleton } from '@/components/state-views'
-import { ApiError, listMentors } from '@/lib/api'
+import { addRandomMentor, ApiError, getMentorPool, listMentors } from '@/lib/api'
 import { API_BASE_URL } from '@/lib/config'
 import type { Mentor } from '@/lib/types'
 
@@ -33,6 +33,31 @@ export function MentorsPage() {
     return () => controller.abort()
   }, [attempt])
 
+  const [poolLeft, setPoolLeft] = useState<number | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [notice, setNotice] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    getMentorPool(controller.signal)
+      .then((pool) => setPoolLeft(typeof pool.remaining === 'number' ? pool.remaining : null))
+      .catch(() => setPoolLeft(null)) // no pool endpoint: hide the button
+    return () => controller.abort()
+  }, [mentors.length])
+
+  const addMentor = useCallback(() => {
+    setAdding(true)
+    addRandomMentor()
+      .then((mentor) => {
+        setMentors((current) => [...current, mentor])
+        setNotice(`${mentor.name} joined. Their memory is being built in the background.`)
+      })
+      .catch((cause: unknown) => {
+        setNotice(cause instanceof ApiError ? cause.message : 'Nobody could be added right now.')
+      })
+      .finally(() => setAdding(false))
+  }, [])
+
   const retry = useCallback(() => {
     setStatus('loading')
     setAttempt((n) => n + 1)
@@ -50,6 +75,22 @@ export function MentorsPage() {
           Chat with mentors modelled on real experts. Each one answers from a long-term memory built
           out of that person&rsquo;s public work.
         </p>
+        {poolLeft !== null && (
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={addMentor}
+              disabled={adding || poolLeft === 0}
+              className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent hover:bg-accent-hover disabled:opacity-50"
+            >
+              <UserPlus size={15} aria-hidden="true" />
+              {poolLeft === 0 ? 'Everyone is here' : adding ? 'Inviting…' : 'Add a random mentor'}
+            </button>
+            <p role="status" className="text-sm text-muted">
+              {notice}
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="mt-10">

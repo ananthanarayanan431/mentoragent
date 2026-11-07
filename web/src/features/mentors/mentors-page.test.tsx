@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -70,5 +71,27 @@ describe('MentorsPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/Is the backend running/)
     expect(screen.getByRole('button', { name: /Try again/ })).toBeInTheDocument()
+  })
+
+  it('adds a random mentor to the list', async () => {
+    const graham = { ...mentor, id: 'graham', name: 'Benjamin Graham', memory: 'building' }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        const body = url.endsWith('/mentors/pool')
+          ? { remaining: 4, total: 12 }
+          : url.endsWith('/mentors/random') && init?.method === 'POST'
+            ? graham
+            : [mentor]
+        return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))
+      }),
+    )
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Add a random mentor' }))
+
+    expect(await screen.findByText('Benjamin Graham')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Benjamin Graham joined')
   })
 })

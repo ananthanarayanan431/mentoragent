@@ -85,7 +85,7 @@ function ChatView({ mentorId }: { mentorId: string }) {
     <main className="flex flex-1 overflow-hidden">
       {/* Sidebar: static from lg up, a drawer below it. */}
       <aside className="hidden w-80 shrink-0 overflow-y-auto border-r border-line bg-surface lg:block">
-        <MentorPanel mentor={mentor} />
+        <MentorPanel mentor={mentor} onChange={setMentor} />
       </aside>
 
       {panelOpen && (
@@ -107,7 +107,7 @@ function ChatView({ mentorId }: { mentorId: string }) {
                 <span className="sr-only">Close</span>
               </button>
             </div>
-            <MentorPanel mentor={mentor} />
+            <MentorPanel mentor={mentor} onChange={setMentor} />
           </div>
         </div>
       )}

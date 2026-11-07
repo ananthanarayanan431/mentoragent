@@ -139,7 +139,7 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
   useEffect(() => {
     const controller = new AbortController()
     getMentorPool(controller.signal)
-      .then((pool) => setPoolLeft(pool.remaining))
+      .then((pool) => setPoolLeft(typeof pool.remaining === 'number' ? pool.remaining : null))
       .catch(() => setPoolLeft(null)) // no pool endpoint: hide the button
     return () => controller.abort()
   }, [mentors.length])
