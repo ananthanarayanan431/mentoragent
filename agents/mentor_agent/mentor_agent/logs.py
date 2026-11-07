@@ -74,12 +74,14 @@ class InterceptHandler(logging.Handler):
         logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
 
 
-def configure_logging(app_settings: AppSettings | None = None) -> None:
+def configure_logging(app_settings: AppSettings | None = None, *, enqueue: bool = False) -> None:
     """Configure the process-wide logger. Safe to call more than once.
 
     Args:
         app_settings: Source of ``LOG_LEVEL`` / ``LOG_JSON`` / ``DEBUG``.
             Defaults to the global settings.
+        enqueue: Write from a background thread, so a slow stdout never stalls
+            an event loop. The API server turns it on; the CLI writes directly.
     """
     if app_settings is None:
         from mentor_agent.config import settings
@@ -98,8 +100,7 @@ def configure_logging(app_settings: AppSettings | None = None) -> None:
         # Variable values in tracebacks can include secrets; only show them locally.
         backtrace=app_settings.LOCAL_DEVELOPMENT,
         diagnose=app_settings.LOCAL_DEVELOPMENT,
-        # Write from a background thread so a slow stdout never stalls the event loop.
-        enqueue=True,
+        enqueue=enqueue,
     )
 
     logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)

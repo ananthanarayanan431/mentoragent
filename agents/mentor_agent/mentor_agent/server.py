@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     Start-up fails fast if MongoDB is unreachable, so an orchestrator can
     restart the process instead of serving errors.
     """
-    configure_logging()
+    configure_logging(enqueue=True)
     # Sync libraries called from async code (checkpointer, retriever, tracing) run
     # on the loop's default executor; size it from settings rather than the CPU count.
     executor = ThreadPoolExecutor(
