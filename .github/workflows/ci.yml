@@ -224,7 +224,7 @@ jobs:
           make -C infra stack-up
           docker exec mentoragent-mentor-agent-api mentor-agent load-mentors
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
