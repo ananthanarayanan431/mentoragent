@@ -54,7 +54,14 @@ export interface paths {
          */
         get: operations["list_mentors_api_v1_mentors_get"];
         put?: never;
-        post?: never;
+        /**
+         * Create Mentor
+         * @description Add a mentor you describe: a name plus videos, web pages, PDFs or pasted text.
+         *
+         *     Persona fields left out are written from the name and pasted text. The memory
+         *     is built from the sources in the background, as for a random mentor.
+         */
+        post: operations["create_mentor_api_v1_mentors_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -278,6 +285,40 @@ export interface components {
             status: string;
         };
         /**
+         * MentorCreate
+         * @description A mentor you describe yourself. Persona fields left out are written for you
+         *     from the name and any pasted notes; the memory is built from the sources in the
+         *     background, as for a random mentor.
+         */
+        MentorCreate: {
+            /** Expertise */
+            expertise?: string | null;
+            /** Image Url */
+            image_url?: string | null;
+            /** Name */
+            name: string;
+            /** Notes */
+            notes?: string[];
+            /** Pdfs */
+            pdfs?: string[];
+            /** Perspective */
+            perspective?: string | null;
+            /**
+             * Search Wikipedia
+             * @description Also read Wikipedia pages matching the name (for well-known people).
+             * @default false
+             */
+            search_wikipedia: boolean;
+            /** Style */
+            style?: string | null;
+            /** Twitter Handle */
+            twitter_handle?: string | null;
+            /** Websites */
+            websites?: string[];
+            /** Youtube Videos */
+            youtube_videos?: string[];
+        };
+        /**
          * MentorOut
          * @description Public view of a mentor (sources are at ``/mentors/{id}/sources``).
          */
@@ -305,8 +346,15 @@ export interface components {
          * @description Where a mentor's long-term memory comes from (Wikipedia is searched by name).
          */
         MentorSources: {
+            /** Notes */
+            notes?: string[];
             /** Pdfs */
             pdfs?: string[];
+            /**
+             * Search Wikipedia
+             * @default true
+             */
+            search_wikipedia: boolean;
             /** Twitter Handle */
             twitter_handle?: string | null;
             /** Websites */
@@ -324,10 +372,14 @@ export interface components {
             expertise?: string | null;
             /** Name */
             name?: string | null;
+            /** Notes */
+            notes?: string[] | null;
             /** Pdfs */
             pdfs?: string[] | null;
             /** Perspective */
             perspective?: string | null;
+            /** Search Wikipedia */
+            search_wikipedia?: boolean | null;
             /** Style */
             style?: string | null;
             /** Twitter Handle */
@@ -456,6 +508,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MentorOut"][];
+                };
+            };
+        };
+    };
+    create_mentor_api_v1_mentors_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MentorCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

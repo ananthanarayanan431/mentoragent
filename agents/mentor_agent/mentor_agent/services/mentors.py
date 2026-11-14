@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from mentor_agent.errors import MemoryBuildInProgressError, MentorNotFoundError
+from mentor_agent.models.mentor_extract import MentorExtract
+from mentor_agent.services.custom import new_mentor_id
 from mentor_agent.services.pool import pick_new_mentor
 
 if TYPE_CHECKING:
@@ -10,11 +12,12 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
     from mentor_agent.db.client import AsyncMongoRepository
-    from mentor_agent.models.mentor_extract import MemoryStatus, MentorExtract
+    from mentor_agent.models.mentor_extract import MemoryStatus
 
 
 class MentorService:
-    """The mentor catalogue: read it, add mentors from the pool, edit them.
+    """The mentor catalogue: read it, add mentors from the pool or
+    described by the user, edit them.
 
     Args:
         repository: Async repository over the mentors collection.
@@ -51,6 +54,17 @@ class MentorService:
             PoolExhaustedError: If every pool mentor is already here.
         """
         mentor = pick_new_mentor(pool, await self.repository.ids(), rng)
+        return await self.repository.insert_one(mentor)
+
+    async def add_custom(self, fields: Mapping[str, Any]) -> MentorExtract:
+        """Add a mentor described by the user, with an id made from their name and
+        memory marked building.
+
+        Args:
+            fields: Every ``MentorExtract`` field except ``id`` and ``memory``.
+        """
+        mentor_id = new_mentor_id(str(fields["name"]), await self.repository.ids())
+        mentor = MentorExtract.model_validate({**fields, "id": mentor_id, "memory": "building"})
         return await self.repository.insert_one(mentor)
 
     async def update_mentor(self, mentor_id: str, changes: Mapping[str, Any]) -> MentorExtract:

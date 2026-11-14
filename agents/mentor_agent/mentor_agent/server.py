@@ -17,6 +17,7 @@ from loguru import logger
 from starlette.concurrency import run_in_threadpool
 
 from mentor_agent.bootstrap import build_conversation_service
+from mentor_agent.chat.llm import build_summary_model
 from mentor_agent.config import settings
 from mentor_agent.db.client import AsyncMongoRepository, close_mongo_clients
 from mentor_agent.errors import install_error_handlers
@@ -27,6 +28,7 @@ from mentor_agent.routes import health, v1
 from mentor_agent.services.maintenance import delete_mentor_memory
 from mentor_agent.services.memory import MentorMemoryBuilder
 from mentor_agent.services.mentors import MentorService
+from mentor_agent.services.persona import LlmPersonaWriter
 from mentor_agent.services.pool import load_pool
 from mentor_agent.tracing import configure_opik
 
@@ -59,6 +61,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     )
     app.state.pool = await run_in_threadpool(_load_pool)
     app.state.memory = MentorMemoryBuilder(app.state.mentors, _rebuild_one, delete_mentor_memory)
+    app.state.personas = LlmPersonaWriter(build_summary_model)
     logger.info("{} API ready ({})", settings.app.PROJECT_NAME, settings.app.ENVIRONMENT)
     try:
         yield

@@ -8,9 +8,16 @@ from mentor_agent.dependencies import (
     MemoryBuilderDep,
     MentorPoolDep,
     MentorServiceDep,
+    PersonaWriterDep,
     require_api_key_in_production,
 )
-from mentor_agent.schemas.v1.mentors import MentorOut, MentorSources, MentorUpdate, PoolOut
+from mentor_agent.schemas.v1.mentors import (
+    MentorCreate,
+    MentorOut,
+    MentorSources,
+    MentorUpdate,
+    PoolOut,
+)
 from mentor_agent.services.pool import remaining
 
 router = APIRouter(prefix="/mentors", tags=["mentors"])
@@ -23,6 +30,34 @@ _rng = random.Random()  # noqa: S311 - not used for anything secret
 async def list_mentors(mentors: MentorServiceDep) -> list[MentorOut]:
     """List every available mentor."""
     return [MentorOut.from_extract(m) for m in await mentors.list_mentors()]
+
+
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_key_in_production)],
+)
+async def create_mentor(
+    body: MentorCreate,
+    mentors: MentorServiceDep,
+    personas: PersonaWriterDep,
+    memory: MemoryBuilderDep,
+    background: BackgroundTasks,
+) -> MentorOut:
+    """Add a mentor you describe: a name plus videos, web pages, PDFs or pasted text.
+
+    Persona fields left out are written from the name and pasted text. The memory
+    is built from the sources in the background, as for a random mentor.
+    """
+    fields = body.model_dump()
+    if body.expertise is None or body.perspective is None or body.style is None:
+        persona = await personas.write(body.name, body.notes)
+        for key, value in persona.model_dump().items():
+            if fields[key] is None:
+                fields[key] = value
+    mentor = await mentors.add_custom(fields)
+    background.add_task(memory.rebuild, mentor.id)
+    return MentorOut.from_extract(mentor)
 
 
 @router.get("/pool")

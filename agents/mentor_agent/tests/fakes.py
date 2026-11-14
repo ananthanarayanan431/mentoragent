@@ -18,7 +18,10 @@ from mentor_agent.chat.graph import compile_graph
 from mentor_agent.chat.nodes import Nodes
 from mentor_agent.chat.tools import build_retrieve_context_tool
 from mentor_agent.errors import MemoryBuildInProgressError, MentorNotFoundError
+from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.services.conversation import ConversationService
+from mentor_agent.services.custom import new_mentor_id
+from mentor_agent.services.persona import Persona
 from mentor_agent.services.pool import pick_new_mentor
 
 if TYPE_CHECKING:
@@ -27,7 +30,7 @@ if TYPE_CHECKING:
 
     from langchain_core.callbacks import CallbackManagerForLLMRun, CallbackManagerForRetrieverRun
 
-    from mentor_agent.models.mentor_extract import MemoryStatus, MentorExtract
+    from mentor_agent.models.mentor_extract import MemoryStatus
 
 
 class ScriptedChatModel(BaseChatModel):
@@ -179,6 +182,12 @@ class InMemoryMentorService:
         self.mentors[mentor.id] = mentor
         return mentor
 
+    async def add_custom(self, fields: Mapping[str, Any]) -> MentorExtract:
+        mentor_id = new_mentor_id(str(fields["name"]), set(self.mentors))
+        mentor = MentorExtract.model_validate({**fields, "id": mentor_id, "memory": "building"})
+        self.mentors[mentor.id] = mentor
+        return mentor
+
     async def update_mentor(self, mentor_id: str, changes: Mapping[str, Any]) -> MentorExtract:
         mentor = await self.get_mentor(mentor_id)
         self.mentors[mentor_id] = mentor.model_copy(update=dict(changes))
@@ -212,3 +221,14 @@ class RecordingMemoryBuilder:
 
     async def rebuild(self, mentor_id: str) -> None:
         self.requested.append(mentor_id)
+
+
+class RecordingPersonaWriter:
+    """Returns a fixed persona and records the names and notes it was asked about."""
+
+    def __init__(self) -> None:
+        self.requests: list[tuple[str, list[str]]] = []
+
+    async def write(self, name: str, notes: Sequence[str]) -> Persona:
+        self.requests.append((name, list(notes)))
+        return Persona(expertise="Written expertise", perspective="Written view", style="Written")

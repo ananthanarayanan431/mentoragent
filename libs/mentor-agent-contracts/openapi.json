@@ -86,6 +86,133 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "MentorCreate": {
+        "additionalProperties": false,
+        "description": "A mentor you describe yourself. Persona fields left out are written for you\nfrom the name and any pasted notes; the memory is built from the sources in the\nbackground, as for a random mentor.",
+        "properties": {
+          "expertise": {
+            "anyOf": [
+              {
+                "maxLength": 600,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expertise"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "pattern": "^https://\\S+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "items": {
+              "maxLength": 20000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Notes",
+            "type": "array"
+          },
+          "pdfs": {
+            "items": {
+              "maxLength": 2000,
+              "pattern": "^https://\\S+$",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Pdfs",
+            "type": "array"
+          },
+          "perspective": {
+            "anyOf": [
+              {
+                "maxLength": 600,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Perspective"
+          },
+          "search_wikipedia": {
+            "default": false,
+            "description": "Also read Wikipedia pages matching the name (for well-known people).",
+            "title": "Search Wikipedia",
+            "type": "boolean"
+          },
+          "style": {
+            "anyOf": [
+              {
+                "maxLength": 600,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style"
+          },
+          "twitter_handle": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_]{1,15}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Twitter Handle"
+          },
+          "websites": {
+            "items": {
+              "maxLength": 2000,
+              "pattern": "^https://\\S+$",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Websites",
+            "type": "array"
+          },
+          "youtube_videos": {
+            "items": {
+              "maxLength": 2000,
+              "pattern": "^https://\\S+$",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Youtube Videos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "MentorCreate",
+        "type": "object"
+      },
       "MentorOut": {
         "description": "Public view of a mentor (sources are at ``/mentors/{id}/sources``).",
         "properties": {
@@ -151,12 +278,24 @@
       "MentorSources": {
         "description": "Where a mentor's long-term memory comes from (Wikipedia is searched by name).",
         "properties": {
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
           "pdfs": {
             "items": {
               "type": "string"
             },
             "title": "Pdfs",
             "type": "array"
+          },
+          "search_wikipedia": {
+            "default": true,
+            "title": "Search Wikipedia",
+            "type": "boolean"
           },
           "twitter_handle": {
             "anyOf": [
@@ -217,6 +356,23 @@
             ],
             "title": "Name"
           },
+          "notes": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 20000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
           "pdfs": {
             "anyOf": [
               {
@@ -246,6 +402,17 @@
               }
             ],
             "title": "Perspective"
+          },
+          "search_wikipedia": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Wikipedia"
           },
           "style": {
             "anyOf": [
@@ -522,6 +689,51 @@
           }
         ],
         "summary": "List Mentors",
+        "tags": [
+          "mentors"
+        ]
+      },
+      "post": {
+        "description": "Add a mentor you describe: a name plus videos, web pages, PDFs or pasted text.\n\nPersona fields left out are written from the name and pasted text. The memory\nis built from the sources in the background, as for a random mentor.",
+        "operationId": "create_mentor_api_v1_mentors_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MentorCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MentorOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Create Mentor",
         "tags": [
           "mentors"
         ]

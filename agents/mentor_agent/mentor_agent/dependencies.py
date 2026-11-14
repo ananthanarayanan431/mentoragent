@@ -15,6 +15,7 @@ from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.services.conversation import ConversationService
 from mentor_agent.services.memory import MemoryBuilder
 from mentor_agent.services.mentors import MentorService
+from mentor_agent.services.persona import PersonaWriter
 
 API_KEY_HEADER = "X-API-Key"
 _api_key_header = APIKeyHeader(name=API_KEY_HEADER, auto_error=False)
@@ -71,8 +72,14 @@ def get_mentor_pool(connection: HTTPConnection) -> list[MentorExtract]:
     return pool
 
 
+def get_persona_writer(connection: HTTPConnection) -> PersonaWriter:
+    writer: PersonaWriter = connection.app.state.personas
+    return writer
+
+
 MemoryBuilderDep = Annotated[MemoryBuilder, Depends(get_memory_builder)]
 MentorPoolDep = Annotated[list[MentorExtract], Depends(get_mentor_pool)]
+PersonaWriterDep = Annotated[PersonaWriter, Depends(get_persona_writer)]
 
 
 async def require_api_key_in_production() -> None:
