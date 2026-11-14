@@ -18,6 +18,6 @@
     "e2e": "pnpm --filter @mentoragent/e2e-tests e2e"
   },
   "devDependencies": {
-    "prettier": "^3.9.10"
+    "prettier": "^3.10.0"
   }
 }
