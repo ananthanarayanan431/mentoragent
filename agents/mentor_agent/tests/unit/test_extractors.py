@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from langchain_core.documents import Document
 
+from mentor_agent.integrations.arcade import ArcadeTweets, get_all_tweets
 from mentor_agent.rag.extractors import (
     Source,
     extract_notes,
@@ -15,7 +16,6 @@ from mentor_agent.rag.extractors import (
     extract_wikipedia,
     extract_youtube_transcripts,
 )
-from mentor_agent.rag.extractors.extract_twitter_tweets import get_all_tweets
 
 if TYPE_CHECKING:
     from mentor_agent.models.mentor_extract import MentorExtract
@@ -106,7 +106,7 @@ def test_twitter_tool_error_returns_no_documents(mentor_extract: MentorExtract) 
     client.tools.execute.return_value = SimpleNamespace(
         output=SimpleNamespace(error=SimpleNamespace(message="quota"), value=None)
     )
-    assert extract_twitter_tweets(mentor_extract, client=client) == []
+    assert extract_twitter_tweets(mentor_extract, tweets=ArcadeTweets(client, "u")) == []
 
 
 def test_websites_load_each_page_and_skip_failures(mentor_extract: MentorExtract) -> None:

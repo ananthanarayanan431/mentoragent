@@ -5,7 +5,7 @@ import json
 import httpx
 from pydantic import SecretStr
 
-from mentor_agent.rag.extractors.firecrawl import EXCLUDE_TAGS, FirecrawlReader, plain_text
+from mentor_agent.integrations.firecrawl import EXCLUDE_TAGS, FirecrawlReader, plain_text
 
 
 def _reader(handler: httpx.MockTransport) -> FirecrawlReader:

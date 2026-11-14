@@ -33,8 +33,8 @@ if TYPE_CHECKING:
     )
     from langchain_core.language_models import BaseChatModel
 
+    from mentor_agent.integrations.exa import LeadFinder
     from mentor_agent.models.mentor_extract import MentorExtract
-    from mentor_agent.services.exa import LeadFinder
 
 #: Pasted text sent as a lead; enough to tell who the person is.
 SEED_NOTES_CHAR_BUDGET = 4_000

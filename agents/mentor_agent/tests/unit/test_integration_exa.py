@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import httpx
 from pydantic import SecretStr
 
-from mentor_agent.services.exa import (
+from mentor_agent.integrations.exa import (
     RESULT_CHAR_BUDGET,
     ExaLeadFinder,
     ExaResult,

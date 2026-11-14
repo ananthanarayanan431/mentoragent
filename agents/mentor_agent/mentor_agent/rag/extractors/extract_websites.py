@@ -6,14 +6,15 @@ from typing import TYPE_CHECKING
 from langchain_community.document_loaders import WebBaseLoader
 from loguru import logger
 
+from mentor_agent.config import settings
+from mentor_agent.integrations.factory import IntegrationFactory
 from mentor_agent.rag.extractors.base import Source, make_document
-from mentor_agent.rag.extractors.firecrawl import firecrawl_reader
 
 if TYPE_CHECKING:
     from langchain_core.documents import Document
 
+    from mentor_agent.integrations.firecrawl import PageReader
     from mentor_agent.models.mentor_extract import MentorExtract
-    from mentor_agent.rag.extractors.firecrawl import PageReader
 
 _TIMEOUT_SECONDS = 20
 _BLANK_LINES = re.compile(r"\n\s*\n+")
@@ -51,7 +52,7 @@ def extract_websites(
         One document per page. Pages that fail to load or have no text are skipped.
     """
     log = logger.bind(mentor_id=mentor_extract.id, source=Source.WEBSITE)
-    reader = reader or firecrawl_reader()
+    reader = reader or IntegrationFactory(settings).page_reader()
     documents: list[Document] = []
 
     for url in mentor_extract.websites:

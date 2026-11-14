@@ -21,12 +21,12 @@ from mentor_agent.chat.llm import build_research_client, build_summary_model
 from mentor_agent.config import settings
 from mentor_agent.db.client import AsyncMongoRepository, close_mongo_clients
 from mentor_agent.errors import install_error_handlers
+from mentor_agent.integrations.factory import IntegrationFactory
 from mentor_agent.logs import configure_logging
 from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.request_context import install_middleware
 from mentor_agent.routes import health, v1
 from mentor_agent.services.enrich import MentorEnricher
-from mentor_agent.services.exa import ExaLeadFinder
 from mentor_agent.services.maintenance import delete_mentor_memory
 from mentor_agent.services.memory import MentorMemoryBuilder
 from mentor_agent.services.mentors import MentorService
@@ -71,7 +71,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
             build_summary_model,
             model=settings.anthropic.RESEARCH_MODEL,
             max_searches=settings.anthropic.RESEARCH_MAX_SEARCHES,
-            leads=_exa_leads(),
+            leads=IntegrationFactory(settings).lead_finder(),
         ),
         LlmPersonaWriter(build_summary_model),
         app.state.memory,
@@ -94,20 +94,6 @@ def _load_pool() -> list[MentorExtract]:
     except FileNotFoundError:
         logger.warning("No mentor pool at {}; adding mentors is disabled", path)
         return []
-
-
-def _exa_leads() -> ExaLeadFinder | None:
-    """Exa search for research, when a key is set; without one, Claude searches alone."""
-    exa = settings.exa
-    if exa.API_KEY is None:
-        logger.info("EXA_API_KEY not set; researching with Claude web search only")
-        return None
-    return ExaLeadFinder(
-        exa.API_KEY,
-        base_url=exa.BASE_URL,
-        timeout=exa.TIMEOUT_SECONDS,
-        results_per_search=exa.RESULTS_PER_SEARCH,
-    )
 
 
 def _rebuild_one(mentor: MentorExtract) -> int:

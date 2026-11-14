@@ -7,13 +7,14 @@ Optional: without ``FIRECRAWL_API_KEY`` pages are read with a plain fetch.
 from __future__ import annotations
 
 import re
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import httpx
 from loguru import logger
-from pydantic import BaseModel, Field, SecretStr, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
-from mentor_agent.config import settings
+if TYPE_CHECKING:
+    from pydantic import SecretStr
 
 #: Left out of every page: comment threads hold other people's words, not the mentor's.
 EXCLUDE_TAGS = (
@@ -102,11 +103,3 @@ class FirecrawlReader:
             logger.warning("Firecrawl got no page for {}", url)
             return ""
         return plain_text(page.data.markdown)
-
-
-def firecrawl_reader() -> FirecrawlReader | None:
-    """The Firecrawl reader when ``FIRECRAWL_API_KEY`` is set, else ``None``."""
-    config = settings.firecrawl
-    if config.API_KEY is None:
-        return None
-    return FirecrawlReader(config.API_KEY, base_url=config.BASE_URL, timeout=config.TIMEOUT_SECONDS)

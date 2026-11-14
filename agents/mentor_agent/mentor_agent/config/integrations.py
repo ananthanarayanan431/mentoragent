@@ -108,7 +108,3 @@ class ExaSettings(BaseSettings):
     BASE_URL: str = "https://api.exa.ai"
     TIMEOUT_SECONDS: float = Field(default=30.0, gt=0)
     RESULTS_PER_SEARCH: int = Field(default=3, ge=1, le=10)
-
-    @property
-    def is_configured(self) -> bool:
-        return self.API_KEY is not None
