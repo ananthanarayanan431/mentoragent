@@ -94,4 +94,66 @@ describe('MentorsPage', () => {
     expect(await screen.findByText('Benjamin Graham')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Benjamin Graham joined')
   })
+
+  it('removes a mentor from the card menu, after confirming', async () => {
+    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>((url, init) => {
+      if (init?.method === 'DELETE') return Promise.resolve(new Response(null, { status: 204 }))
+      const body = url.endsWith('/mentors/pool') ? { remaining: 0, total: 1 } : [mentor]
+      return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'More options for Ada Lovelace' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Remove mentor' }))
+    expect(screen.getByRole('alertdialog', { name: 'Remove Ada Lovelace?' })).toBeVisible()
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Remove' }))
+
+    expect(await screen.findByText('No mentors yet')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/mentors/ada',
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+
+  it('keeps the mentor and shows why when the removal fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        if (init?.method === 'DELETE') {
+          const detail = { detail: "This mentor's memory is being built" }
+          return Promise.resolve(new Response(JSON.stringify(detail), { status: 409 }))
+        }
+        const body = url.endsWith('/mentors/pool') ? { remaining: 0, total: 1 } : [mentor]
+        return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))
+      }),
+    )
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'More options for Ada Lovelace' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Remove mentor' }))
+    await user.click(screen.getByRole('button', { name: 'Remove' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('memory is being built')
+    await user.click(screen.getByRole('button', { name: 'Keep' }))
+    expect(screen.getByRole('link', { name: /Ada Lovelace/ })).toBeInTheDocument()
+  })
+
+  it('closes the card menu on Escape', async () => {
+    mockFetch([mentor])
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'More options for Ada Lovelace' }))
+    expect(screen.getByRole('menu')).toBeVisible()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
 })

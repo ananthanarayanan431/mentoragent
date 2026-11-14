@@ -3,7 +3,8 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { MentorCard } from './mentor-card'
 import { EmptyState, ErrorState, MentorCardSkeleton } from '@/components/state-views'
-import { addRandomMentor, ApiError, getMentorPool, listMentors } from '@/lib/api'
+import { clearConversation } from '@/features/chat/storage'
+import { addRandomMentor, ApiError, getMentorPool, listMentors, removeMentor } from '@/lib/api'
 import { API_BASE_URL } from '@/lib/config'
 import type { Mentor } from '@/lib/types'
 
@@ -56,6 +57,14 @@ export function MentorsPage() {
         setNotice(cause instanceof ApiError ? cause.message : 'Nobody could be added right now.')
       })
       .finally(() => setAdding(false))
+  }, [])
+
+  /** Rejects on failure so the card can show why; on success the card disappears. */
+  const remove = useCallback(async (mentor: Mentor) => {
+    await removeMentor(mentor.id)
+    clearConversation(mentor.id)
+    setMentors((current) => current.filter((m) => m.id !== mentor.id))
+    setNotice(`${mentor.name} was removed.`)
   }, [])
 
   const retry = useCallback(() => {
@@ -121,7 +130,7 @@ export function MentorsPage() {
           (mentors.length ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {mentors.map((mentor) => (
-                <MentorCard key={mentor.id} mentor={mentor} />
+                <MentorCard key={mentor.id} mentor={mentor} onRemove={remove} />
               ))}
             </div>
           ) : (
