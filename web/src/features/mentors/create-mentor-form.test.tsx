@@ -26,6 +26,7 @@ describe('buildMentorCreate', () => {
         pdfs: [],
         notes: ['First post', 'Second post'],
         search_wikipedia: false,
+        research: true,
         style: 'Blunt',
       },
     })
@@ -68,6 +69,7 @@ describe('CreateMentorForm', () => {
 
     await user.type(screen.getByLabelText('Name'), 'Grace Hopper')
     await user.type(screen.getByLabelText(/YouTube videos/), 'https://youtu.be/a')
+    expect(screen.getByLabelText(/Research them on the web/)).toBeChecked()
     await user.click(screen.getByRole('button', { name: 'Create mentor' }))
 
     expect(onCreated).toHaveBeenCalledWith(created)
@@ -77,6 +79,7 @@ describe('CreateMentorForm', () => {
     expect(JSON.parse(init.body as string)).toMatchObject({
       name: 'Grace Hopper',
       youtube_videos: ['https://youtu.be/a'],
+      research: true,
     })
   })
 

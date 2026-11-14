@@ -8,6 +8,7 @@ export interface CreateMentorFields {
   pdfs: string
   notes: string
   wikipedia: boolean
+  research: boolean
   expertise: string
   perspective: string
   style: string
@@ -20,6 +21,7 @@ export const EMPTY_FIELDS: CreateMentorFields = {
   pdfs: '',
   notes: '',
   wikipedia: false,
+  research: true,
   expertise: '',
   perspective: '',
   style: '',
@@ -79,7 +81,13 @@ export function buildMentorCreate(
     return { error: 'Each pasted post can be at most 20,000 characters.' }
   }
 
-  const body: MentorCreate = { name, ...links, notes, search_wikipedia: fields.wikipedia }
+  const body: MentorCreate = {
+    name,
+    ...links,
+    notes,
+    search_wikipedia: fields.wikipedia,
+    research: fields.research,
+  }
   for (const field of ['expertise', 'perspective', 'style'] as const) {
     const value = fields[field].trim()
     if (value) body[field] = value

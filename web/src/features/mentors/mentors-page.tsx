@@ -43,7 +43,9 @@ export function MentorsPage() {
   const created = useCallback((mentor: Mentor) => {
     setMentors((current) => [...current, mentor])
     setCreating(false)
-    setNotice(`${mentor.name} was created. Their memory is being built in the background.`)
+    setNotice(
+      `${mentor.name} was created. We are researching them and building their memory; this takes a few minutes.`,
+    )
   }, [])
 
   useEffect(() => {

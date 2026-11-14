@@ -55,8 +55,8 @@ export function CreateMentorForm({ onCreated, onCancel }: Props) {
             Create your own mentor
           </h2>
           <p className="mt-1 text-sm text-muted">
-            Add anything they have made: talks, articles, posts. Their memory is built from it in
-            the background.
+            Start with a name and anything you have: talks, articles, posts. We search the web for
+            more of their work, then build the mentor from all of it.
           </p>
         </div>
         <button
@@ -117,6 +117,19 @@ export function CreateMentorForm({ onCreated, onCancel }: Props) {
           />
         </label>
 
+        <label className="flex items-start gap-2 text-xs text-muted">
+          <input
+            type="checkbox"
+            checked={fields.research}
+            onChange={(event) => set('research', event.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            Research them on the web: find more of their talks and writing, and work out how they
+            think and talk (takes a few minutes, uses paid web searches)
+          </span>
+        </label>
+
         <label className="flex items-center gap-2 text-xs text-muted">
           <input
             type="checkbox"
@@ -128,7 +141,7 @@ export function CreateMentorForm({ onCreated, onCancel }: Props) {
 
         <details className="rounded-lg border border-line px-3 py-2">
           <summary className="cursor-pointer text-xs font-medium text-muted">
-            Describe them yourself (optional, written for you if left blank)
+            Describe them yourself (optional, filled in from the research if left blank)
           </summary>
           <div className="mt-3 space-y-3">
             {(
