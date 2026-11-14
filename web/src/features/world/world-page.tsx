@@ -88,13 +88,18 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
   useEffect(() => {
     const parent = containerRef.current
     if (!parent) return
-    let game: { destroy: (removeCanvas: boolean) => void } | null = null
-    let cancelled = false
+    // One mutable object rather than reassigned locals: the async import and the
+    // cleanup both touch it, and React's immutability lint forbids reassigning
+    // a variable after render.
+    const live: {
+      cancelled: boolean
+      game: { destroy: (removeCanvas: boolean) => void } | null
+    } = { cancelled: false, game: null }
 
     import('./game/create-game')
       .then(({ createGame }) => {
-        if (cancelled) return
-        game = createGame(parent, {
+        if (live.cancelled) return
+        live.game = createGame(parent, {
           mentors: firstRoster.current.map(({ id, name }) => ({ id, name })),
           bridge,
           labelsVisible: labelsRef.current,
@@ -103,8 +108,8 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
       .catch(() => setGameError('The game could not start in this browser.'))
 
     return () => {
-      cancelled = true
-      game?.destroy(true)
+      live.cancelled = true
+      live.game?.destroy(true)
     }
   }, [bridge])
 
