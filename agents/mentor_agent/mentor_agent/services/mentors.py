@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from mentor_agent.errors import MemoryBuildInProgressError, MentorNotFoundError
+from mentor_agent.core.errors import MemoryBuildInProgressError, MentorNotFoundError
 from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.services.custom import new_mentor_id
 from mentor_agent.services.pool import pick_new_mentor

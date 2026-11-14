@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from starlette.concurrency import run_in_threadpool
 
-from mentor_agent.dependencies import require_api_key_in_production
+from mentor_agent.core.dependencies import require_api_key_in_production
 from mentor_agent.schemas.v1.admin import ResetMemoryResponse
 from mentor_agent.services.maintenance import reset_conversation_state
 

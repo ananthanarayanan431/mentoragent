@@ -10,7 +10,7 @@ from fastapi.security import APIKeyHeader
 from starlette.requests import HTTPConnection
 
 from mentor_agent.config import settings
-from mentor_agent.errors import PermissionDeniedError
+from mentor_agent.core.errors import PermissionDeniedError
 from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.services.conversation import ConversationService
 from mentor_agent.services.enrich import Enricher

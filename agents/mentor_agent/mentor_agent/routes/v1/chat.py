@@ -7,12 +7,12 @@ from fastapi import APIRouter, Depends, Path, WebSocket, WebSocketDisconnect, st
 from loguru import logger
 from pydantic import ValidationError
 
-from mentor_agent.dependencies import (
+from mentor_agent.core.dependencies import (
     ConversationServiceDep,
     MentorServiceDep,
     require_websocket_api_key,
 )
-from mentor_agent.errors import MentorAgentError, unpack_validation_error
+from mentor_agent.core.errors import MentorAgentError, unpack_validation_error
 from mentor_agent.schemas.common import ConversationId
 from mentor_agent.schemas.v1.chat import ChatRequest, ChatResponse
 

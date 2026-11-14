@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from mentor_agent.errors import PoolExhaustedError
+from mentor_agent.core.errors import PoolExhaustedError
 from mentor_agent.models.mentor_extract import MentorExtract
 
 if TYPE_CHECKING:

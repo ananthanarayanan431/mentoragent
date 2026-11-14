@@ -17,7 +17,7 @@ from mentor_agent.chat.chains import Chains
 from mentor_agent.chat.graph import compile_graph
 from mentor_agent.chat.nodes import Nodes
 from mentor_agent.chat.tools import build_retrieve_context_tool
-from mentor_agent.errors import MemoryBuildInProgressError, MentorNotFoundError
+from mentor_agent.core.errors import MemoryBuildInProgressError, MentorNotFoundError
 from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.services.conversation import ConversationService
 from mentor_agent.services.custom import new_mentor_id

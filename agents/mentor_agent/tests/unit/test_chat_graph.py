@@ -9,7 +9,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from mentor_agent.chat.nodes import messages_to_remove
 from mentor_agent.chat.tools import NO_CONTEXT_FOUND, format_documents
-from mentor_agent.errors import ConversationError
+from mentor_agent.core.errors import ConversationError
 from mentor_agent.services.conversation import thread_id_for, to_langchain_messages
 from tests.fakes import build_fake_conversation_service, tool_call
 

@@ -1,6 +1,6 @@
 """Request context: a request id on every request and log line, plus CORS.
 
-Install with :func:`install_middleware`. Error responses are in :mod:`mentor_agent.errors`.
+Install with :func:`install_middleware`. Error responses are in :mod:`mentor_agent.core.errors`.
 """
 
 from __future__ import annotations

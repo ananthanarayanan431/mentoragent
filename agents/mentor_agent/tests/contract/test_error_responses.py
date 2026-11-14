@@ -5,8 +5,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
-from mentor_agent.errors import MentorNotFoundError, install_error_handlers
-from mentor_agent.request_context import REQUEST_ID_HEADER, install_middleware
+from mentor_agent.core.errors import MentorNotFoundError, install_error_handlers
+from mentor_agent.core.request_context import REQUEST_ID_HEADER, install_middleware
 
 
 class Payload(BaseModel):

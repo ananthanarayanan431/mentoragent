@@ -4,7 +4,7 @@ import random
 
 from fastapi import APIRouter, BackgroundTasks, Depends, status
 
-from mentor_agent.dependencies import (
+from mentor_agent.core.dependencies import (
     EnricherDep,
     MemoryBuilderDep,
     MentorPoolDep,

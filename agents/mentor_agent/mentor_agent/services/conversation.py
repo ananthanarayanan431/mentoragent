@@ -10,7 +10,7 @@ from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, Huma
 from loguru import logger
 
 from mentor_agent.chat.edges import CONVERSATION_NODE
-from mentor_agent.errors import ConversationError
+from mentor_agent.core.errors import ConversationError
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable

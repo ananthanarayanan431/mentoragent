@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from mentor_agent.errors import (
+from mentor_agent.core.errors import (
     MentorAgentError,
     MentorStyleNotFoundError,
     NotFoundError,

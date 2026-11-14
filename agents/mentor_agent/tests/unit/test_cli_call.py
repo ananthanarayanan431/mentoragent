@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage
 from typer.testing import CliRunner
 
 from mentor_agent.cli import app, call_mentor
-from mentor_agent.errors import MentorNotFoundError
+from mentor_agent.core.errors import MentorNotFoundError
 from tests.fakes import InMemoryMentorService, build_fake_conversation_service
 
 if TYPE_CHECKING:
@@ -59,7 +59,7 @@ async def test_call_rejects_an_unknown_mentor(mentor_extract: MentorExtract) -> 
 @pytest.fixture
 def cli_services(monkeypatch: pytest.MonkeyPatch, mentor_extract: MentorExtract) -> list[str]:
     """Wire `mentor-agent call` to the fakes; returns the replies it will give, in order."""
-    import mentor_agent.bootstrap
+    import mentor_agent.core.bootstrap
     import mentor_agent.db.client
     import mentor_agent.services.mentors
 
@@ -75,7 +75,7 @@ def cli_services(monkeypatch: pytest.MonkeyPatch, mentor_extract: MentorExtract)
     def no_repository(*_args: object, **_kwargs: object) -> None:
         return None
 
-    monkeypatch.setattr(mentor_agent.bootstrap, "build_conversation_service", lambda: service)
+    monkeypatch.setattr(mentor_agent.core.bootstrap, "build_conversation_service", lambda: service)
     monkeypatch.setattr(mentor_agent.services.mentors, "MentorService", mentor_service)
     monkeypatch.setattr(mentor_agent.db.client, "AsyncMongoRepository", no_repository)
     monkeypatch.setattr(mentor_agent.db.client, "close_mongo_clients", no_clients)
@@ -122,14 +122,14 @@ def test_call_command_reports_an_unknown_mentor_without_a_traceback(
 def test_call_command_explains_a_missing_api_key(
     monkeypatch: pytest.MonkeyPatch, cli_services: list[str], mentor_extract: MentorExtract
 ) -> None:
-    import mentor_agent.bootstrap
+    import mentor_agent.core.bootstrap
     from mentor_agent.config.base import MissingSettingError
 
     def no_key() -> None:
         msg = "ANTHROPIC_API_KEY is empty: set it in .env"
         raise MissingSettingError(msg)
 
-    monkeypatch.setattr(mentor_agent.bootstrap, "build_conversation_service", no_key)
+    monkeypatch.setattr(mentor_agent.core.bootstrap, "build_conversation_service", no_key)
     result = CliRunner().invoke(app, ["call", "--mentor-id", mentor_extract.id, "--query", "Hi"])
 
     assert result.exit_code == 1

@@ -12,8 +12,8 @@ import typer
 from loguru import logger
 
 from mentor_agent.config import settings
-from mentor_agent.errors import MentorAgentError
-from mentor_agent.logs import configure_logging
+from mentor_agent.core.errors import MentorAgentError
+from mentor_agent.core.logs import configure_logging
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -67,10 +67,10 @@ def call(
     ] = None,
 ) -> None:
     """Ask a mentor one question and stream the reply to the terminal."""
-    from mentor_agent.bootstrap import build_conversation_service
     from mentor_agent.config.base import MissingSettingError
+    from mentor_agent.core.bootstrap import build_conversation_service
+    from mentor_agent.core.errors import MentorAgentError
     from mentor_agent.db.client import AsyncMongoRepository, close_mongo_clients
-    from mentor_agent.errors import MentorAgentError
     from mentor_agent.models.mentor_extract import MentorExtract
     from mentor_agent.services.mentors import MentorService
 
@@ -269,9 +269,9 @@ def evaluate(
     nb_samples: Annotated[int | None, typer.Option(help="Evaluate only N samples.")] = 20,
 ) -> None:
     """Upload the evaluation dataset to Opik and score the agent on it."""
+    from mentor_agent.core.tracing import configure_opik
     from mentor_agent.evals.evaluate import evaluate_agent
     from mentor_agent.evals.upload_dataset import upload_dataset
-    from mentor_agent.tracing import configure_opik
 
     if not configure_opik():
         logger.error("Evaluation needs Opik: set COMET_API_KEY")

@@ -16,15 +16,16 @@ from fastapi import FastAPI
 from loguru import logger
 from starlette.concurrency import run_in_threadpool
 
-from mentor_agent.bootstrap import build_conversation_service
 from mentor_agent.chat.llm import build_research_client, build_summary_model
 from mentor_agent.config import settings
+from mentor_agent.core.bootstrap import build_conversation_service
+from mentor_agent.core.errors import install_error_handlers
+from mentor_agent.core.logs import configure_logging
+from mentor_agent.core.request_context import install_middleware
+from mentor_agent.core.tracing import configure_opik
 from mentor_agent.db.client import AsyncMongoRepository, close_mongo_clients
-from mentor_agent.errors import install_error_handlers
 from mentor_agent.integrations.factory import IntegrationFactory
-from mentor_agent.logs import configure_logging
 from mentor_agent.models.mentor_extract import MentorExtract
-from mentor_agent.request_context import install_middleware
 from mentor_agent.routes import health, v1
 from mentor_agent.services.enrich import MentorEnricher
 from mentor_agent.services.maintenance import delete_mentor_memory
@@ -33,7 +34,6 @@ from mentor_agent.services.mentors import MentorService
 from mentor_agent.services.persona import LlmPersonaWriter
 from mentor_agent.services.pool import load_pool
 from mentor_agent.services.research import ClaudeResearcher
-from mentor_agent.tracing import configure_opik
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable

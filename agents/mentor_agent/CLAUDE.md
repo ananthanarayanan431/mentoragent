@@ -24,11 +24,11 @@
 | `mentor_agent/routes/health.py`         | `/health` and `/ready` (unversioned)                                         |
 | `mentor_agent/routes/v1/`               | Chat (HTTP + WebSocket), mentors, admin; mounted in `__init__.py`            |
 | `mentor_agent/schemas/`                 | Request and response bodies (`common`, `health`, `v1/*`)                     |
-| `mentor_agent/dependencies.py`          | FastAPI dependencies: services from app state, API-key auth                  |
-| `mentor_agent/errors.py`                | `MentorAgentError` subclasses and the handlers that render them              |
-| `mentor_agent/request_context.py`       | Request id on every request and log line, CORS                               |
+| `mentor_agent/core/dependencies.py`     | FastAPI dependencies: services from app state, API-key auth                  |
+| `mentor_agent/core/errors.py`           | `MentorAgentError` subclasses and the handlers that render them              |
+| `mentor_agent/core/request_context.py`  | Request id on every request and log line, CORS                               |
 | `mentor_agent/config/`                  | `settings.<group>.<FIELD>`, one module per group; `API_V1_PREFIX`            |
-| `mentor_agent/bootstrap.py`             | Composition root: models, retriever, graph, checkpointer                     |
+| `mentor_agent/core/bootstrap.py`        | Composition root: models, retriever, graph, checkpointer                     |
 | `mentor_agent/chat/graph.py`            | The LangGraph graph, and the `MentorGraph` / `Checkpointer` types            |
 | `mentor_agent/services/conversation.py` | One chat turn (invoke or stream) and conversation deletion                   |
 | `mentor_agent/services/mentors.py`      | The catalogue: list, add (pool or custom), edit, memory status               |
@@ -40,7 +40,7 @@
 | `mentor_agent/services/memory.py`       | One mentor's background memory build; records ready or failed                |
 | `mentor_agent/rag/`                     | Extractors, splitter, embeddings, hybrid retriever, memory                   |
 | `mentor_agent/integrations/`            | Optional Exa, Firecrawl and Arcade clients; `IntegrationFactory` builds them |
-| `mentor_agent/tracing.py`               | Opik tracing and dataset helpers (optional)                                  |
+| `mentor_agent/core/tracing.py`          | Opik tracing and dataset helpers (optional)                                  |
 | `mentor_agent/export_openapi.py`        | The OpenAPI document the web contract is generated from                      |
 | `tests/unit/`, `tests/contract/`        | Module tests; the HTTP/WebSocket API as clients see it                       |
 | `tests/fakes.py`                        | Scripted chat model, in-memory checkpointer and services                     |
@@ -61,6 +61,10 @@
 - Log with loguru and arguments, never f-strings: `logger.info("Loaded {}", n)`.
 - No side effects at import time; never construct a `MongoClient` directly
   (use `db.client.get_mongo_client()`).
+- Shared plumbing (composition root, dependencies, errors, logging, request
+  context, tracing) lives in `core/`. Entry points (`main.py`, `server.py`,
+  `cli.py`, `export_openapi.py`) stay at the package top: uvicorn, the console
+  script, the Makefile and CI call them by path.
 - Third-party services live in `integrations/`, one module per provider, each
   behind a protocol. Build them only through `IntegrationFactory`, which returns
   `None` when the key is unset.

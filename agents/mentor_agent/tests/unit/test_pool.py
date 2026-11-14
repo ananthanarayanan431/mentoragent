@@ -5,7 +5,7 @@ import random
 import pytest
 
 from mentor_agent.config import settings
-from mentor_agent.errors import PoolExhaustedError
+from mentor_agent.core.errors import PoolExhaustedError
 from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.services.pool import load_pool, pick_new_mentor, remaining
 

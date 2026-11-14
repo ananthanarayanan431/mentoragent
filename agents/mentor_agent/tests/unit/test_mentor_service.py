@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from mentor_agent.errors import MemoryBuildInProgressError, MentorNotFoundError
+from mentor_agent.core.errors import MemoryBuildInProgressError, MentorNotFoundError
 from mentor_agent.services.mentors import MentorService
 
 if TYPE_CHECKING:

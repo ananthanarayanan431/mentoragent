@@ -249,14 +249,16 @@ agents/mentor_agent/
 │   ├── server.py               # app factory and lifespan
 │   ├── routes/                 # health.py, v1/ (chat, mentors, admin)
 │   ├── schemas/                # request and response bodies (common, health, v1/)
-│   ├── dependencies.py         # FastAPI dependencies, API-key auth
-│   ├── errors.py               # exceptions and the handlers that render them
-│   ├── request_context.py      # request ids and CORS middleware
+│   ├── core/                   # shared plumbing:
+│   │   ├── bootstrap.py        #   composition root: builds models, graph, checkpointer
+│   │   ├── dependencies.py     #   FastAPI dependencies, API-key auth
+│   │   ├── errors.py           #   exceptions and the handlers that render them
+│   │   ├── logs.py             #   loguru setup
+│   │   ├── request_context.py  #   request ids and CORS middleware
+│   │   └── tracing.py          #   Opik integration
 │   ├── config/                 # settings, one module per concern
-│   ├── logs.py                 # loguru setup
-│   ├── tracing.py              # Opik integration
+│   ├── integrations/           # optional Exa, Firecrawl, Arcade clients and their factory
 │   ├── export_openapi.py       # the OpenAPI document for libs/mentor-agent-contracts
-│   ├── bootstrap.py            # composition root: builds models, graph, checkpointer
 │   ├── cli.py                  # Typer CLI (`mentor-agent`)
 │   ├── services/               # use cases: conversations, mentors, maintenance
 │   ├── chat/                   # LangGraph agent: state, prompts, chains, nodes, graph
