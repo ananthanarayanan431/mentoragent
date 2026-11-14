@@ -16,6 +16,12 @@ updates:
       # One PR for the routine patch/minor bumps; majors still come separately.
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # TypeScript 7 is the native port with no JavaScript compiler API, which
+      # openapi-typescript needs to generate libs/mentor-agent-contracts. web/
+      # is already on 7; move the rest by hand once openapi-typescript supports it.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: docker
     directories:
