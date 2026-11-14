@@ -64,6 +64,13 @@ def test_seed_prompt_carries_links_and_fenced_notes(mentor_extract: MentorExtrac
     assert prompt.startswith("Research this person: Ada Lovelace")
     assert "https://x.com/ada" in prompt
     assert "<seed>\nMy post\n</seed>" in prompt
+    assert "Search results" not in prompt
+
+
+def test_seed_prompt_fences_search_leads(mentor_extract: MentorExtract) -> None:
+    prompt = seed_prompt(mentor_extract, leads="  https://linkedin.com/in/ada\nProfile ")
+    assert "different person with the same name" in prompt
+    assert prompt.endswith("<seed>\nhttps://linkedin.com/in/ada\nProfile\n</seed>")
 
 
 def test_research_changes_fill_blanks_add_new_links_and_the_profile(
@@ -93,8 +100,13 @@ def _response(stop_reason: str, *texts: str) -> SimpleNamespace:
     return SimpleNamespace(stop_reason=stop_reason, content=content)
 
 
+class _Leads:
+    async def find(self, mentor: MentorExtract) -> str:
+        return f"LinkedIn profile of {mentor.name}"
+
+
 def _researcher(
-    responses: list[Any] | Exception, extracted: Any = FINDINGS
+    responses: list[Any] | Exception, extracted: Any = FINDINGS, leads: Any = None
 ) -> tuple[ClaudeResearcher, AsyncMock]:
     create = AsyncMock(side_effect=responses)
     client = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=create)))
@@ -107,6 +119,7 @@ def _researcher(
         lambda: cast("BaseChatModel", extract_model),
         model="claude-sonnet-5-5",
         max_searches=3,
+        leads=leads,
     )
     return researcher, create
 
@@ -125,6 +138,15 @@ async def test_research_resumes_a_paused_search_and_extracts_findings(
     tools = create.await_args_list[0].kwargs["tools"]
     assert [t["type"] for t in tools] == ["web_search_20260209", "web_fetch_20260209"]
     assert tools[0]["max_uses"] == 3
+
+
+async def test_research_sends_search_leads_in_the_seed(mentor_extract: MentorExtract) -> None:
+    researcher, create = _researcher([_response("end_turn", "Report")], leads=_Leads())
+
+    assert await researcher.research(mentor_extract) == FINDINGS
+
+    seed = create.await_args_list[0].kwargs["messages"][0]["content"]
+    assert "<seed>\nLinkedIn profile of Ada Lovelace\n</seed>" in seed
 
 
 async def test_research_returns_none_on_api_error(mentor_extract: MentorExtract) -> None:

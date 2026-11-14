@@ -31,6 +31,7 @@ dependencies = [
     "pypdf>=5.7.0",
     "tiktoken>=0.8.0",
     "tqdm>=4.66.0",
+    "httpx>=0.28.0",
     "youtube-transcript-api>=1.1.0",
     "beautifulsoup4>=4.12",
 ]
@@ -68,7 +69,7 @@ branch = true
 [tool.coverage.report]
 # Measured over every module, including ones no test imports yet (evals,
 # full memory creation). Raise it as those get tests; never lower it.
-fail_under = 73
+fail_under = 74
 show_missing = true
 skip_covered = true
 exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]

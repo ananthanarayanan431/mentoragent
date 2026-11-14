@@ -34,6 +34,7 @@
 | `mentor_agent/services/mentors.py`      | The catalogue: list, add (pool or custom), edit, memory status    |
 | `mentor_agent/services/custom.py`       | Ids for custom mentors, from their name (pure, tested)            |
 | `mentor_agent/services/research.py`     | Web research on a custom mentor (Claude web search), link filters |
+| `mentor_agent/services/exa.py`          | Optional Exa search (LinkedIn, personal sites) fed into research  |
 | `mentor_agent/services/enrich.py`       | Background job: research, complete the mentor, build memory       |
 | `mentor_agent/services/persona.py`      | Persona from name + notes; fallback when research is off or fails |
 | `mentor_agent/services/pool.py`         | The random pick from `data/mentor_pool.json` (pure, tested)       |

@@ -34,9 +34,12 @@ if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
 
     from mentor_agent.models.mentor_extract import MentorExtract
+    from mentor_agent.services.exa import LeadFinder
 
 #: Pasted text sent as a lead; enough to tell who the person is.
 SEED_NOTES_CHAR_BUDGET = 4_000
+#: Exa search text sent as a lead; mostly LinkedIn profiles the server cannot fetch.
+SEED_LEADS_CHAR_BUDGET = 8_000
 #: A long search can pause; resume it at most this many times.
 MAX_CONTINUATIONS = 3
 #: How many found links of each kind are kept.
@@ -107,8 +110,9 @@ class MentorResearcher(Protocol):
     async def research(self, mentor: MentorExtract) -> ResearchFindings | None: ...
 
 
-def seed_prompt(mentor: MentorExtract) -> str:
-    """The lead for the research: the name and everything the user gave."""
+def seed_prompt(mentor: MentorExtract, leads: str = "") -> str:
+    """The lead for the research: the name, everything the user gave, and any
+    search results found beforehand (``leads``)."""
     parts = [f"Research this person: {mentor.name}"]
     links = [*mentor.youtube_videos, *mentor.websites, *mentor.pdfs]
     if mentor.twitter_handle:
@@ -120,6 +124,13 @@ def seed_prompt(mentor: MentorExtract) -> str:
         parts.append(
             "Text the user pasted, by or about them:\n"
             f"<seed>\n{notes[:SEED_NOTES_CHAR_BUDGET]}\n</seed>"
+        )
+    leads = leads.strip()
+    if leads:
+        parts.append(
+            "Search results for this name, including LinkedIn profiles you cannot "
+            "fetch. Some may be about a different person with the same name:\n"
+            f"<seed>\n{leads[:SEED_LEADS_CHAR_BUDGET]}\n</seed>"
         )
     return "\n\n".join(parts)
 
@@ -175,6 +186,7 @@ class ClaudeResearcher:
             :class:`ResearchFindings`.
         model: The research model.
         max_searches: Web searches allowed per person.
+        leads: Optional search run first (Exa), whose text joins the lead.
     """
 
     def __init__(
@@ -183,16 +195,19 @@ class ClaudeResearcher:
         extract_model_factory: Callable[[], BaseChatModel],
         model: str,
         max_searches: int,
+        leads: LeadFinder | None = None,
     ) -> None:
         self.client_factory = client_factory
         self.extract_model_factory = extract_model_factory
         self.model = model
         self.max_searches = max_searches
+        self.leads = leads
 
     async def research(self, mentor: MentorExtract) -> ResearchFindings | None:
         log = logger.bind(mentor_id=mentor.id)
         try:
-            report = await self._search(mentor)
+            leads = await self.leads.find(mentor) if self.leads else ""
+            report = await self._search(mentor, leads)
         except (anthropic.APIError, MissingSettingError):
             log.exception("Web research failed")
             return None
@@ -225,9 +240,9 @@ class ClaudeResearcher:
         }
         return [search, fetch]
 
-    async def _search(self, mentor: MentorExtract) -> str:
+    async def _search(self, mentor: MentorExtract, leads: str) -> str:
         client = self.client_factory()
-        seed: BetaMessageParam = {"role": "user", "content": seed_prompt(mentor)}
+        seed: BetaMessageParam = {"role": "user", "content": seed_prompt(mentor, leads)}
         messages: list[BetaMessageParam] = [seed]
         responses: list[BetaMessage] = []
         so_far: list[Any] = []

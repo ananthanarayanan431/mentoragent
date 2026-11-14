@@ -30,6 +30,7 @@ from mentor_agent.config.cors import CorsSettings
 from mentor_agent.config.integrations import (
     ArcadeSettings,
     CometSettings,
+    ExaSettings,
     LangSmithSettings,
 )
 from mentor_agent.config.llm import AnthropicSettings, OpenRouterSettings
@@ -62,6 +63,7 @@ class Settings(BaseSettings):
         arcade: Arcade tool-calling credentials.
         langsmith: LangSmith tracing configuration.
         comet: Comet ML and Opik configuration.
+        exa: Exa search credentials, used to research custom mentors.
         paths: On-disk data file locations.
     """
 
@@ -84,6 +86,7 @@ class Settings(BaseSettings):
     arcade: ArcadeSettings = Field(default_factory=ArcadeSettings)
     langsmith: LangSmithSettings = Field(default_factory=LangSmithSettings)
     comet: CometSettings = Field(default_factory=CometSettings)
+    exa: ExaSettings = Field(default_factory=ExaSettings)
     paths: PathSettings = Field(default_factory=PathSettings)
 
 
@@ -97,6 +100,7 @@ __all__ = [
     "ArcadeSettings",
     "CometSettings",
     "CorsSettings",
+    "ExaSettings",
     "LangSmithSettings",
     "MongoSettings",
     "OpenRouterSettings",

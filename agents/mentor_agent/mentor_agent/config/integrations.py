@@ -68,3 +68,28 @@ class CometSettings(BaseSettings):
     @property
     def is_configured(self) -> bool:
         return self.API_KEY is not None
+
+
+class ExaSettings(BaseSettings):
+    """Exa search credentials, used when researching a custom mentor.
+
+    Optional: without a key, research runs on Claude's web search alone. Exa adds
+    text from pages the server cannot read itself, such as LinkedIn profiles.
+
+    Attributes:
+        API_KEY: The Exa API key.
+        BASE_URL: The Exa API endpoint.
+        TIMEOUT_SECONDS: Timeout for one Exa search.
+        RESULTS_PER_SEARCH: Results kept from each search (each one is billed).
+    """
+
+    model_config = settings_config("EXA_")
+
+    API_KEY: OptionalSecret = None
+    BASE_URL: str = "https://api.exa.ai"
+    TIMEOUT_SECONDS: float = Field(default=30.0, gt=0)
+    RESULTS_PER_SEARCH: int = Field(default=3, ge=1, le=10)
+
+    @property
+    def is_configured(self) -> bool:
+        return self.API_KEY is not None
