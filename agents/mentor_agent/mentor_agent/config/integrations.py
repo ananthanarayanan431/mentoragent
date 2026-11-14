@@ -70,6 +70,25 @@ class CometSettings(BaseSettings):
         return self.API_KEY is not None
 
 
+class FirecrawlSettings(BaseSettings):
+    """Firecrawl credentials, used to read web pages for a mentor's memory.
+
+    Optional: without a key, pages are read with a plain fetch. With one, each page
+    is read as its main content (no menus or footers), which retrieves better.
+
+    Attributes:
+        API_KEY: The Firecrawl API key.
+        BASE_URL: The Firecrawl API endpoint.
+        TIMEOUT_SECONDS: Timeout for reading one page.
+    """
+
+    model_config = settings_config("FIRECRAWL_")
+
+    API_KEY: OptionalSecret = None
+    BASE_URL: str = "https://api.firecrawl.dev"
+    TIMEOUT_SECONDS: float = Field(default=60.0, gt=0)
+
+
 class ExaSettings(BaseSettings):
     """Exa search credentials, used when researching a custom mentor.
 

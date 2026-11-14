@@ -31,6 +31,7 @@ from mentor_agent.config.integrations import (
     ArcadeSettings,
     CometSettings,
     ExaSettings,
+    FirecrawlSettings,
     LangSmithSettings,
 )
 from mentor_agent.config.llm import AnthropicSettings, OpenRouterSettings
@@ -64,6 +65,7 @@ class Settings(BaseSettings):
         langsmith: LangSmith tracing configuration.
         comet: Comet ML and Opik configuration.
         exa: Exa search credentials, used to research custom mentors.
+        firecrawl: Firecrawl credentials, used to read web pages for memory.
         paths: On-disk data file locations.
     """
 
@@ -87,6 +89,7 @@ class Settings(BaseSettings):
     langsmith: LangSmithSettings = Field(default_factory=LangSmithSettings)
     comet: CometSettings = Field(default_factory=CometSettings)
     exa: ExaSettings = Field(default_factory=ExaSettings)
+    firecrawl: FirecrawlSettings = Field(default_factory=FirecrawlSettings)
     paths: PathSettings = Field(default_factory=PathSettings)
 
 
@@ -101,6 +104,7 @@ __all__ = [
     "CometSettings",
     "CorsSettings",
     "ExaSettings",
+    "FirecrawlSettings",
     "LangSmithSettings",
     "MongoSettings",
     "OpenRouterSettings",

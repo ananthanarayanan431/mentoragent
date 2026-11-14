@@ -17,33 +17,34 @@
 
 ## Key Files
 
-| File                                    | Purpose                                                           |
-| --------------------------------------- | ----------------------------------------------------------------- |
-| `mentor_agent/server.py`                | App factory and lifespan (builds shared services once)            |
-| `mentor_agent/main.py`                  | Uvicorn entry point                                               |
-| `mentor_agent/routes/health.py`         | `/health` and `/ready` (unversioned)                              |
-| `mentor_agent/routes/v1/`               | Chat (HTTP + WebSocket), mentors, admin; mounted in `__init__.py` |
-| `mentor_agent/schemas/`                 | Request and response bodies (`common`, `health`, `v1/*`)          |
-| `mentor_agent/dependencies.py`          | FastAPI dependencies: services from app state, API-key auth       |
-| `mentor_agent/errors.py`                | `MentorAgentError` subclasses and the handlers that render them   |
-| `mentor_agent/request_context.py`       | Request id on every request and log line, CORS                    |
-| `mentor_agent/config/`                  | `settings.<group>.<FIELD>`, one module per group; `API_V1_PREFIX` |
-| `mentor_agent/bootstrap.py`             | Composition root: models, retriever, graph, checkpointer          |
-| `mentor_agent/chat/graph.py`            | The LangGraph graph, and the `MentorGraph` / `Checkpointer` types |
-| `mentor_agent/services/conversation.py` | One chat turn (invoke or stream) and conversation deletion        |
-| `mentor_agent/services/mentors.py`      | The catalogue: list, add (pool or custom), edit, memory status    |
-| `mentor_agent/services/custom.py`       | Ids for custom mentors, from their name (pure, tested)            |
-| `mentor_agent/services/research.py`     | Web research on a custom mentor (Claude web search), link filters |
-| `mentor_agent/services/exa.py`          | Optional Exa search (LinkedIn, personal sites) fed into research  |
-| `mentor_agent/services/enrich.py`       | Background job: research, complete the mentor, build memory       |
-| `mentor_agent/services/persona.py`      | Persona from name + notes; fallback when research is off or fails |
-| `mentor_agent/services/pool.py`         | The random pick from `data/mentor_pool.json` (pure, tested)       |
-| `mentor_agent/services/memory.py`       | One mentor's background memory build; records ready or failed     |
-| `mentor_agent/rag/`                     | Extractors, splitter, embeddings, hybrid retriever, memory        |
-| `mentor_agent/tracing.py`               | Opik tracing and dataset helpers (optional)                       |
-| `mentor_agent/export_openapi.py`        | The OpenAPI document the web contract is generated from           |
-| `tests/unit/`, `tests/contract/`        | Module tests; the HTTP/WebSocket API as clients see it            |
-| `tests/fakes.py`                        | Scripted chat model, in-memory checkpointer and services          |
+| File                                       | Purpose                                                             |
+| ------------------------------------------ | ------------------------------------------------------------------- |
+| `mentor_agent/server.py`                   | App factory and lifespan (builds shared services once)              |
+| `mentor_agent/main.py`                     | Uvicorn entry point                                                 |
+| `mentor_agent/routes/health.py`            | `/health` and `/ready` (unversioned)                                |
+| `mentor_agent/routes/v1/`                  | Chat (HTTP + WebSocket), mentors, admin; mounted in `__init__.py`   |
+| `mentor_agent/schemas/`                    | Request and response bodies (`common`, `health`, `v1/*`)            |
+| `mentor_agent/dependencies.py`             | FastAPI dependencies: services from app state, API-key auth         |
+| `mentor_agent/errors.py`                   | `MentorAgentError` subclasses and the handlers that render them     |
+| `mentor_agent/request_context.py`          | Request id on every request and log line, CORS                      |
+| `mentor_agent/config/`                     | `settings.<group>.<FIELD>`, one module per group; `API_V1_PREFIX`   |
+| `mentor_agent/bootstrap.py`                | Composition root: models, retriever, graph, checkpointer            |
+| `mentor_agent/chat/graph.py`               | The LangGraph graph, and the `MentorGraph` / `Checkpointer` types   |
+| `mentor_agent/services/conversation.py`    | One chat turn (invoke or stream) and conversation deletion          |
+| `mentor_agent/services/mentors.py`         | The catalogue: list, add (pool or custom), edit, memory status      |
+| `mentor_agent/services/custom.py`          | Ids for custom mentors, from their name (pure, tested)              |
+| `mentor_agent/services/research.py`        | Web research on a custom mentor (Claude web search), link filters   |
+| `mentor_agent/services/exa.py`             | Optional Exa search (LinkedIn, personal sites) fed into research    |
+| `mentor_agent/services/enrich.py`          | Background job: research, complete the mentor, build memory         |
+| `mentor_agent/services/persona.py`         | Persona from name + notes; fallback when research is off or fails   |
+| `mentor_agent/services/pool.py`            | The random pick from `data/mentor_pool.json` (pure, tested)         |
+| `mentor_agent/services/memory.py`          | One mentor's background memory build; records ready or failed       |
+| `mentor_agent/rag/`                        | Extractors, splitter, embeddings, hybrid retriever, memory          |
+| `mentor_agent/rag/extractors/firecrawl.py` | Optional Firecrawl page reader (main content); plain fetch fallback |
+| `mentor_agent/tracing.py`                  | Opik tracing and dataset helpers (optional)                         |
+| `mentor_agent/export_openapi.py`           | The OpenAPI document the web contract is generated from             |
+| `tests/unit/`, `tests/contract/`           | Module tests; the HTTP/WebSocket API as clients see it              |
+| `tests/fakes.py`                           | Scripted chat model, in-memory checkpointer and services            |
 
 ## Rules
 

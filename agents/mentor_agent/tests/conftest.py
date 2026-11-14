@@ -17,6 +17,8 @@ _TEST_ENV = {
     "LANGSMITH_TRACING": "false",
     "ADDITIONAL_CORS_ORIGINS": "http://allowed.test",
     "COMET_API_KEY": "",
+    "EXA_API_KEY": "",
+    "FIRECRAWL_API_KEY": "",
     "API_KEY": "",
 }
 os.environ.update(_TEST_ENV)

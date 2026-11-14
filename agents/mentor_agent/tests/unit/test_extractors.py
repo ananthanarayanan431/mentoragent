@@ -128,6 +128,32 @@ def test_websites_load_each_page_and_skip_failures(mentor_extract: MentorExtract
     assert docs[0].metadata["source_url"] == "https://a.test"
 
 
+class _Reader:
+    def __init__(self, pages: dict[str, str]) -> None:
+        self.pages = pages
+
+    def read(self, url: str) -> str:
+        return self.pages.get(url, "")
+
+
+def test_websites_prefer_the_reader_and_fall_back_to_a_plain_fetch(
+    mentor_extract: MentorExtract,
+) -> None:
+    sites = ["https://spa.test", "https://plain.test"]
+    reader = _Reader({"https://spa.test": "Main content"})
+    fetched: list[str] = []
+
+    def loader(web_paths: list[str], **_: Any) -> MagicMock:
+        fetched.extend(web_paths)
+        return _loader(["Fetched text"])
+
+    with patch(WEB_LOADER, side_effect=loader):
+        docs = extract_websites(mentor_extract.model_copy(update={"websites": sites}), reader)
+
+    assert [d.page_content for d in docs] == ["Main content", "Fetched text"]
+    assert fetched == ["https://plain.test"]
+
+
 def test_notes_become_documents_and_blank_ones_are_dropped(
     mentor_extract: MentorExtract,
 ) -> None:
