@@ -1,31 +1,34 @@
-"""LangChain chat models served through OpenRouter."""
+"""LangChain chat models served by Anthropic (Claude Haiku / Sonnet)."""
 
 from __future__ import annotations
 
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 
 from mentor_agent.config import settings
+from mentor_agent.config.llm import thinking_off
 
 
-def build_chat_model(model: str | None = None, temperature: float | None = None) -> ChatOpenAI:
-    """Return a chat model pointed at OpenRouter's OpenAI-compatible API.
+def build_chat_model(model: str | None = None) -> ChatAnthropic:
+    """Return a Claude chat model with thinking off, to keep calls cheap.
+
+    No temperature is sent: current Claude models reject non-default sampling values.
 
     Args:
-        model: OpenRouter model slug. Defaults to ``OPENROUTER_LLM_MODEL``.
-        temperature: Sampling temperature. Defaults to ``OPENROUTER_TEMPERATURE``.
+        model: Claude model id. Defaults to ``ANTHROPIC_LLM_MODEL``.
     """
-    config = settings.openrouter
-    return ChatOpenAI(
-        model=model or config.LLM_MODEL,
+    config = settings.anthropic
+    model_name = model or config.LLM_MODEL
+    return ChatAnthropic(
+        model_name=model_name,
         api_key=config.require_api_key(),
-        base_url=config.BASE_URL,
-        default_headers=config.default_headers,
-        temperature=config.TEMPERATURE if temperature is None else temperature,
+        max_tokens_to_sample=config.MAX_TOKENS,
         timeout=config.TIMEOUT_SECONDS,
         max_retries=config.MAX_RETRIES,
+        thinking=thinking_off(model_name),
+        stop=None,
     )
 
 
-def build_summary_model() -> ChatOpenAI:
-    """Return the cheaper, deterministic model used for summaries."""
-    return build_chat_model(settings.openrouter.LLM_MODEL_CONTEXT_SUMMARY, temperature=0.0)
+def build_summary_model() -> ChatAnthropic:
+    """Return the cheaper model used for summaries."""
+    return build_chat_model(settings.anthropic.LLM_MODEL_CONTEXT_SUMMARY)

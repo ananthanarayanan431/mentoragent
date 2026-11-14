@@ -59,7 +59,7 @@ and Node (see `.nvmrc`) with pnpm 10.
 ```bash
 cp infra/.env.example infra/.env                            # MongoDB credentials
 make -C infra up                                            # MongoDB, waits until healthy
-make -C agents/mentor_agent env                             # then fill in OPENROUTER_API_KEY
+make -C agents/mentor_agent env                             # then fill in ANTHROPIC_API_KEY, OPENROUTER_API_KEY
 make -C agents/mentor_agent seed                            # first run only: mentors + long-term memory
 agents/mentor_agent/run.sh                                  # API on :8000 (docs at /docs)
 pnpm install && pnpm dev                                    # web app on :5173
@@ -69,8 +69,8 @@ The web dev server proxies `/api` (WebSocket included) to the agent, so there is
 no CORS setup. To run everything in containers instead:
 `make -C infra stack-up`, then open <http://localhost:8080>.
 
-`OPENROUTER_API_KEY` is the only required key: chat and embeddings both go through
-OpenRouter. Arcade (tweets), LangSmith and Comet/Opik (tracing, evaluation) are
+`ANTHROPIC_API_KEY` (chat, Claude Haiku / Sonnet) and `OPENROUTER_API_KEY`
+(embeddings only) are the required keys. Arcade (tweets), LangSmith and Comet/Opik (tracing, evaluation) are
 optional; `agents/mentor_agent/.env.example` documents every variable.
 
 ## Repository layout

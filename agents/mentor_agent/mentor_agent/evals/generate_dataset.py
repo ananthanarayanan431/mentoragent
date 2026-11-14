@@ -21,18 +21,15 @@ class EvaluationDatasetGenerator:
     """Generate synthetic evaluation conversations from the mentors' documents.
 
     Args:
-        temperature: Sampling temperature of the generating LLM.
         max_samples: Stop once this many valid samples exist.
         request_interval: Seconds to wait between LLM calls (rate limiting).
     """
 
     def __init__(
         self,
-        temperature: float = 0.8,
         max_samples: int = 40,
         request_interval: float = 1.0,
     ) -> None:
-        self.temperature = temperature
         self.max_samples = max_samples
         self.request_interval = request_interval
         self.extractor = Extractor()
@@ -89,13 +86,13 @@ class EvaluationDatasetGenerator:
 
     def _build_chain(self) -> Runnable[dict[str, object], EvaluationDatasetSample]:
         """Build the prompt -> LLM chain that emits one structured sample."""
-        model = build_chat_model(temperature=self.temperature)
+        model = build_chat_model()
 
         prompt = ChatPromptTemplate.from_messages(
             [("system", EVALUATE_DATASET_GENERATION_PROMPT.prompt)],
             template_format="jinja2",
         )
-        return prompt | model.with_structured_output(EvaluationDatasetSample)  # type: ignore[return-value]
+        return prompt | model.with_structured_output(EvaluationDatasetSample, method="json_schema")  # type: ignore[return-value]
 
     @staticmethod
     def _build_splitter(max_token_limit: int = 6000) -> RecursiveCharacterTextSplitter:

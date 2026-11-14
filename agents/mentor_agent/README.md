@@ -17,7 +17,8 @@ history in MongoDB, summarising it as it grows.
 | Concern                  | Choice                                                                             |
 | ------------------------ | ---------------------------------------------------------------------------------- |
 | Language / packaging     | Python 3.12, [uv](https://docs.astral.sh/uv/)                                      |
-| LLM & embeddings         | [OpenRouter](https://openrouter.ai) via `langchain-openai` (OpenAI-compatible API) |
+| LLM                      | Anthropic Claude Haiku / Sonnet via `langchain-anthropic`                          |
+| Embeddings               | [OpenRouter](https://openrouter.ai) via `langchain-openai` (OpenAI-compatible API) |
 | Database & vector search | MongoDB Atlas Local 8.0 (Docker)                                                   |
 | RAG plumbing             | LangChain loaders, splitters and `langchain-mongodb`                               |
 | Agent orchestration      | LangGraph, conversations checkpointed in MongoDB                                   |
@@ -33,7 +34,7 @@ Docker with the Compose plugin. From this directory:
 
 ```bash
 make install               # uv sync: create .venv from uv.lock
-make env                   # copy .env.example to .env, then fill in OPENROUTER_API_KEY
+make env                   # copy .env.example to .env, then fill in ANTHROPIC_API_KEY and OPENROUTER_API_KEY
 make -C ../../infra up     # start MongoDB Atlas Local and wait until it is healthy
 make seed                  # load the mentors, then build their long-term memory
 ./run.sh                   # run the API with autoreload on http://localhost:8000
@@ -158,7 +159,7 @@ so `MONGO_URI` becomes `settings.mongo.URI`:
 from mentor_agent.config import settings
 
 settings.mongo.URI
-settings.openrouter.LLM_MODEL
+settings.anthropic.LLM_MODEL
 ```
 
 Every group can also be built on its own, which helps when debugging one piece:
@@ -169,7 +170,9 @@ from mentor_agent.config import MongoSettings
 MongoSettings()
 ```
 
-Only `OPENROUTER_API_KEY` is required; it serves both chat and embeddings.
+`ANTHROPIC_API_KEY` (chat) and `OPENROUTER_API_KEY` (embeddings) are required.
+Chat models are limited to `claude-haiku-*` and `claude-sonnet-*`; Haiku is the
+default to keep cost down, and thinking is turned off on every call.
 Optional integrations switch on when their keys are set (a blank value counts
 as unset):
 
@@ -191,7 +194,7 @@ Every other variable has a default. [`.env.example`](.env.example) lists them al
 The agent uses LangChain chat models from
 [`chat/llm.py`](mentor_agent/chat/llm.py). For direct calls outside
 the graph, `Models` in [`chat/model.py`](mentor_agent/chat/model.py)
-is a thin async wrapper around the OpenAI SDK, pointed at OpenRouter.
+is a thin async wrapper around the Anthropic SDK.
 
 ```python
 from pydantic import BaseModel
@@ -205,7 +208,7 @@ class Plan(BaseModel):
 
 messages = [{"role": "user", "content": "Plan a week of learning RAG"}]
 
-async with Models("openai/gpt-4o-mini") as llm:
+async with Models("claude-haiku-5-5") as llm:
     text = await llm.generate(messages)
 
     async for token in llm.stream(messages):
@@ -214,8 +217,8 @@ async with Models("openai/gpt-4o-mini") as llm:
     plan = await llm.generate_structured(messages, Plan)  # returns a Plan
 ```
 
-`generate_structured` sends the Pydantic model as a strict JSON schema, so pick
-an OpenRouter model that supports structured outputs.
+`generate_structured` uses Claude structured outputs (`messages.parse`), so the
+reply always validates against the Pydantic model.
 
 ## Local MongoDB
 

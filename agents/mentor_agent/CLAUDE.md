@@ -57,7 +57,8 @@
 - No side effects at import time; never construct a `MongoClient` directly
   (use `db.client.get_mongo_client()`).
 - Secrets are `SecretStr`; never log them, prompts or retrieved documents.
-- Read the OpenRouter key with `settings.openrouter.require_api_key()` where a model
+- Read the Anthropic key with `settings.anthropic.require_api_key()` (chat) and the
+  OpenRouter key with `settings.openrouter.require_api_key()` (embeddings) where a model
   is called, never at import: commands that call no model must work without it.
 - Anything that costs money or changes data (add, edit, rebuild, reset) depends on
   `require_api_key_in_production`.
@@ -69,7 +70,7 @@
 
 ```bash
 make -C ../../infra up     # MongoDB
-make env                   # create .env, then fill in OPENROUTER_API_KEY
+make env                   # create .env, then fill in ANTHROPIC_API_KEY and OPENROUTER_API_KEY
 ./run.sh                   # API with reload on :8000 (./run.sh seed: mentors + memory)
 make fmt                   # ruff format + safe fixes
 make test                  # = scripts/ci/python-checks.sh agents/mentor_agent unit

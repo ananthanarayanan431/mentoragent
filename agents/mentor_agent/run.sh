@@ -25,7 +25,7 @@ load_env() {
         set +a
     fi
     local missing=()
-    for name in OPENROUTER_API_KEY MONGO_URI; do
+    for name in ANTHROPIC_API_KEY OPENROUTER_API_KEY MONGO_URI; do
         [ -n "${!name:-}" ] || missing+=("$name")
     done
     if [ "${#missing[@]}" -gt 0 ]; then

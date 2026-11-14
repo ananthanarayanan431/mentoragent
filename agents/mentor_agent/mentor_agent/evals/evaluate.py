@@ -91,7 +91,7 @@ def evaluate_agent(dataset: opik.Dataset, workers: int = 2, nb_samples: int | No
             task=lambda sample: runner.run(evaluation_task(sample, conversations, mentors)),
             scoring_metrics=scoring_metrics,
             experiment_config={
-                "model_id": settings.openrouter.LLM_MODEL,
+                "model_id": settings.anthropic.LLM_MODEL,
                 "dataset_name": dataset.name,
             },
             task_threads=workers,

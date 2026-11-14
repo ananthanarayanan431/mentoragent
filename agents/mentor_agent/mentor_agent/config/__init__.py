@@ -14,7 +14,7 @@ Normal application code uses the composed singleton::
     from mentor_agent.config import settings
 
     settings.mongo.URI
-    settings.openrouter.LLM_MODEL
+    settings.anthropic.LLM_MODEL
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from mentor_agent.config.integrations import (
     CometSettings,
     LangSmithSettings,
 )
-from mentor_agent.config.llm import OpenRouterSettings
+from mentor_agent.config.llm import AnthropicSettings, OpenRouterSettings
 from mentor_agent.config.mongo import MongoSettings
 from mentor_agent.config.paths import PathSettings
 from mentor_agent.config.rag import RagSettings
@@ -55,7 +55,8 @@ class Settings(BaseSettings):
         server: Uvicorn / FastAPI bind settings.
         cors: Extra browser origins allowed to call the API.
         mongo: MongoDB connection and collection names.
-        openrouter: OpenRouter credentials and model selection.
+        anthropic: Anthropic (Claude) credentials and model selection for chat.
+        openrouter: OpenRouter credentials, used only for embeddings.
         agent: Conversation behaviour and limits.
         rag: Embedding model and retrieval tuning.
         arcade: Arcade tool-calling credentials.
@@ -73,6 +74,7 @@ class Settings(BaseSettings):
     server: ServerSettings = Field(default_factory=ServerSettings)
     cors: CorsSettings = Field(default_factory=CorsSettings)
     mongo: MongoSettings = Field(default_factory=MongoSettings)
+    anthropic: AnthropicSettings = Field(default_factory=AnthropicSettings)
     # API_KEY is required but read from the environment, which pyright cannot see.
     openrouter: OpenRouterSettings = Field(
         default_factory=lambda: OpenRouterSettings()  # pyright: ignore[reportCallIssue]
@@ -90,6 +92,7 @@ settings = Settings()
 __all__ = [
     "API_V1_PREFIX",
     "AgentSettings",
+    "AnthropicSettings",
     "AppSettings",
     "ArcadeSettings",
     "CometSettings",

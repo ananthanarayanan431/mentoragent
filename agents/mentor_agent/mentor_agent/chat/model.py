@@ -2,100 +2,84 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Self, TypeVar, cast
 
-from openai import AsyncOpenAI
+from anthropic import AsyncAnthropic
 from pydantic import BaseModel
 
 from mentor_agent.config import settings
+from mentor_agent.config.llm import thinking_off
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
     from types import TracebackType
 
-    from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
+    from anthropic.types import Message, MessageParam
 
 SchemaT = TypeVar("SchemaT", bound=BaseModel)
 
 
 class Models:
     """
-    Async chat model client backed by OpenRouter's OpenAI-compatible API.
+    Async chat model client backed by the Anthropic API (Claude Haiku / Sonnet).
     """
 
-    def __init__(
-        self,
-        model_name: str | None = None,
-        temperature: float | None = None,
-    ) -> None:
+    def __init__(self, model_name: str | None = None) -> None:
         """
-        Initialize the OpenRouter client.
+        Initialize the Anthropic client.
 
         Args:
-            model_name: OpenRouter model slug, e.g. ``"openai/gpt-4o-mini"``.
-                Defaults to ``settings.openrouter.LLM_MODEL``.
-            temperature: Sampling temperature. Defaults to
-                ``settings.openrouter.TEMPERATURE``.
+            model_name: Claude model id, e.g. ``"claude-haiku-5-5"``.
+                Defaults to ``settings.anthropic.LLM_MODEL``.
         """
-        config = settings.openrouter
+        config = settings.anthropic
         self.model_name = model_name or config.LLM_MODEL
-        self.temperature = config.TEMPERATURE if temperature is None else temperature
-
-        headers: dict[str, str] = {}
-        if config.APP_URL:
-            headers["HTTP-Referer"] = config.APP_URL
-        if config.APP_NAME:
-            headers["X-Title"] = config.APP_NAME
-
-        self.client = AsyncOpenAI(
+        self.max_tokens = config.MAX_TOKENS
+        self.client = AsyncAnthropic(
             api_key=config.require_api_key().get_secret_value(),
-            base_url=config.BASE_URL,
-            default_headers=headers,
+            timeout=config.TIMEOUT_SECONDS,
+            max_retries=config.MAX_RETRIES,
         )
 
-    async def generate(
-        self,
-        messages: list[ChatCompletionMessageParam],
-        **kwargs: Any,
-    ) -> str:
+    def _request(self, messages: list[MessageParam], kwargs: dict[str, Any]) -> dict[str, Any]:
+        """Common request arguments; ``kwargs`` (e.g. ``system``) override the defaults."""
+        return {
+            "model": self.model_name,
+            "max_tokens": self.max_tokens,
+            "thinking": thinking_off(self.model_name),
+            "messages": messages,
+            **kwargs,
+        }
+
+    async def generate(self, messages: list[MessageParam], **kwargs: Any) -> str:
         """
-        Get a single chat completion.
+        Get a single message.
 
         Args:
-            messages: OpenAI-format chat messages.
-            **kwargs: Extra ``chat.completions.create`` arguments
-                (e.g. ``max_tokens``, ``tools``, ``response_format``).
+            messages: Anthropic-format messages (``user`` / ``assistant`` turns).
+            **kwargs: Extra ``messages.create`` arguments (e.g. ``system``, ``max_tokens``).
 
         Returns:
-            The assistant message content.
+            The text of the reply.
         """
-        # Spreading **kwargs hides which create() overload applies; without
+        # Spreading the request hides which create() overload applies; without
         # stream=True it is always the non-streaming one.
         response = cast(
-            "ChatCompletion",
-            await self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                temperature=self.temperature,
-                **kwargs,
-            ),
+            "Message", await self.client.messages.create(**self._request(messages, kwargs))
         )
-        return response.choices[0].message.content or ""
+        return "".join(block.text for block in response.content if block.type == "text")
 
     async def generate_structured(
         self,
-        messages: list[ChatCompletionMessageParam],
+        messages: list[MessageParam],
         response_schema: type[SchemaT],
         **kwargs: Any,
     ) -> SchemaT:
         """
-        Get a chat completion parsed into a Pydantic model.
-
-        The schema is sent as a strict ``json_schema`` response format, so the
-        chosen OpenRouter model must support structured outputs.
+        Get a message parsed into a Pydantic model, using structured outputs.
 
         Args:
-            messages: OpenAI-format chat messages.
+            messages: Anthropic-format messages.
             response_schema: Pydantic model describing the expected response.
-            **kwargs: Extra ``chat.completions.parse`` arguments.
+            **kwargs: Extra ``messages.parse`` arguments.
 
         Returns:
             An instance of ``response_schema``.
@@ -103,47 +87,31 @@ class Models:
         Raises:
             ValueError: If the model refused or returned no parsable content.
         """
-        response = await self.client.chat.completions.parse(
-            model=self.model_name,
-            messages=messages,
-            temperature=self.temperature,
-            response_format=response_schema,
-            **kwargs,
+        response = await self.client.messages.parse(
+            **self._request(messages, kwargs), output_format=response_schema
         )
-        message = response.choices[0].message
-        if message.parsed is None:
+        if response.parsed_output is None:
             msg = (
-                f"Model returned no parsable {response_schema.__name__}: "
-                f"{message.refusal or message.content!r}"
+                f"Model returned no parsable {response_schema.__name__} "
+                f"(stop_reason={response.stop_reason})"
             )
             raise ValueError(msg)
-        return message.parsed
+        return response.parsed_output
 
-    async def stream(
-        self,
-        messages: list[ChatCompletionMessageParam],
-        **kwargs: Any,
-    ) -> AsyncIterator[str]:
+    async def stream(self, messages: list[MessageParam], **kwargs: Any) -> AsyncIterator[str]:
         """
-        Stream a chat completion token by token.
+        Stream a message token by token.
 
         Args:
-            messages: OpenAI-format chat messages.
-            **kwargs: Extra ``chat.completions.create`` arguments.
+            messages: Anthropic-format messages.
+            **kwargs: Extra ``messages.stream`` arguments.
 
         Yields:
-            Content deltas as they arrive.
+            Text deltas as they arrive.
         """
-        response = await self.client.chat.completions.create(
-            model=self.model_name,
-            messages=messages,
-            temperature=self.temperature,
-            stream=True,
-            **kwargs,
-        )
-        async for chunk in response:
-            if chunk.choices and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+        async with self.client.messages.stream(**self._request(messages, kwargs)) as stream:
+            async for text in stream.text_stream:
+                yield text
 
     async def close(self) -> None:
         """

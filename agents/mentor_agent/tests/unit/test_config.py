@@ -9,6 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from mentor_agent.config import (
+    AnthropicSettings,
     CorsSettings,
     MongoSettings,
     OpenRouterSettings,
@@ -47,6 +48,10 @@ def test_worker_threads_must_be_positive(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 def test_api_keys_are_masked_in_repr() -> None:
+    anthropic = AnthropicSettings()
+    assert "test-anthropic-key" not in repr(anthropic)
+    assert anthropic.API_KEY.get_secret_value() == "test-anthropic-key"
+
     openrouter = OpenRouterSettings()  # pyright: ignore[reportCallIssue] - API_KEY from env
     assert "test-openrouter-key" not in repr(openrouter)
     assert openrouter.API_KEY.get_secret_value() == "test-openrouter-key"
@@ -120,3 +125,32 @@ def test_a_blank_openrouter_key_loads_but_cannot_call_a_model(
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
     key = OpenRouterSettings().require_api_key()  # pyright: ignore[reportCallIssue] - API_KEY from env
     assert key.get_secret_value() == "sk-or-test"
+
+
+def test_a_blank_anthropic_key_loads_but_cannot_call_a_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "  ")
+    with pytest.raises(MissingSettingError, match=r"ANTHROPIC_API_KEY is empty: set it in \.env"):
+        AnthropicSettings().require_api_key()
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    assert AnthropicSettings().require_api_key().get_secret_value() == "sk-ant-test"
+
+
+@pytest.mark.parametrize("model", ["claude-haiku-5-5", "claude-sonnet-5-5"])
+def test_haiku_and_sonnet_models_are_allowed(model: str) -> None:
+    assert AnthropicSettings(LLM_MODEL=model).LLM_MODEL == model
+
+
+@pytest.mark.parametrize("model", ["claude-opus-5-5", "claude-fable-5-2", "openai/gpt-4o-mini"])
+def test_other_models_are_rejected(model: str) -> None:
+    with pytest.raises(ValidationError, match="claude-haiku"):
+        AnthropicSettings(LLM_MODEL_CONTEXT_SUMMARY=model)
+
+
+def test_thinking_is_turned_off_per_model() -> None:
+    from mentor_agent.config.llm import thinking_off
+
+    assert thinking_off("claude-sonnet-5-5") == {"type": "between_tools"}
+    assert thinking_off("claude-haiku-5-5") == {"type": "disabled"}

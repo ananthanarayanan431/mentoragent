@@ -10,6 +10,7 @@ _TEST_ENV = {
     "ENVIRONMENT": "test",
     "LOCAL_DEVELOPMENT": "false",
     "DEBUG": "false",
+    "ANTHROPIC_API_KEY": "test-anthropic-key",
     "OPENROUTER_API_KEY": "test-openrouter-key",
     "ARCADE_API_KEY": "test-arcade-key",
     "ARCADE_USER_ID": "test-user",

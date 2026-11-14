@@ -251,13 +251,12 @@ def reset_conversations(
 
 @app.command("generate-dataset")
 def generate_dataset(
-    temperature: Annotated[float, typer.Option(help="LLM sampling temperature.")] = 0.9,
     max_samples: Annotated[int, typer.Option(help="Maximum samples to generate.")] = 40,
 ) -> None:
     """Generate a synthetic evaluation dataset from the mentors' sources."""
     from mentor_agent.evals.generate_dataset import EvaluationDatasetGenerator
 
-    EvaluationDatasetGenerator(temperature=temperature, max_samples=max_samples)()
+    EvaluationDatasetGenerator(max_samples=max_samples)()
 
 
 @app.command()
