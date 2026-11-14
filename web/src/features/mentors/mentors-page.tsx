@@ -1,6 +1,7 @@
-import { UserPlus, Users } from 'lucide-react'
+import { PenLine, UserPlus, Users } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
+import { CreateMentorForm } from './create-mentor-form'
 import { MentorCard } from './mentor-card'
 import { EmptyState, ErrorState, MentorCardSkeleton } from '@/components/state-views'
 import { clearConversation } from '@/features/chat/storage'
@@ -37,6 +38,13 @@ export function MentorsPage() {
   const [poolLeft, setPoolLeft] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
   const [notice, setNotice] = useState('')
+  const [creating, setCreating] = useState(false)
+
+  const created = useCallback((mentor: Mentor) => {
+    setMentors((current) => [...current, mentor])
+    setCreating(false)
+    setNotice(`${mentor.name} was created. Their memory is being built in the background.`)
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -84,23 +92,38 @@ export function MentorsPage() {
           Chat with mentors modelled on real experts. Each one answers from a long-term memory built
           out of that person&rsquo;s public work.
         </p>
-        {poolLeft !== null && (
-          <div className="mt-6 flex flex-wrap items-center gap-3">
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setCreating((open) => !open)}
+            aria-expanded={creating}
+            className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent hover:bg-accent-hover"
+          >
+            <PenLine size={15} aria-hidden="true" />
+            Create a mentor
+          </button>
+          {poolLeft !== null && (
             <button
               type="button"
               onClick={addMentor}
               disabled={adding || poolLeft === 0}
-              className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent hover:bg-accent-hover disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium hover:bg-raised disabled:opacity-50"
             >
               <UserPlus size={15} aria-hidden="true" />
               {poolLeft === 0 ? 'Everyone is here' : adding ? 'Inviting…' : 'Add a random mentor'}
             </button>
-            <p role="status" className="text-sm text-muted">
-              {notice}
-            </p>
-          </div>
-        )}
+          )}
+          <p role="status" className="text-sm text-muted">
+            {notice}
+          </p>
+        </div>
       </div>
+
+      {creating && (
+        <div className="max-w-2xl">
+          <CreateMentorForm onCreated={created} onCancel={() => setCreating(false)} />
+        </div>
+      )}
 
       <div className="mt-10">
         {status === 'loading' && (
@@ -137,7 +160,7 @@ export function MentorsPage() {
             <EmptyState
               icon={<Users size={20} aria-hidden="true" />}
               title="No mentors yet"
-              description="The database has no mentors. Run the extraction pipeline in the backend to add some."
+              description="Create your own mentor from their videos, articles and posts, or add a random one."
             />
           ))}
       </div>

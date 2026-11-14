@@ -5,6 +5,7 @@ import type {
   ChatRequest,
   ChatResponse,
   Mentor,
+  MentorCreate,
   MentorSources,
   MentorUpdate,
   PoolOut,
@@ -119,6 +120,11 @@ export function getMentorPool(signal?: AbortSignal): Promise<PoolOut> {
 /** Adds a random mentor from the pool; their memory builds in the background. */
 export function addRandomMentor(): Promise<Mentor> {
   return request<Mentor>(`${API_PREFIX}/mentors/random`, { method: 'POST' })
+}
+
+/** Creates a mentor from a name and sources; their memory builds in the background. */
+export function createMentor(body: MentorCreate): Promise<Mentor> {
+  return request<Mentor>(`${API_PREFIX}/mentors`, { method: 'POST', body: JSON.stringify(body) })
 }
 
 export function getMentorSources(mentorId: string, signal?: AbortSignal): Promise<MentorSources> {

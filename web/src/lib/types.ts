@@ -8,13 +8,14 @@
 import type {
   ChatRequest,
   ChatResponse,
+  MentorCreate,
   MentorOut,
   MentorSources,
   MentorUpdate,
   PoolOut,
 } from '@mentoragent/mentor-agent-contracts'
 
-export type { ChatRequest, ChatResponse, MentorSources, MentorUpdate, PoolOut }
+export type { ChatRequest, ChatResponse, MentorCreate, MentorSources, MentorUpdate, PoolOut }
 export type Mentor = MentorOut
 
 /** Events the WebSocket sends, one per turn: start -> chunk* -> end, or error. */

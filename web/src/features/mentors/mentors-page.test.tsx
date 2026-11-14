@@ -43,7 +43,7 @@ describe('MentorsPage', () => {
     mockFetch([mentor])
     renderPage()
 
-    expect(screen.getByRole('status')).toHaveTextContent('Loading mentors')
+    expect(screen.getByText('Loading mentors')).toHaveAttribute('role', 'status')
   })
 
   it('lists each mentor as a link to its chat', async () => {
@@ -93,6 +93,30 @@ describe('MentorsPage', () => {
 
     expect(await screen.findByText('Benjamin Graham')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Benjamin Graham joined')
+  })
+
+  it('creates a mentor from the form and lists them', async () => {
+    const grace = { ...mentor, id: 'grace_hopper', name: 'Grace Hopper', memory: 'building' }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<(url: string, init?: RequestInit) => Promise<Response>>((url, init) => {
+        if (init?.method === 'POST') {
+          return Promise.resolve(new Response(JSON.stringify(grace), { status: 201 }))
+        }
+        const body = url.endsWith('/mentors/pool') ? { remaining: 0, total: 1 } : [mentor]
+        return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))
+      }),
+    )
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Create a mentor' }))
+    await user.type(screen.getByLabelText('Name'), 'Grace Hopper')
+    await user.click(screen.getByRole('button', { name: 'Create mentor' }))
+
+    expect(await screen.findByText('Grace Hopper')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Create mentor' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Grace Hopper was created/)).toBeInTheDocument()
   })
 
   it('removes a mentor from the card menu, after confirming', async () => {

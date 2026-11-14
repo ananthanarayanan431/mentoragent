@@ -25,6 +25,7 @@
 | `src/features/world/game/`                     | The game: map, wandering, appearance, art, Phaser scene                 |
 | `src/features/world/progress.ts`               | Friendship levels per mentor (stored per browser)                       |
 | `src/features/mentors/mentor-editor.tsx`       | Edit a mentor's persona and sources; rebuild their memory               |
+| `src/features/mentors/create-mentor-form.tsx`  | Create a mentor from links and pasted posts (`create-mentor.ts`: pure)  |
 | `src/features/chat/use-mentor-conversation.ts` | One conversation (socket, reducer, storage); chat page and dialogue box |
 | `src/features/chat/chat-state.ts`              | Pure reducer for the streaming protocol (no DOM, no socket)             |
 | `src/features/chat/use-chat-socket.ts`         | Socket lifecycle, reconnect with backoff                                |

@@ -39,6 +39,7 @@ beforeEach(() => {
     websites: ['https://example.com/a'],
     pdfs: [],
     youtube_videos: [],
+    search_wikipedia: true,
   })
   api.updateMentor.mockImplementation((_id, changes) =>
     Promise.resolve({ ...ADA, ...(changes as Partial<Mentor>) }),
