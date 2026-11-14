@@ -122,7 +122,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       # pnpm's version comes from "packageManager" in package.json.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -207,7 +207,7 @@ jobs:
        needs.changes.outputs.infra == 'true')
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
