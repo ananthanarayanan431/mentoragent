@@ -8,8 +8,11 @@ from langchain_core.documents import Document
 
 from mentor_agent.rag.extractors import (
     Source,
+    extract_notes,
     extract_pdf_contents,
     extract_twitter_tweets,
+    extract_websites,
+    extract_wikipedia,
     extract_youtube_transcripts,
 )
 from mentor_agent.rag.extractors.extract_twitter_tweets import get_all_tweets
@@ -18,6 +21,8 @@ if TYPE_CHECKING:
     from mentor_agent.models.mentor_extract import MentorExtract
 
 PDF_LOADER = "mentor_agent.rag.extractors.extract_pdf_contents.PyPDFLoader"
+WEB_LOADER = "mentor_agent.rag.extractors.extract_websites.WebBaseLoader"
+WIKI_LOADER = "mentor_agent.rag.extractors.extract_wikipedia.WikipediaLoader"
 YT_LOADER = "mentor_agent.rag.extractors.extract_youtube_transcripts.YoutubeLoader"
 
 
@@ -102,3 +107,40 @@ def test_twitter_tool_error_returns_no_documents(mentor_extract: MentorExtract) 
         output=SimpleNamespace(error=SimpleNamespace(message="quota"), value=None)
     )
     assert extract_twitter_tweets(mentor_extract, client=client) == []
+
+
+def test_websites_load_each_page_and_skip_failures(mentor_extract: MentorExtract) -> None:
+    sites = ["https://a.test", "https://broken.test", "https://empty.test"]
+
+    def loader(web_paths: list[str], **_: Any) -> MagicMock:
+        url = web_paths[0]
+        if url == "https://broken.test":
+            raise OSError("timeout")
+        if url == "https://empty.test":
+            return _loader(["  \n  "])
+        return _loader(["Title\n\n\n\nBody text"])
+
+    with patch(WEB_LOADER, side_effect=loader):
+        docs = extract_websites(mentor_extract.model_copy(update={"websites": sites}))
+
+    assert [d.page_content for d in docs] == ["Title\n\nBody text"]
+    assert docs[0].metadata["source"] == Source.WEBSITE
+    assert docs[0].metadata["source_url"] == "https://a.test"
+
+
+def test_notes_become_documents_and_blank_ones_are_dropped(
+    mentor_extract: MentorExtract,
+) -> None:
+    mentor = mentor_extract.model_copy(update={"notes": [" First post ", "   ", "Second"]})
+    docs = extract_notes(mentor)
+    assert [d.page_content for d in docs] == ["First post", "Second"]
+    assert [d.metadata["source_url"] for d in docs] == ["note:1", "note:3"]
+    assert docs[0].metadata["source"] == Source.NOTE
+
+
+def test_wikipedia_is_skipped_when_turned_off(mentor_extract: MentorExtract) -> None:
+    with patch(WIKI_LOADER) as loader:
+        assert (
+            extract_wikipedia(mentor_extract.model_copy(update={"search_wikipedia": False})) == []
+        )
+    loader.assert_not_called()

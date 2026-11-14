@@ -2102,6 +2102,7 @@ source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
     { name = "arcadepy" },
+    { name = "beautifulsoup4" },
     { name = "datasketch" },
     { name = "fastapi", extra = ["standard"] },
     { name = "langchain-anthropic" },
@@ -2142,6 +2143,7 @@ dev = [
 requires-dist = [
     { name = "anthropic", specifier = ">=0.75.0" },
     { name = "arcadepy", specifier = ">=1.6.0" },
+    { name = "beautifulsoup4", specifier = ">=4.12" },
     { name = "datasketch", specifier = ">=1.6.5" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.115.8" },
     { name = "langchain-anthropic", specifier = ">=1.0.0" },

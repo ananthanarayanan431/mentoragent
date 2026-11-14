@@ -26,9 +26,13 @@ def extract_wikipedia(
         max_chars_per_doc: Truncate each page to this many characters.
 
     Returns:
-        One document per page, or an empty list if the search fails.
+        One document per page, or an empty list if the search fails or the
+        mentor's ``search_wikipedia`` is off.
     """
     log = logger.bind(mentor_id=mentor_extract.id, source=Source.WIKIPEDIA)
+    if not mentor_extract.search_wikipedia:
+        log.info("Wikipedia search is off for this mentor")
+        return []
 
     try:
         pages = WikipediaLoader(

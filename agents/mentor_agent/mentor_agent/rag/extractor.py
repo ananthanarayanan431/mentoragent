@@ -9,8 +9,10 @@ from mentor_agent.config import settings
 from mentor_agent.db.client import MongoRepository
 from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.rag.extractors import (
+    extract_notes,
     extract_pdf_contents,
     extract_twitter_tweets,
+    extract_websites,
     extract_wikipedia,
     extract_youtube_transcripts,
 )
@@ -28,6 +30,8 @@ DEFAULT_EXTRACTORS: tuple[DocumentExtractor, ...] = (
     extract_twitter_tweets,
     extract_pdf_contents,
     extract_youtube_transcripts,
+    extract_websites,
+    extract_notes,
 )
 
 

@@ -19,8 +19,10 @@ if TYPE_CHECKING:
 class Source(StrEnum):
     """Where a document came from; stored as ``metadata["source"]``."""
 
+    NOTE = "note"
     PDF = "pdf"
     TWITTER = "twitter"
+    WEBSITE = "website"
     WIKIPEDIA = "wikipedia"
     YOUTUBE = "youtube"
 

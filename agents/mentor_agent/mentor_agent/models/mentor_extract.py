@@ -40,6 +40,15 @@ class MentorExtract(BaseModel):
     youtube_videos: list[str] = Field(
         default_factory=list, description="YouTube videos with information about the mentor"
     )
+    search_wikipedia: bool = Field(
+        default=True,
+        description="Also read Wikipedia pages matching the name; off for people "
+        "who are not on Wikipedia, so a namesake's pages do not leak in",
+    )
+    notes: list[str] = Field(
+        default_factory=list,
+        description="Text pasted in by hand (LinkedIn posts, newsletters, transcripts)",
+    )
     memory: MemoryStatus | None = Field(
         default=None, description="Long-term memory build status, when built through the API"
     )
