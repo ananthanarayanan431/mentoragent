@@ -118,7 +118,13 @@ export interface paths {
         get: operations["get_mentor_api_v1_mentors__mentor_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Remove Mentor
+         * @description Remove a mentor and their long-term memory. Pool mentors can be added again.
+         *
+         *     409 while their memory is being built.
+         */
+        delete: operations["remove_mentor_api_v1_mentors__mentor_id__delete"];
         options?: never;
         head?: never;
         /**
@@ -513,6 +519,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MentorOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_mentor_api_v1_mentors__mentor_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mentor_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

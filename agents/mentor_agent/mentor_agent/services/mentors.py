@@ -83,6 +83,22 @@ class MentorService:
             raise MemoryBuildInProgressError
         return mentor
 
+    async def remove_mentor(self, mentor_id: str) -> None:
+        """Take a mentor out of the square; pool mentors can be added back later.
+
+        Atomic: a mentor whose memory is building is not removed, so a build never
+        writes chunks or a status for a mentor who is gone.
+
+        Raises:
+            MemoryBuildInProgressError: If their memory is being built.
+            MentorNotFoundError: If no mentor has this id.
+        """
+        if await self.repository.delete_one({"id": mentor_id, "memory": {"$ne": "building"}}):
+            return
+        await self.get_mentor(mentor_id)  # raises MentorNotFoundError if missing
+        msg = "This mentor's memory is being built; remove them once it finishes."
+        raise MemoryBuildInProgressError(msg)
+
     async def set_memory_status(self, mentor_id: str, status: MemoryStatus) -> None:
         """Record how a memory build ended."""
         await self.repository.update_one({"id": mentor_id}, {"memory": status})

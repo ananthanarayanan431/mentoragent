@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 from loguru import logger
+from pymongo.errors import PyMongoError
 from starlette.concurrency import run_in_threadpool
 
 if TYPE_CHECKING:
@@ -15,9 +16,11 @@ if TYPE_CHECKING:
 
 
 class MemoryBuilder(Protocol):
-    """Rebuilds a mentor's memory; the API runs it as a background task."""
+    """Rebuilds a mentor's memory (the API runs it as a background task) or forgets it."""
 
     async def rebuild(self, mentor_id: str) -> None: ...
+
+    async def forget(self, mentor_id: str) -> None: ...
 
 
 class MentorMemoryBuilder:
@@ -27,11 +30,26 @@ class MentorMemoryBuilder:
         mentors: Where the mentor is read from and the status is written to.
         rebuild_one: Blocking rebuild of one mentor (``LongTermMemoryCreator.rebuild_one``);
             run in a worker thread. Injected so tests never call an embeddings API.
+        forget_one: Blocking delete of one mentor's chunks by id; returns how many.
     """
 
-    def __init__(self, mentors: MentorService, rebuild_one: Callable[[MentorExtract], int]) -> None:
+    def __init__(
+        self,
+        mentors: MentorService,
+        rebuild_one: Callable[[MentorExtract], int],
+        forget_one: Callable[[str], int],
+    ) -> None:
         self.mentors = mentors
         self.rebuild_one = rebuild_one
+        self.forget_one = forget_one
+
+    async def forget(self, mentor_id: str) -> None:
+        """Delete a removed mentor's chunks. A failure only leaves unused chunks behind:
+        retrieval filters by mentor, and a later rebuild replaces them."""
+        try:
+            await run_in_threadpool(self.forget_one, mentor_id)
+        except PyMongoError:
+            logger.exception("Could not delete the memory of removed mentor {}", mentor_id)
 
     async def rebuild(self, mentor_id: str) -> None:
         try:

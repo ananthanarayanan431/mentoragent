@@ -122,11 +122,38 @@ def test_rebuild_memory_once_at_a_time(square: Square, mentor_extract: MentorExt
     assert square.client.post(url).status_code == 409
 
 
+def test_remove_a_mentor_and_add_them_back(square: Square) -> None:
+    added = square.client.post("/api/v1/mentors/random").json()["id"]
+    # Let the (recorded, never finished) build end so the mentor can be removed.
+    square.mentors.mentors[added] = square.mentors.mentors[added].model_copy(
+        update={"memory": "ready"}
+    )
+
+    assert square.client.delete(f"/api/v1/mentors/{added}").status_code == 204
+    assert square.memory.forgotten == [added]
+    assert square.client.get(f"/api/v1/mentors/{added}").status_code == 404
+    # Back in the pool: "Add a mentor" can bring them in again.
+    assert square.client.get("/api/v1/mentors/pool").json()["remaining"] == len(POOL)
+
+
+def test_a_mentor_is_not_removed_while_their_memory_builds(square: Square) -> None:
+    added = square.client.post("/api/v1/mentors/random").json()["id"]
+    response = square.client.delete(f"/api/v1/mentors/{added}")
+    assert response.status_code == 409
+    assert square.memory.forgotten == []
+    assert square.client.get(f"/api/v1/mentors/{added}").status_code == 200
+
+
+def test_removing_an_unknown_mentor_is_404(square: Square) -> None:
+    assert square.client.delete("/api/v1/mentors/nobody").status_code == 404
+
+
 @pytest.mark.parametrize(
     ("method", "path"),
     [
         ("post", "/api/v1/mentors/random"),
         ("patch", "/api/v1/mentors/{id}"),
+        ("delete", "/api/v1/mentors/{id}"),
         ("post", "/api/v1/mentors/{id}/memory"),
         ("post", "/api/v1/reset-memory"),
     ],
@@ -145,3 +172,4 @@ def test_changes_need_an_api_key_in_production(
     )
     assert response.status_code == 403
     assert square.memory.requested == []
+    assert square.memory.forgotten == []

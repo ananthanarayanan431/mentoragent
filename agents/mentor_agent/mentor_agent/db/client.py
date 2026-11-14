@@ -229,6 +229,11 @@ class AsyncMongoRepository[T: BaseModel]:
         )
         return None if document is None else _to_model(self.model, document)
 
+    async def delete_one(self, query: Mapping[str, Any]) -> bool:
+        """Delete the first document matching ``query``; ``True`` if one was deleted."""
+        result = await self.collection.delete_one(query)
+        return result.deleted_count > 0
+
     async def ids(self) -> set[str]:
         """The ``id`` of every document."""
         return {doc["id"] async for doc in self.collection.find({}, {"id": 1}) if "id" in doc}

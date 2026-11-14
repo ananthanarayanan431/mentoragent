@@ -582,6 +582,45 @@
       }
     },
     "/api/v1/mentors/{mentor_id}": {
+      "delete": {
+        "description": "Remove a mentor and their long-term memory. Pool mentors can be added again.\n\n409 while their memory is being built.",
+        "operationId": "remove_mentor_api_v1_mentors__mentor_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mentor_id",
+            "required": true,
+            "schema": {
+              "title": "Mentor Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Remove Mentor",
+        "tags": [
+          "mentors"
+        ]
+      },
       "get": {
         "description": "Return one mentor.",
         "operationId": "get_mentor_api_v1_mentors__mentor_id__get",

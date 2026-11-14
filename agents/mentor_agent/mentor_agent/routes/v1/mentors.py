@@ -73,6 +73,22 @@ async def update_mentor(
     return MentorOut.from_extract(updated)
 
 
+@router.delete(
+    "/{mentor_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_api_key_in_production)],
+)
+async def remove_mentor(
+    mentor_id: str, mentors: MentorServiceDep, memory: MemoryBuilderDep
+) -> None:
+    """Remove a mentor and their long-term memory. Pool mentors can be added again.
+
+    409 while their memory is being built.
+    """
+    await mentors.remove_mentor(mentor_id)
+    await memory.forget(mentor_id)
+
+
 @router.post(
     "/{mentor_id}/memory",
     status_code=status.HTTP_202_ACCEPTED,

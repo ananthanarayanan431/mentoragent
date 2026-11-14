@@ -24,6 +24,7 @@ from mentor_agent.logs import configure_logging
 from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.request_context import install_middleware
 from mentor_agent.routes import health, v1
+from mentor_agent.services.maintenance import delete_mentor_memory
 from mentor_agent.services.memory import MentorMemoryBuilder
 from mentor_agent.services.mentors import MentorService
 from mentor_agent.services.pool import load_pool
@@ -57,7 +58,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         AsyncMongoRepository(MentorExtract, settings.mongo.MENTORS_COLLECTION)
     )
     app.state.pool = await run_in_threadpool(_load_pool)
-    app.state.memory = MentorMemoryBuilder(app.state.mentors, _rebuild_one)
+    app.state.memory = MentorMemoryBuilder(app.state.mentors, _rebuild_one, delete_mentor_memory)
     logger.info("{} API ready ({})", settings.app.PROJECT_NAME, settings.app.ENVIRONMENT)
     try:
         yield

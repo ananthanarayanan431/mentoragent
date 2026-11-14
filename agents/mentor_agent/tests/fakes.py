@@ -190,15 +190,25 @@ class InMemoryMentorService:
             raise MemoryBuildInProgressError
         return await self.update_mentor(mentor_id, {"memory": "building"})
 
+    async def remove_mentor(self, mentor_id: str) -> None:
+        mentor = await self.get_mentor(mentor_id)
+        if mentor.memory == "building":
+            raise MemoryBuildInProgressError
+        del self.mentors[mentor_id]
+
     async def set_memory_status(self, mentor_id: str, status: MemoryStatus) -> None:
         await self.update_mentor(mentor_id, {"memory": status})
 
 
 class RecordingMemoryBuilder:
-    """Records which mentors had a memory build requested; builds nothing."""
+    """Records which mentors had a memory build or deletion requested; builds nothing."""
 
     def __init__(self) -> None:
         self.requested: list[str] = []
+        self.forgotten: list[str] = []
+
+    async def forget(self, mentor_id: str) -> None:
+        self.forgotten.append(mentor_id)
 
     async def rebuild(self, mentor_id: str) -> None:
         self.requested.append(mentor_id)
