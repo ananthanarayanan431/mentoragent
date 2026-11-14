@@ -215,11 +215,14 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Start the stack and load the mentors
-        # The example settings plus a placeholder key: the suite never sends a chat
-        # message, so no model is called. load-mentors only reads the mentor data file.
+        # The example settings plus placeholder keys: the suite never sends a chat
+        # message, so no model is called, but the agent builds its chat model at
+        # startup and refuses a blank ANTHROPIC_API_KEY. load-mentors only reads
+        # the mentor data file.
         run: |
           cp infra/.env.example infra/.env
-          sed 's/^OPENROUTER_API_KEY=.*/OPENROUTER_API_KEY=ci-placeholder/' \
+          sed -e 's/^OPENROUTER_API_KEY=.*/OPENROUTER_API_KEY=ci-placeholder/' \
+            -e 's/^ANTHROPIC_API_KEY=.*/ANTHROPIC_API_KEY=ci-placeholder/' \
             agents/mentor_agent/.env.example > agents/mentor_agent/.env
           make -C infra stack-up
           docker exec mentoragent-mentor-agent-api mentor-agent load-mentors
