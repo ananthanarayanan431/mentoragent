@@ -1,11 +1,12 @@
 import { ArrowLeft, Info, RotateCcw, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 
 import { Composer } from './composer'
 import { ConnectionBadge } from './connection-badge'
 import { MentorPanel } from './mentor-panel'
 import { MessageList } from './message-list'
+import { clearConversation } from './storage'
 import { ErrorState, Spinner } from '@/components/state-views'
 import { ApiError, getMentor } from '@/lib/api'
 import type { Mentor } from '@/lib/types'
@@ -25,6 +26,12 @@ function ChatView({ mentorId }: { mentorId: string }) {
   const [panelOpen, setPanelOpen] = useState(false)
   const conversation = useMentorConversation(mentorId)
   const { state, send, startNewChat } = conversation
+  const navigate = useNavigate()
+
+  const onRemoved = useCallback(() => {
+    clearConversation(mentorId)
+    void navigate('/mentors')
+  }, [mentorId, navigate])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -85,7 +92,7 @@ function ChatView({ mentorId }: { mentorId: string }) {
     <main className="flex flex-1 overflow-hidden">
       {/* Sidebar: static from lg up, a drawer below it. */}
       <aside className="hidden w-80 shrink-0 overflow-y-auto border-r border-line bg-surface lg:block">
-        <MentorPanel mentor={mentor} onChange={setMentor} />
+        <MentorPanel mentor={mentor} onChange={setMentor} onRemoved={onRemoved} />
       </aside>
 
       {panelOpen && (
@@ -107,7 +114,7 @@ function ChatView({ mentorId }: { mentorId: string }) {
                 <span className="sr-only">Close</span>
               </button>
             </div>
-            <MentorPanel mentor={mentor} onChange={setMentor} />
+            <MentorPanel mentor={mentor} onChange={setMentor} onRemoved={onRemoved} />
           </div>
         </div>
       )}

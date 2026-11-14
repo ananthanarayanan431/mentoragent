@@ -1,14 +1,22 @@
-import { Pencil, RefreshCw } from 'lucide-react'
+import { Pencil, RefreshCw, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { ApiError, getMentorSources, rebuildMentorMemory, updateMentor } from '@/lib/api'
+import {
+  ApiError,
+  getMentorSources,
+  rebuildMentorMemory,
+  removeMentor,
+  updateMentor,
+} from '@/lib/api'
 import type { Mentor, MentorSources, MentorUpdate } from '@/lib/types'
 
 interface Props {
   mentor: Mentor
   /** Called with the mentor as the API returns it after a save or a rebuild. */
   onChange: (mentor: Mentor) => void
+  /** Called once the mentor has been removed; without it there is no remove button. */
+  onRemoved?: () => void
 }
 
 const MEMORY_LABELS: Record<string, string> = {
@@ -34,8 +42,9 @@ function sameList(a: readonly string[], b: readonly string[]): boolean {
  * "upgradable": new sources (essays, talks, PDFs) deepen their answers once the
  * memory is rebuilt.
  */
-export function MentorEditor({ mentor, onChange }: Props) {
+export function MentorEditor({ mentor, onChange, onRemoved }: Props) {
   const [open, setOpen] = useState(false)
+  const [confirmingRemove, setConfirmingRemove] = useState(false)
   const [sources, setSources] = useState<MentorSources | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -115,6 +124,19 @@ export function MentorEditor({ mentor, onChange }: Props) {
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'The memory could not be rebuilt.')
     } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove() {
+    setError('')
+    setBusy(true)
+    try {
+      await removeMentor(mentor.id)
+      onRemoved?.()
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : 'The mentor could not be removed.')
+      setConfirmingRemove(false)
       setBusy(false)
     }
   }
@@ -216,6 +238,53 @@ export function MentorEditor({ mentor, onChange }: Props) {
           </button>
         </form>
       )}
+
+      {onRemoved &&
+        (confirmingRemove ? (
+          <div
+            role="group"
+            aria-label={`Confirm removing ${mentor.name}`}
+            className="space-y-2 rounded-lg border border-danger/40 bg-danger-soft p-3 text-xs"
+          >
+            <p className="text-danger">
+              Remove {mentor.name}? Their memory is deleted too. You can add them back later with
+              &ldquo;Add a mentor&rdquo;.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => void remove()}
+                disabled={busy}
+                className="rounded-lg bg-danger px-3 py-1.5 font-medium text-surface disabled:opacity-50"
+              >
+                {busy ? 'Removing…' : `Remove ${mentor.name}`}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingRemove(false)}
+                disabled={busy}
+                className="rounded-lg border border-line px-3 py-1.5 font-medium hover:bg-raised"
+              >
+                Keep
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmingRemove(true)}
+            disabled={busy || mentor.memory === 'building'}
+            title={
+              mentor.memory === 'building'
+                ? 'Wait for the memory build to finish before removing this mentor'
+                : undefined
+            }
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger-soft disabled:opacity-50"
+          >
+            <Trash2 size={13} aria-hidden="true" />
+            Remove mentor
+          </button>
+        ))}
     </section>
   )
 }

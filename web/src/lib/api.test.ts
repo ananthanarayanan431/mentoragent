@@ -6,6 +6,7 @@ import {
   deleteConversation,
   listMentors,
   rebuildMentorMemory,
+  removeMentor,
   sendChat,
   updateMentor,
 } from './api'
@@ -96,7 +97,7 @@ describe('deleteConversation', () => {
     )
   })
 
-  it('adds a random mentor, edits one and rebuilds its memory', async () => {
+  it('adds a random mentor, edits one, rebuilds its memory and removes it', async () => {
     const fetchMock = mockFetch(new Response(JSON.stringify({ id: 'graham' }), { status: 201 }))
     await addRandomMentor()
     expect(fetchMock).toHaveBeenLastCalledWith(
@@ -117,6 +118,13 @@ describe('deleteConversation', () => {
     expect(rebuild).toHaveBeenLastCalledWith(
       '/api/v1/mentors/a/memory',
       expect.objectContaining({ method: 'POST' }),
+    )
+
+    const remove = mockFetch(new Response(null, { status: 204 }))
+    await expect(removeMentor('a b')).resolves.toBeUndefined()
+    expect(remove).toHaveBeenLastCalledWith(
+      '/api/v1/mentors/a%20b',
+      expect.objectContaining({ method: 'DELETE' }),
     )
   })
 

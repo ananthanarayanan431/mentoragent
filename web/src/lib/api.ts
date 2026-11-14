@@ -133,6 +133,11 @@ export function updateMentor(mentorId: string, changes: MentorUpdate): Promise<M
   })
 }
 
+/** Removes a mentor and their memory. A pool mentor can be added back later. */
+export function removeMentor(mentorId: string): Promise<void> {
+  return request<void>(mentorPath(mentorId), { method: 'DELETE' })
+}
+
 /** Rebuilds the mentor's long-term memory from their sources, in the background. */
 export function rebuildMentorMemory(mentorId: string): Promise<Mentor> {
   return request<Mentor>(mentorPath(mentorId, '/memory'), { method: 'POST' })
