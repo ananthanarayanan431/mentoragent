@@ -40,11 +40,13 @@ export function MentorsPage() {
   const [notice, setNotice] = useState('')
   const [creating, setCreating] = useState(false)
 
-  const created = useCallback((mentor: Mentor) => {
+  const created = useCallback((mentor: Mentor, researching: boolean) => {
     setMentors((current) => [...current, mentor])
     setCreating(false)
     setNotice(
-      `${mentor.name} was created. We are researching them and building their memory; this takes a few minutes.`,
+      researching
+        ? `${mentor.name} was created. We are searching the web for more about them and building their memory; this takes a few minutes.`
+        : `${mentor.name} was created. Their memory is being built in the background.`,
     )
   }, [])
 

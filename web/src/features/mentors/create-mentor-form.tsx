@@ -8,7 +8,8 @@ import { ApiError, createMentor } from '@/lib/api'
 import type { Mentor } from '@/lib/types'
 
 interface Props {
-  onCreated: (mentor: Mentor) => void
+  /** Called with the new mentor, and whether it is being researched on the web. */
+  onCreated: (mentor: Mentor, researching: boolean) => void
   onCancel: () => void
 }
 
@@ -23,6 +24,8 @@ export function CreateMentorForm({ onCreated, onCancel }: Props) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const headingId = useId()
+  const searchLabelId = useId()
+  const searchHintId = useId()
 
   const set = <K extends keyof CreateMentorFields>(key: K, value: CreateMentorFields[K]) =>
     setFields((current) => ({ ...current, [key]: value }))
@@ -37,7 +40,7 @@ export function CreateMentorForm({ onCreated, onCancel }: Props) {
     setError('')
     setBusy(true)
     try {
-      onCreated(await createMentor(built.body))
+      onCreated(await createMentor(built.body), built.body.research !== false)
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'The mentor could not be created.')
       setBusy(false)
@@ -82,6 +85,37 @@ export function CreateMentorForm({ onCreated, onCancel }: Props) {
           />
         </label>
 
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-line bg-canvas px-3 py-3">
+          <div>
+            <p id={searchLabelId} className="text-sm font-medium">
+              Web search
+            </p>
+            <p id={searchHintId} className="mt-0.5 text-xs text-muted">
+              {fields.research
+                ? 'On: the AI searches the web for more about them (their talks, writing, ideas and way of talking) and builds the mentor from that too. Takes a few minutes and uses paid searches.'
+                : 'Off: the mentor is built only from the links and text you give below.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={fields.research}
+            aria-labelledby={searchLabelId}
+            aria-describedby={searchHintId}
+            onClick={() => set('research', !fields.research)}
+            className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+              fields.research ? 'bg-accent' : 'bg-line-strong'
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`inline-block h-5 w-5 rounded-full bg-surface shadow transition-transform ${
+                fields.research ? 'translate-x-5' : 'translate-x-0.5'
+              }`}
+            />
+          </button>
+        </div>
+
         {(
           [
             ['youtube', 'YouTube videos', 'https://www.youtube.com/watch?v=…'],
@@ -117,19 +151,6 @@ export function CreateMentorForm({ onCreated, onCancel }: Props) {
           />
         </label>
 
-        <label className="flex items-start gap-2 text-xs text-muted">
-          <input
-            type="checkbox"
-            checked={fields.research}
-            onChange={(event) => set('research', event.target.checked)}
-            className="mt-0.5"
-          />
-          <span>
-            Research them on the web: find more of their talks and writing, and work out how they
-            think and talk (takes a few minutes, uses paid web searches)
-          </span>
-        </label>
-
         <label className="flex items-center gap-2 text-xs text-muted">
           <input
             type="checkbox"
@@ -141,7 +162,7 @@ export function CreateMentorForm({ onCreated, onCancel }: Props) {
 
         <details className="rounded-lg border border-line px-3 py-2">
           <summary className="cursor-pointer text-xs font-medium text-muted">
-            Describe them yourself (optional, filled in from the research if left blank)
+            Describe them yourself (optional, written for you if left blank)
           </summary>
           <div className="mt-3 space-y-3">
             {(

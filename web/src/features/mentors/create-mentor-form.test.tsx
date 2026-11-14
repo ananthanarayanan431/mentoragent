@@ -63,16 +63,19 @@ describe('CreateMentorForm', () => {
       ),
     )
     vi.stubGlobal('fetch', fetchMock)
-    const onCreated = vi.fn<(mentor: unknown) => void>()
+    const onCreated = vi.fn<(mentor: unknown, researching: boolean) => void>()
     const user = userEvent.setup()
     render(<CreateMentorForm onCreated={onCreated} onCancel={() => {}} />)
 
     await user.type(screen.getByLabelText('Name'), 'Grace Hopper')
     await user.type(screen.getByLabelText(/YouTube videos/), 'https://youtu.be/a')
-    expect(screen.getByLabelText(/Research them on the web/)).toBeChecked()
+    expect(screen.getByRole('switch', { name: 'Web search' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
     await user.click(screen.getByRole('button', { name: 'Create mentor' }))
 
-    expect(onCreated).toHaveBeenCalledWith(created)
+    expect(onCreated).toHaveBeenCalledWith(created, true)
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toMatch(/\/api\/v1\/mentors$/)
     expect(init.method).toBe('POST')
@@ -93,5 +96,29 @@ describe('CreateMentorForm', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Give the mentor a name.')
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('the web search switch', () => {
+  it('turns web search off for the new mentor', async () => {
+    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(() =>
+      Promise.resolve(new Response(JSON.stringify({ id: 'x', name: 'X' }), { status: 201 })),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const onCreated = vi.fn<(mentor: unknown, researching: boolean) => void>()
+    const user = userEvent.setup()
+    render(<CreateMentorForm onCreated={onCreated} onCancel={() => {}} />)
+
+    const toggle = screen.getByRole('switch', { name: 'Web search' })
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByText(/only from the links and text you give/)).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Name'), 'X')
+    await user.click(screen.getByRole('button', { name: 'Create mentor' }))
+
+    const init = fetchMock.mock.calls[0]?.[1]
+    expect(JSON.parse(String(init?.body))).toMatchObject({ research: false })
+    expect(onCreated).toHaveBeenCalledWith({ id: 'x', name: 'X' }, false)
   })
 })
