@@ -12,8 +12,8 @@ from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.server import create_app
 from tests.fakes import (
     InMemoryMentorService,
+    RecordingEnricher,
     RecordingMemoryBuilder,
-    RecordingPersonaWriter,
     build_fake_conversation_service,
 )
 
@@ -34,7 +34,7 @@ class Square:
     def __init__(self, mentor_extract: MentorExtract) -> None:
         self.mentors = InMemoryMentorService([mentor_extract])
         self.memory = RecordingMemoryBuilder()
-        self.personas = RecordingPersonaWriter()
+        self.enricher = RecordingEnricher()
         service, _, _ = build_fake_conversation_service([AIMessage(content="hi")])
 
         @asynccontextmanager
@@ -43,7 +43,7 @@ class Square:
             app.state.mentors = self.mentors
             app.state.pool = POOL
             app.state.memory = self.memory
-            app.state.personas = self.personas
+            app.state.enricher = self.enricher
             yield
 
         self.client = TestClient(create_app(lifespan))
@@ -183,7 +183,7 @@ def test_changes_need_an_api_key_in_production(
 URL = "/api/v1/mentors"
 
 
-def test_create_a_mentor_from_links_and_pasted_text(square: Square) -> None:
+def test_create_a_mentor_then_research_them_in_the_background(square: Square) -> None:
     response = square.client.post(
         URL,
         json={
@@ -196,14 +196,15 @@ def test_create_a_mentor_from_links_and_pasted_text(square: Square) -> None:
 
     assert response.status_code == 201
     body = response.json()
-    assert body["id"] == "grace_hopper"
-    assert body["name"] == "Grace Hopper"
-    assert body["memory"] == "building"
-    # The persona was written for them from the name and the pasted text.
-    assert body["expertise"] == "Written expertise"
-    assert square.personas.requests == [("Grace Hopper", ["A LinkedIn post about compilers."])]
-    # The memory build was started in the background.
-    assert square.memory.requested == ["grace_hopper"]
+    assert (body["id"], body["name"], body["memory"]) == (
+        "grace_hopper",
+        "Grace Hopper",
+        "building",
+    )
+    # A placeholder persona until the research fills it in.
+    assert "Grace Hopper" in body["expertise"]
+    # Research (on by default) and the memory build run after the response.
+    assert square.enricher.calls == [("grace_hopper", True, ["expertise", "perspective", "style"])]
 
     sources = square.client.get(f"{URL}/grace_hopper/sources").json()
     assert sources["websites"] == ["https://example.test/about"]
@@ -212,43 +213,24 @@ def test_create_a_mentor_from_links_and_pasted_text(square: Square) -> None:
     assert sources["search_wikipedia"] is False
 
 
-def test_a_persona_given_in_full_is_kept_and_none_is_written(square: Square) -> None:
-    response = square.client.post(
-        URL,
-        json={
-            "name": "Grace Hopper",
-            "expertise": "Compilers",
-            "perspective": "It is easier to ask forgiveness than permission.",
-            "style": "Blunt and funny",
-            "search_wikipedia": True,
-        },
-    )
+def test_persona_fields_given_are_kept_and_only_the_rest_are_written(square: Square) -> None:
+    body = square.client.post(
+        URL, json={"name": "Grace Hopper", "style": "Blunt", "research": False}
+    ).json()
 
-    assert response.status_code == 201
-    assert response.json()["expertise"] == "Compilers"
-    assert square.personas.requests == []
-
-
-def test_only_missing_persona_fields_are_filled_in(square: Square) -> None:
-    body = square.client.post(URL, json={"name": "Grace Hopper", "style": "Blunt"}).json()
     assert body["style"] == "Blunt"
-    assert body["perspective"] == "Written view"
+    assert square.enricher.calls == [("grace_hopper", False, ["expertise", "perspective"])]
 
 
 def test_two_mentors_with_one_name_get_different_ids(square: Square) -> None:
     first = square.client.post(URL, json={"name": "Ada Lovelace"}).json()
-    # The fixture already holds a mentor with id "ada"; this name slugs differently.
     second = square.client.post(URL, json={"name": "Ada Lovelace"}).json()
     assert (first["id"], second["id"]) == ("ada_lovelace", "ada_lovelace_2")
 
 
 def test_bad_input_is_rejected(square: Square) -> None:
     assert square.client.post(URL, json={"name": "  "}).status_code == 422
-    assert (
-        square.client.post(
-            URL, json={"name": "X", "websites": ["http://insecure.test"]}
-        ).status_code
-        == 422
-    )
+    insecure = {"name": "X", "websites": ["http://insecure.test"]}
+    assert square.client.post(URL, json=insecure).status_code == 422
     assert square.client.post(URL, json={"name": "X", "unknown": 1}).status_code == 422
-    assert square.memory.requested == []
+    assert square.enricher.calls == []

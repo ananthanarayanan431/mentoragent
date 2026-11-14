@@ -88,7 +88,7 @@
       },
       "MentorCreate": {
         "additionalProperties": false,
-        "description": "A mentor you describe yourself. Persona fields left out are written for you\nfrom the name and any pasted notes; the memory is built from the sources in the\nbackground, as for a random mentor.",
+        "description": "A mentor you describe yourself: a name and whatever you have about them.\n\nIn the background the server researches them on the web (unless ``research``\nis off), fills in the persona fields left out, adds the talks and writing it\nfinds to their sources, then builds the memory.",
         "properties": {
           "expertise": {
             "anyOf": [
@@ -154,6 +154,12 @@
               }
             ],
             "title": "Perspective"
+          },
+          "research": {
+            "default": true,
+            "description": "Search the web for more about them (billed web searches).",
+            "title": "Research",
+            "type": "boolean"
           },
           "search_wikipedia": {
             "default": false,
@@ -694,7 +700,7 @@
         ]
       },
       "post": {
-        "description": "Add a mentor you describe: a name plus videos, web pages, PDFs or pasted text.\n\nPersona fields left out are written from the name and pasted text. The memory\nis built from the sources in the background, as for a random mentor.",
+        "description": "Add a mentor you describe: a name plus videos, web pages, PDFs or pasted text.\n\nReturns at once, with memory ``building`` and a placeholder for any persona\nfield left out. In the background the mentor is researched on the web (unless\n``research`` is false), the persona and sources are completed, and the memory\nis built; poll the mentor until its memory is ``ready``.",
         "operationId": "create_mentor_api_v1_mentors_post",
         "requestBody": {
           "content": {

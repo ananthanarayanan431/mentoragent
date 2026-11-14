@@ -58,8 +58,10 @@ export interface paths {
          * Create Mentor
          * @description Add a mentor you describe: a name plus videos, web pages, PDFs or pasted text.
          *
-         *     Persona fields left out are written from the name and pasted text. The memory
-         *     is built from the sources in the background, as for a random mentor.
+         *     Returns at once, with memory ``building`` and a placeholder for any persona
+         *     field left out. In the background the mentor is researched on the web (unless
+         *     ``research`` is false), the persona and sources are completed, and the memory
+         *     is built; poll the mentor until its memory is ``ready``.
          */
         post: operations["create_mentor_api_v1_mentors_post"];
         delete?: never;
@@ -286,9 +288,11 @@ export interface components {
         };
         /**
          * MentorCreate
-         * @description A mentor you describe yourself. Persona fields left out are written for you
-         *     from the name and any pasted notes; the memory is built from the sources in the
-         *     background, as for a random mentor.
+         * @description A mentor you describe yourself: a name and whatever you have about them.
+         *
+         *     In the background the server researches them on the web (unless ``research``
+         *     is off), fills in the persona fields left out, adds the talks and writing it
+         *     finds to their sources, then builds the memory.
          */
         MentorCreate: {
             /** Expertise */
@@ -303,6 +307,12 @@ export interface components {
             pdfs?: string[];
             /** Perspective */
             perspective?: string | null;
+            /**
+             * Research
+             * @description Search the web for more about them (billed web searches).
+             * @default true
+             */
+            research: boolean;
             /**
              * Search Wikipedia
              * @description Also read Wikipedia pages matching the name (for well-known people).

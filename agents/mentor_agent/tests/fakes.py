@@ -26,11 +26,12 @@ from mentor_agent.services.pool import pick_new_mentor
 
 if TYPE_CHECKING:
     import random
-    from collections.abc import Iterator, Mapping, Sequence
+    from collections.abc import Collection, Iterator, Mapping, Sequence
 
     from langchain_core.callbacks import CallbackManagerForLLMRun, CallbackManagerForRetrieverRun
 
     from mentor_agent.models.mentor_extract import MemoryStatus
+    from mentor_agent.services.research import ResearchFindings
 
 
 class ScriptedChatModel(BaseChatModel):
@@ -232,3 +233,25 @@ class RecordingPersonaWriter:
     async def write(self, name: str, notes: Sequence[str]) -> Persona:
         self.requests.append((name, list(notes)))
         return Persona(expertise="Written expertise", perspective="Written view", style="Written")
+
+
+class RecordingEnricher:
+    """Records which custom mentors were sent for research and memory building."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, bool, list[str]]] = []
+
+    async def enrich(self, mentor_id: str, *, research: bool, write: Collection[str]) -> None:
+        self.calls.append((mentor_id, research, list(write)))
+
+
+class FixedResearcher:
+    """Returns the findings it was given (``None``: research failed)."""
+
+    def __init__(self, findings: ResearchFindings | None) -> None:
+        self.findings = findings
+        self.researched: list[str] = []
+
+    async def research(self, mentor: MentorExtract) -> ResearchFindings | None:
+        self.researched.append(mentor.id)
+        return self.findings

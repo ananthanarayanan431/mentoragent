@@ -72,9 +72,12 @@ class MentorUpdate(BaseModel):
 
 
 class MentorCreate(BaseModel):
-    """A mentor you describe yourself. Persona fields left out are written for you
-    from the name and any pasted notes; the memory is built from the sources in the
-    background, as for a random mentor."""
+    """A mentor you describe yourself: a name and whatever you have about them.
+
+    In the background the server researches them on the web (unless ``research``
+    is off), fills in the persona fields left out, adds the talks and writing it
+    finds to their sources, then builds the memory.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -91,6 +94,10 @@ class MentorCreate(BaseModel):
     search_wikipedia: bool = Field(
         default=False,
         description="Also read Wikipedia pages matching the name (for well-known people).",
+    )
+    research: bool = Field(
+        default=True,
+        description="Search the web for more about them (billed web searches).",
     )
 
 

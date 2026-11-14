@@ -25,6 +25,9 @@ class AnthropicSettings(BaseSettings):
         MAX_TOKENS: Output token cap per call.
         TIMEOUT_SECONDS: Per-request timeout for LLM calls.
         MAX_RETRIES: Retries on transient LLM errors (429, 5xx, timeouts).
+        RESEARCH_MODEL: Model that searches the web about a custom mentor.
+        RESEARCH_MAX_SEARCHES: Web searches allowed per custom mentor.
+        RESEARCH_TIMEOUT_SECONDS: Timeout for one research request (searches are slow).
     """
 
     model_config = settings_config("ANTHROPIC_")
@@ -37,8 +40,13 @@ class AnthropicSettings(BaseSettings):
     MAX_TOKENS: int = Field(default=4096, gt=0)
     TIMEOUT_SECONDS: float = Field(default=60.0, gt=0)
     MAX_RETRIES: int = Field(default=2, ge=0)
+    # Sonnet: researching a person needs judgment (is this the right person?) that
+    # Haiku lacks, and it supports the current web search tool.
+    RESEARCH_MODEL: str = "claude-sonnet-5-5"
+    RESEARCH_MAX_SEARCHES: int = Field(default=6, ge=1, le=20)
+    RESEARCH_TIMEOUT_SECONDS: float = Field(default=300.0, gt=0)
 
-    @field_validator("LLM_MODEL", "LLM_MODEL_CONTEXT_SUMMARY")
+    @field_validator("LLM_MODEL", "LLM_MODEL_CONTEXT_SUMMARY", "RESEARCH_MODEL")
     @classmethod
     def check_cheap_model(cls, value: str) -> str:
         """Allow only Haiku and Sonnet models."""

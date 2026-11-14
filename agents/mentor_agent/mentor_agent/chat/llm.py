@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import anthropic
 from langchain_anthropic import ChatAnthropic
 
 from mentor_agent.config import settings
@@ -32,3 +33,13 @@ def build_chat_model(model: str | None = None) -> ChatAnthropic:
 def build_summary_model() -> ChatAnthropic:
     """Return the cheaper model used for summaries."""
     return build_chat_model(settings.anthropic.LLM_MODEL_CONTEXT_SUMMARY)
+
+
+def build_research_client() -> anthropic.AsyncAnthropic:
+    """The Anthropic client for web research, with a timeout long enough for searches."""
+    config = settings.anthropic
+    return anthropic.AsyncAnthropic(
+        api_key=config.require_api_key().get_secret_value(),
+        timeout=config.RESEARCH_TIMEOUT_SECONDS,
+        max_retries=config.MAX_RETRIES,
+    )

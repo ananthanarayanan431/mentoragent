@@ -5,10 +5,10 @@ import random
 from fastapi import APIRouter, BackgroundTasks, Depends, status
 
 from mentor_agent.dependencies import (
+    EnricherDep,
     MemoryBuilderDep,
     MentorPoolDep,
     MentorServiceDep,
-    PersonaWriterDep,
     require_api_key_in_production,
 )
 from mentor_agent.schemas.v1.mentors import (
@@ -18,6 +18,8 @@ from mentor_agent.schemas.v1.mentors import (
     MentorUpdate,
     PoolOut,
 )
+from mentor_agent.services.enrich import PERSONA_FIELDS, PersonaField
+from mentor_agent.services.persona import fallback_persona
 from mentor_agent.services.pool import remaining
 
 router = APIRouter(prefix="/mentors", tags=["mentors"])
@@ -40,23 +42,23 @@ async def list_mentors(mentors: MentorServiceDep) -> list[MentorOut]:
 async def create_mentor(
     body: MentorCreate,
     mentors: MentorServiceDep,
-    personas: PersonaWriterDep,
-    memory: MemoryBuilderDep,
+    enricher: EnricherDep,
     background: BackgroundTasks,
 ) -> MentorOut:
     """Add a mentor you describe: a name plus videos, web pages, PDFs or pasted text.
 
-    Persona fields left out are written from the name and pasted text. The memory
-    is built from the sources in the background, as for a random mentor.
+    Returns at once, with memory ``building`` and a placeholder for any persona
+    field left out. In the background the mentor is researched on the web (unless
+    ``research`` is false), the persona and sources are completed, and the memory
+    is built; poll the mentor until its memory is ``ready``.
     """
-    fields = body.model_dump()
-    if body.expertise is None or body.perspective is None or body.style is None:
-        persona = await personas.write(body.name, body.notes)
-        for key, value in persona.model_dump().items():
-            if fields[key] is None:
-                fields[key] = value
+    fields = body.model_dump(exclude={"research"})
+    write: list[PersonaField] = [field for field in PERSONA_FIELDS if fields[field] is None]
+    placeholder = fallback_persona(body.name)
+    for field in write:
+        fields[field] = getattr(placeholder, field)
     mentor = await mentors.add_custom(fields)
-    background.add_task(memory.rebuild, mentor.id)
+    background.add_task(enricher.enrich, mentor.id, research=body.research, write=write)
     return MentorOut.from_extract(mentor)
 
 
