@@ -61,11 +61,13 @@ Charlie told you to concentrate your bets", without you repeating anything.
 ### Step 3: ambient mentor chats
 
 - While I play, now and then the game sends one mentor walking to another, they
-  stop, face each other, and talk about my goal: 2 to 4 short lines shown as
-  bubbles, then they go back to wandering.
-- Only between mentors I have both talked to (each has a ledger line), only
-  while the square is open and not paused, and at most one chat every 3 minutes
-  (enforced by the server too).
+  stop, face each other, and talk: 2 to 4 short lines shown as bubbles, then
+  they go back to wandering.
+- If both have advised me (each has a ledger line) they talk about my goal;
+  otherwise they have a short, simple chat between themselves and move on.
+- Their lines play for 30 seconds at most in all.
+- Only while the square is open and not paused, and at most one chat every 3
+  minutes (enforced by the server too).
 
 ### Step 4: join their conversation
 
@@ -81,13 +83,13 @@ Charlie told you to concentrate your bets", without you repeating anything.
 All under `/api/v1`. Writes depend on `require_api_key_in_production`. Every
 change is followed by `make -C agents/mentor_agent openapi`.
 
-| Method & path         | Body / response                                                                                                               |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `GET /goal`           | `{goal: string \| null}`                                                                                                      |
-| `PUT /goal`           | `{goal: string}` (1 to 280 characters, trimmed) → `{goal}`                                                                    |
-| `GET /ledger`         | `?limit=50` → `[{id, mentor_id, mentor_name, topic, advice, created_at}]`, newest first                                       |
-| `DELETE /ledger/{id}` | 204; 404 if unknown                                                                                                           |
-| `POST /ambient`       | `{mentor_ids: [a, b]}` → 201 `{id, mentor_ids, lines: [{mentor_id, text}]}`; 409 if a mentor is not eligible; 429 if too soon |
+| Method & path         | Body / response                                                                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /goal`           | `{goal: string \| null}`                                                                                                                      |
+| `PUT /goal`           | `{goal: string}` (1 to 280 characters, trimmed) → `{goal}`                                                                                    |
+| `GET /ledger`         | `?limit=50` → `[{id, mentor_id, mentor_name, topic, advice, created_at}]`, newest first                                                       |
+| `DELETE /ledger/{id}` | 204; 404 if unknown                                                                                                                           |
+| `POST /ambient`       | `{mentor_ids: [a, b]}` → 201 `{id, mentor_ids, lines: [{mentor_id, text}], about_user}`; 409 if a mentor is still reading up; 429 if too soon |
 
 WebSocket `/ws/chat`, additions to the existing protocol (unchanged messages keep
 working):
