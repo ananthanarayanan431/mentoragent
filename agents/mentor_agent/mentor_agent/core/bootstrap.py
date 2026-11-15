@@ -39,8 +39,12 @@ def build_checkpointer() -> MongoDBSaver:
     )
 
 
-def build_mentor_graph(checkpointer: Checkpointer | None = None) -> MentorGraph:
-    """Build and compile the mentor graph with production models and retrieval."""
+def build_mentor_graph(checkpointer: Checkpointer | None = None) -> tuple[MentorGraph, Chains]:
+    """Build and compile the mentor graph with production models and retrieval.
+
+    Returns:
+        The graph, and the chains it runs (the opener uses one directly).
+    """
     vectorstore = build_vector_store()
     tools = [
         build_retrieve_context_tool(
@@ -49,12 +53,13 @@ def build_mentor_graph(checkpointer: Checkpointer | None = None) -> MentorGraph:
     ]
     chains = Chains(build_chat_model(), build_summary_model(), tools)
     nodes = Nodes(chains, messages_after_summary=settings.agent.TOTAL_MESSAGES_AFTER_SUMMARY)
-    return compile_graph(
+    graph = compile_graph(
         nodes,
         tools,
         summary_trigger=settings.agent.TOTAL_MESSAGES_SUMMARY_TRIGGER,
         checkpointer=checkpointer,
     )
+    return graph, chains
 
 
 def _opik_tracer_factory(graph: MentorGraph) -> Callable[[str], BaseCallbackHandler]:
@@ -76,9 +81,10 @@ def build_conversation_service(*, tracing: bool = False) -> ConversationService:
     Args:
         tracing: Attach Opik tracing to every run (requires Opik configured).
     """
-    graph = build_mentor_graph(build_checkpointer())
+    graph, chains = build_mentor_graph(build_checkpointer())
     return ConversationService(
         graph,
         recursion_limit=settings.agent.RECURSION_LIMIT,
         tracer_factory=_opik_tracer_factory(graph) if tracing else None,
+        opener=chains.mentor_opener,
     )

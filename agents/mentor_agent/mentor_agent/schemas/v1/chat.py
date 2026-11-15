@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
 
@@ -30,6 +30,27 @@ class ChatRequest(BaseModel):
             msg = f"must be at most {settings.agent.MAX_MESSAGE_CHARS} characters"
             raise ValueError(msg)
         return v
+
+
+class OpenerRequest(BaseModel):
+    """Ask a mentor to speak first (WebSocket only), when the user walks up to them."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    mentor_id: MentorId
+    opener: Literal[True]
+    conversation_id: ConversationId | None = None
+
+
+def parse_client_message(data: object) -> ChatRequest | OpenerRequest:
+    """Tell the WebSocket's client messages apart by their keys.
+
+    Raises:
+        ValidationError: If the message fits none of them.
+    """
+    if isinstance(data, dict) and "opener" in data:
+        return OpenerRequest.model_validate(data)
+    return ChatRequest.model_validate(data)
 
 
 class ChatResponse(BaseModel):

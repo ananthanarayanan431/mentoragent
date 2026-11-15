@@ -16,6 +16,7 @@ from mentor_agent.prompts import LEDGER_SYSTEM_PROMPT
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+    from datetime import datetime
 
     from langchain_core.language_models import BaseChatModel
 
@@ -141,6 +142,18 @@ def ledger_context(
     parts = [f"The user's goal: {goal}"] if goal else []
     parts += [f"{line.mentor_name} advised, on {line.topic}: {line.advice}" for line in others]
     return "\n".join(parts)
+
+
+def should_open(mentor_id: str, lines: Sequence[LedgerLine], heard_until: datetime | None) -> bool:
+    """Whether a mentor has news to open with: another mentor's advice newer than
+    both their own newest advice and what they already reacted to. Pure."""
+    seen: list[datetime] = [line.created_at for line in lines if line.mentor_id == mentor_id]
+    if heard_until is not None:
+        seen.append(heard_until)
+    others: list[datetime] = [line.created_at for line in lines if line.mentor_id != mentor_id]
+    if not others:
+        return False
+    return not seen or max(others) > max(seen)
 
 
 async def shared_context(profile: ProfileReader, ledger: AdviceLedger, mentor_id: str) -> str:

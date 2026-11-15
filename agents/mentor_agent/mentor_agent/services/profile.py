@@ -25,6 +25,12 @@ class ProfileService:
         """The profile; an empty one before anything was saved."""
         return await self.repository.fetch_one({"key": PROFILE_KEY}) or Profile()
 
+    async def mark_heard(self, mentor_id: str, at: datetime) -> None:
+        """Record that this mentor has reacted to the others' advice up to ``at``."""
+        await self.repository.update_one(
+            {"key": PROFILE_KEY}, {"key": PROFILE_KEY, f"heard_until.{mentor_id}": at}, upsert=True
+        )
+
     async def set_goal(self, goal: str) -> Profile:
         """Save the goal (creating the profile on first use) and return the profile."""
         changes = {"key": PROFILE_KEY, "goal": goal, "updated_at": datetime.now(UTC)}

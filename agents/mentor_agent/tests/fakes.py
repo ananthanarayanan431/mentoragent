@@ -28,6 +28,7 @@ from mentor_agent.services.pool import pick_new_mentor
 if TYPE_CHECKING:
     import random
     from collections.abc import Collection, Iterator, Mapping, Sequence
+    from datetime import datetime
 
     from langchain_core.callbacks import CallbackManagerForLLMRun, CallbackManagerForRetrieverRun
 
@@ -157,7 +158,9 @@ def build_fake_conversation_service(
     summary_model = ScriptedChatModel(responses=[AIMessage(content=summary_text)])
     nodes = Nodes(Chains(chat_model, summary_model, tools), messages_after_summary)
     graph = compile_graph(nodes, tools, summary_trigger, checkpointer=InMemorySaver())
-    return ConversationService(graph, recursion_limit=12), chat_model, calls
+    chains = nodes.chains
+    service = ConversationService(graph, recursion_limit=12, opener=chains.mentor_opener)
+    return service, chat_model, calls
 
 
 class InMemoryMentorService:
@@ -224,6 +227,10 @@ class InMemoryProfileService:
     async def set_goal(self, goal: str) -> Profile:
         self.profile = self.profile.model_copy(update={"goal": goal})
         return self.profile
+
+    async def mark_heard(self, mentor_id: str, at: datetime) -> None:
+        heard = {**self.profile.heard_until, mentor_id: at}
+        self.profile = self.profile.model_copy(update={"heard_until": heard})
 
 
 class InMemoryAdviceLedger:

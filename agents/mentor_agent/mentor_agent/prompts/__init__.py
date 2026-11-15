@@ -15,6 +15,7 @@ from mentor_agent.prompts.evaluate_dataset_generation import EVALUATE_DATASET_GE
 from mentor_agent.prompts.extend_summary import EXTEND_SUMMARY_PROMPT
 from mentor_agent.prompts.ledger import LEDGER_SYSTEM_PROMPT
 from mentor_agent.prompts.mentor_character import MENTOR_CHARACTER_PROMPT
+from mentor_agent.prompts.opener import OPENER_INSTRUCTION
 from mentor_agent.prompts.persona import PERSONA_SYSTEM_PROMPT
 from mentor_agent.prompts.research_extract import RESEARCH_EXTRACT_PROMPT
 from mentor_agent.prompts.research_system import RESEARCH_SYSTEM_PROMPT
@@ -27,6 +28,7 @@ __all__ = [
     "EXTEND_SUMMARY_PROMPT",
     "LEDGER_SYSTEM_PROMPT",
     "MENTOR_CHARACTER_PROMPT",
+    "OPENER_INSTRUCTION",
     "PERSONA_SYSTEM_PROMPT",
     "RESEARCH_EXTRACT_PROMPT",
     "RESEARCH_SYSTEM_PROMPT",
@@ -38,6 +40,7 @@ __all__ = [
 #: The templates versioned in Opik.
 ALL_PROMPTS: tuple[Prompt, ...] = (
     MENTOR_CHARACTER_PROMPT,
+    OPENER_INSTRUCTION,
     SUMMARY_PROMPT,
     EXTEND_SUMMARY_PROMPT,
     CONTEXT_SUMMARY_PROMPT,
