@@ -43,4 +43,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
     CMD ["python", "-c", "import urllib.request,sys; sys.exit(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).status != 200)"]
 
-CMD ["mentor-agent", "serve"]
+CMD ["sh", "-c", "exec uvicorn mentor_agent.main:app --host \"$HOST\" --port \"$PORT\" --proxy-headers --no-access-log"]

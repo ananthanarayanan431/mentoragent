@@ -9,7 +9,7 @@
 | Item       | Value                                                                         |
 | ---------- | ----------------------------------------------------------------------------- |
 | Port       | 8000                                                                          |
-| Entry      | `uvicorn mentor_agent.main:app` (or `./run.sh`, `mentor-agent serve`)         |
+| Entry      | `uvicorn mentor_agent.main:app` (or `./run.sh`, which adds reload)            |
 | Health     | `GET /health` (liveness), `GET /ready` (MongoDB ping)                         |
 | API prefix | `/api/v1` (`API_V1_PREFIX`, `routes/v1`); chat streams over `/api/v1/ws/chat` |
 | Module     | `mentor_agent`; Python from the root `.python-version`                        |
@@ -49,7 +49,7 @@
 
 - Every module starts with `from __future__ import annotations`. Type-only
   imports go under `if TYPE_CHECKING:`, except in Pydantic models, FastAPI
-  routes and dependencies, and the Typer CLI, which read annotations at runtime.
+  routes and dependencies, which read annotations at runtime.
 - New routes go in `routes/v1/` with their bodies in `schemas/v1/`. After any
   route or schema change run `make openapi` and commit both contract files.
 - Pyright runs in **strict** mode. Fix types instead of ignoring them. An ignore
@@ -63,8 +63,8 @@
   (use `db.client.get_mongo_client()`).
 - Shared plumbing (composition root, dependencies, errors, logging, request
   context, tracing) lives in `core/`. Entry points (`main.py`, `server.py`,
-  `cli.py`, `export_openapi.py`) stay at the package top: uvicorn, the console
-  script, the Makefile and CI call them by path.
+  `export_openapi.py`) stay at the package top: uvicorn, Docker, `run.sh`, the
+  Makefile and CI call them by path. There is no CLI; do not add one.
 - Third-party services live in `integrations/`, one module per provider, each
   behind a protocol. Build them only through `IntegrationFactory`, which returns
   `None` when the key is unset.
@@ -83,7 +83,7 @@
 ```bash
 make -C ../../infra up     # MongoDB
 make env                   # create .env, then fill in ANTHROPIC_API_KEY and OPENROUTER_API_KEY
-./run.sh                   # API with reload on :8000 (./run.sh seed: mentors + memory)
+./run.sh                   # API with reload on :8000
 make fmt                   # ruff format + safe fixes
 make test                  # = scripts/ci/python-checks.sh agents/mentor_agent unit
 make audit                 # = scripts/ci/python-checks.sh agents/mentor_agent audit

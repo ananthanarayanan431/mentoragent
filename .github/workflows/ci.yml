@@ -217,15 +217,16 @@ jobs:
       - name: Start the stack and load the mentors
         # The example settings plus placeholder keys: the suite never sends a chat
         # message, so no model is called, but the agent builds its chat model at
-        # startup and refuses a blank ANTHROPIC_API_KEY. load-mentors only reads
-        # the mentor data file.
+        # startup and refuses a blank ANTHROPIC_API_KEY. The mentors are imported
+        # straight from the data file with mongoimport.
         run: |
           cp infra/.env.example infra/.env
           sed -e 's/^OPENROUTER_API_KEY=.*/OPENROUTER_API_KEY=ci-placeholder/' \
             -e 's/^ANTHROPIC_API_KEY=.*/ANTHROPIC_API_KEY=ci-placeholder/' \
             agents/mentor_agent/.env.example > agents/mentor_agent/.env
           make -C infra stack-up
-          docker exec mentoragent-mentor-agent-api mentor-agent load-mentors
+          docker exec -i mentoragent-mongo mongoimport --uri "mongodb://mentor_user:mentor_password@localhost:27017/?authSource=admin&directConnection=true" --db mentoragents --collection mentors --jsonArray --mode upsert --upsertFields id \
+            < agents/mentor_agent/data/extraction_metadata.json
       - name: Cache Playwright browsers
         uses: actions/cache@v6
         with:

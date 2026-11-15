@@ -1,4 +1,4 @@
-"""Destructive maintenance operations, shared by the CLI and the admin API."""
+"""Destructive maintenance operations behind the admin API and mentor removal."""
 
 from __future__ import annotations
 
@@ -34,8 +34,3 @@ def delete_mentor_memory(mentor_id: str) -> int:
     deleted = collection.delete_many({"mentor_id": mentor_id}).deleted_count
     logger.info("Deleted {} memory chunks for {}", deleted, mentor_id)
     return deleted
-
-
-def delete_long_term_memory() -> list[str]:
-    """Delete the long-term memory collection, including its search indexes."""
-    return drop_collections(settings.mongo.LONG_TERM_MEMORY_COLLECTION)

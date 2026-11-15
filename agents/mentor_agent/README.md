@@ -36,17 +36,15 @@ Docker with the Compose plugin. From this directory:
 make install               # uv sync: create .venv from uv.lock
 make env                   # copy .env.example to .env, then fill in ANTHROPIC_API_KEY and OPENROUTER_API_KEY
 make -C ../../infra up     # start MongoDB Atlas Local and wait until it is healthy
-make seed                  # load the mentors, then build their long-term memory
 ./run.sh                   # run the API with autoreload on http://localhost:8000
 ```
 
 Open http://localhost:8000/docs for the interactive API docs (disabled when
 `ENVIRONMENT=prod`).
 
-The mentors live in [`data/extraction_metadata.json`](data/extraction_metadata.json).
-Add PDF / YouTube / website URLs and an X handle per mentor to enrich their
-memory, then rerun `make seed`. `create-memory` calls the embeddings API for
-every chunk; `uv run mentor-agent create-memory --sample` does a cheap trial run.
+Add mentors from the web app: create one from links and notes, or bring one in
+from the pool. Each mentor's memory is built in the background when they are
+added, and rebuilt from the mentor editor.
 
 Run `make` with no arguments to list every target.
 
@@ -64,22 +62,11 @@ Tests are split into `tests/unit/` (one module at a time) and `tests/contract/`
 (the HTTP and WebSocket API as clients see it). None need the network or a
 database. Lint, type and test rules come from the root `pyproject.toml`.
 
-## CLI
+## Running
 
-| Command                                          | What it does                                                 |
-| ------------------------------------------------ | ------------------------------------------------------------ |
-| `mentor-agent serve [--reload]`                  | Run the API                                                  |
-| `mentor-agent call --mentor-id ID --query "..."` | Ask a mentor one question; the reply streams to the terminal |
-| `mentor-agent add-mentor [--mentor-id ID]`       | Add a pool mentor (random by default) and build their memory |
-| `mentor-agent rebuild-memory --mentor-id ID`     | Rebuild one mentor's memory from their sources               |
-| `mentor-agent load-mentors`                      | Upsert mentors from the metadata file (idempotent)           |
-| `mentor-agent create-memory [--sample]`          | Extract sources, chunk, dedupe, embed, index                 |
-| `mentor-agent delete-memory`                     | Drop the long-term memory                                    |
-| `mentor-agent reset-conversations`               | Drop every conversation history                              |
-| `mentor-agent generate-dataset`                  | Build a synthetic evaluation dataset                         |
-| `mentor-agent evaluate`                          | Score the agent with Opik (needs `COMET_API_KEY`)            |
-
-Run them with `uv run mentor-agent ...`.
+There is no CLI. The API runs under uvicorn (`uvicorn mentor_agent.main:app`;
+`./run.sh` adds reload), and mentors are added and their memory rebuilt from
+the web app.
 
 ## API
 
@@ -176,11 +163,11 @@ default to keep cost down, and thinking is turned off on every call.
 Optional integrations switch on when their keys are set (a blank value counts
 as unset):
 
-| Variable                           | Enables                                                  |
-| ---------------------------------- | -------------------------------------------------------- |
-| `API_KEY`                          | API-key protection for `/api/v1`                         |
-| `ARCADE_API_KEY`, `ARCADE_USER_ID` | Fetching tweets during ingestion                         |
-| `COMET_API_KEY`                    | Opik tracing, prompt versioning, `mentor-agent evaluate` |
+| Variable                           | Enables                            |
+| ---------------------------------- | ---------------------------------- |
+| `API_KEY`                          | API-key protection for `/api/v1`   |
+| `ARCADE_API_KEY`, `ARCADE_USER_ID` | Fetching tweets during ingestion   |
+| `COMET_API_KEY`                    | Opik tracing and prompt versioning |
 
 Every other variable has a default. [`.env.example`](.env.example) lists them all.
 
@@ -241,7 +228,7 @@ credentials are in `infra/.env`; keep `MONGO_URI` here in step with them.
 agents/mentor_agent/
 ├── Dockerfile                  # multi-stage uv build from the repo root, non-root runtime
 ├── Makefile                    # shortcuts; `make` lists them
-├── run.sh                      # ./run.sh [api|seed|evaluate]
+├── run.sh                      # ./run.sh: the API with reload
 ├── data/extraction_metadata.json  # the mentors and their sources
 ├── mentor_agent/
 │   ├── main.py                 # uvicorn entry point
@@ -258,7 +245,6 @@ agents/mentor_agent/
 │   ├── config/                 # settings, one module per concern
 │   ├── integrations/           # optional Exa, Firecrawl, Arcade clients and their factory
 │   ├── export_openapi.py       # the OpenAPI document for libs/mentor-agent-contracts
-│   ├── cli.py                  # Typer CLI (`mentor-agent`)
 │   ├── services/               # use cases: conversations, mentors, maintenance
 │   ├── chat/                   # LangGraph agent: state, prompts, chains, nodes, graph
 │   ├── rag/                    # extractors, splitter, embeddings, retriever, memory
@@ -277,11 +263,10 @@ make -C ../../infra up   # MongoDB
 make docker-up           # build the image and run the API on the infra network
 ```
 
-The image runs `mentor-agent serve` as a non-root user with JSON logs and a
+The image runs uvicorn as a non-root user with JSON logs and a
 `/health` healthcheck. In production set `ENVIRONMENT=prod` (hides the docs),
-`API_KEY`, `LOG_JSON=true`, and point `MONGO_URI` at your Atlas cluster. Scale
-with `mentor-agent serve --workers N` or more replicas: the app is stateless,
-all state lives in MongoDB.
+`API_KEY`, `LOG_JSON=true`, and point `MONGO_URI` at your Atlas cluster. All
+conversation and mentor state lives in MongoDB.
 
 ## Project status
 

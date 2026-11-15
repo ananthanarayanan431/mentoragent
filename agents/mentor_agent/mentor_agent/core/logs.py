@@ -81,7 +81,7 @@ def configure_logging(app_settings: AppSettings | None = None, *, enqueue: bool 
         app_settings: Source of ``LOG_LEVEL`` / ``LOG_JSON`` / ``DEBUG``.
             Defaults to the global settings.
         enqueue: Write from a background thread, so a slow stdout never stalls
-            an event loop. The API server turns it on; the CLI writes directly.
+            an event loop. The API server turns it on.
     """
     if app_settings is None:
         from mentor_agent.config import settings
@@ -104,6 +104,12 @@ def configure_logging(app_settings: AppSettings | None = None, *, enqueue: bool 
     )
 
     logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
+    # Uvicorn started from its own command line installs handlers on its loggers;
+    # send those records through loguru too, so every line has one format.
+    for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+        uvicorn_logger = logging.getLogger(name)
+        uvicorn_logger.handlers.clear()
+        uvicorn_logger.propagate = True
     for name in _QUIET_LOGGERS:
         logging.getLogger(name).setLevel(logging.WARNING)
 

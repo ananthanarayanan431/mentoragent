@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 #: Long-term memory of a mentor added or rebuilt through the API. ``None``: built
-#: offline (``mentor-agent create-memory``) or never built, so not tracked.
+#: outside the API or never built, so not tracked.
 MemoryStatus = Literal["building", "ready", "failed"]
 
 
