@@ -88,6 +88,12 @@ class NotFoundError(MentorAgentError):
     default_message = "Object not found"
 
 
+class LedgerLineNotFoundError(NotFoundError):
+    """No ledger line has the given id."""
+
+    default_message = "No such advice in the ledger."
+
+
 class MentorNotFoundError(NotFoundError):
     """No mentor exists for the given id."""
 

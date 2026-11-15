@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
@@ -29,3 +30,14 @@ class GoalOut(BaseModel):
     """The user's goal, or ``null`` before one is set."""
 
     goal: str | None
+
+
+class LedgerLineOut(BaseModel):
+    """One piece of advice a mentor gave the user."""
+
+    id: str
+    mentor_id: str
+    mentor_name: str
+    topic: str
+    advice: str
+    created_at: datetime

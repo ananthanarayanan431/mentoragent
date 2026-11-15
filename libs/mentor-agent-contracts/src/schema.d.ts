@@ -65,6 +65,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ledger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Ledger
+         * @description What the mentors have told the user, newest first.
+         */
+        get: operations["list_ledger_api_v1_ledger_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ledger/{line_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Ledger Line
+         * @description Forget a piece of advice, so no mentor reads it again.
+         */
+        delete: operations["delete_ledger_line_api_v1_ledger__line_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mentors": {
         parameters: {
             query?: never;
@@ -328,6 +368,27 @@ export interface components {
             status: string;
         };
         /**
+         * LedgerLineOut
+         * @description One piece of advice a mentor gave the user.
+         */
+        LedgerLineOut: {
+            /** Advice */
+            advice: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Mentor Id */
+            mentor_id: string;
+            /** Mentor Name */
+            mentor_name: string;
+            /** Topic */
+            topic: string;
+        };
+        /**
          * MentorCreate
          * @description A mentor you describe yourself: a name and whatever you have about them.
          *
@@ -584,6 +645,66 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["GoalOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_ledger_api_v1_ledger_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LedgerLineOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_ledger_line_api_v1_ledger__line_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                line_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

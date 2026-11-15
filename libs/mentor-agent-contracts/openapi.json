@@ -123,6 +123,46 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "LedgerLineOut": {
+        "description": "One piece of advice a mentor gave the user.",
+        "properties": {
+          "advice": {
+            "title": "Advice",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "mentor_id": {
+            "title": "Mentor Id",
+            "type": "string"
+          },
+          "mentor_name": {
+            "title": "Mentor Name",
+            "type": "string"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "mentor_id",
+          "mentor_name",
+          "topic",
+          "advice",
+          "created_at"
+        ],
+        "title": "LedgerLineOut",
+        "type": "object"
+      },
       "MentorCreate": {
         "additionalProperties": false,
         "description": "A mentor you describe yourself: a name and whatever you have about them.\n\nIn the background the server researches them on the web (unless ``research``\nis off), fills in the persona fields left out, adds the talks and writing it\nfinds to their sources, then builds the memory.",
@@ -773,6 +813,102 @@
           }
         ],
         "summary": "Set Goal",
+        "tags": [
+          "square"
+        ]
+      }
+    },
+    "/api/v1/ledger": {
+      "get": {
+        "description": "What the mentors have told the user, newest first.",
+        "operationId": "list_ledger_api_v1_ledger_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LedgerLineOut"
+                  },
+                  "title": "Response List Ledger Api V1 Ledger Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "List Ledger",
+        "tags": [
+          "square"
+        ]
+      }
+    },
+    "/api/v1/ledger/{line_id}": {
+      "delete": {
+        "description": "Forget a piece of advice, so no mentor reads it again.",
+        "operationId": "delete_ledger_line_api_v1_ledger__line_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "title": "Line Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Delete Ledger Line",
         "tags": [
           "square"
         ]
