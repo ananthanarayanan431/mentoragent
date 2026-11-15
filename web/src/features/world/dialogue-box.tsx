@@ -1,9 +1,7 @@
 import { AlertCircle, ExternalLink, RotateCcw, ScrollText, SendHorizontal, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
-import Markdown from 'react-markdown'
 import { Link } from 'react-router'
-import remarkGfm from 'remark-gfm'
 
 import { Avatar } from '@/components/avatar'
 import { Spinner } from '@/components/state-views'
@@ -13,6 +11,7 @@ import { MAX_MESSAGE_CHARS } from '@/lib/config'
 import { useMediaQuery } from '@/lib/use-media-query'
 import type { Mentor } from '@/lib/types'
 import { currentExchange } from './dialogue'
+import { SpokenLine } from './spoken-line'
 import type { Level } from './progress'
 import { useTypewriter } from './use-typewriter'
 
@@ -292,53 +291,5 @@ export function DialogueBox({ mentor, level, onClose, onMessageSent }: Props) {
         </p>
       </form>
     </section>
-  )
-}
-
-interface SpokenLineProps {
-  shown: string
-  /** The mentor is working on a reply and has not said anything yet. */
-  thinking: boolean
-  /** More of the line is still coming (typing out or streaming in). */
-  revealing: boolean
-  /** The whole line is on screen: show the "continue" marker. */
-  finished: boolean
-  onSkip: () => void
-}
-
-/** The mentor's current line, typing itself out; a click shows the rest at once. */
-function SpokenLine({ shown, thinking, revealing, finished, onSkip }: SpokenLineProps) {
-  if (thinking) {
-    return (
-      <p className="flex items-center gap-1.5 py-2" aria-label="Thinking">
-        {[0, 1, 2].map((i) => (
-          <span
-            key={i}
-            className="size-2 animate-blink rounded-full bg-faint"
-            style={{ animationDelay: `${i * 0.18}s` }}
-          />
-        ))}
-      </p>
-    )
-  }
-
-  return (
-    <div
-      aria-hidden="true"
-      onClick={revealing ? onSkip : undefined}
-      className={`relative pb-4 ${revealing ? 'cursor-pointer' : ''}`}
-    >
-      <div className="prose-reply break-words text-base leading-relaxed">
-        <Markdown remarkPlugins={[remarkGfm]}>{shown}</Markdown>
-      </div>
-      {revealing && (
-        <span className="ml-0.5 inline-block h-[1em] w-[2px] translate-y-[0.15em] animate-blink bg-accent" />
-      )}
-      {finished && (
-        <span className="absolute right-0 bottom-0 animate-blink font-mono text-xs text-accent">
-          ▼
-        </span>
-      )}
-    </div>
   )
 }
