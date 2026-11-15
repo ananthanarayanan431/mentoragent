@@ -229,6 +229,11 @@ class AsyncMongoRepository[T: BaseModel]:
         )
         return None if document is None else _to_model(self.model, document)
 
+    async def update_many(self, query: Mapping[str, Any], changes: Mapping[str, Any]) -> int:
+        """Set ``changes`` on every document matching ``query``; returns how many changed."""
+        result = await self.collection.update_many(query, {"$set": dict(changes)})
+        return result.modified_count
+
     async def delete_one(self, query: Mapping[str, Any]) -> bool:
         """Delete the first document matching ``query``; ``True`` if one was deleted."""
         result = await self.collection.delete_one(query)

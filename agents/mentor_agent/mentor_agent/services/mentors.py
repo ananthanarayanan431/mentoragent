@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from mentor_agent.core.errors import MemoryBuildInProgressError, MentorNotFoundError
+from mentor_agent.core.errors import (
+    MemoryBuildInProgressError,
+    MentorNotFoundError,
+    MentorNotReadyError,
+)
 from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.services.custom import new_mentor_id
 from mentor_agent.services.pool import pick_new_mentor
@@ -13,6 +17,20 @@ if TYPE_CHECKING:
 
     from mentor_agent.db.client import AsyncMongoRepository
     from mentor_agent.models.mentor_extract import MemoryStatus
+
+
+def ensure_ready_to_chat(mentor: MentorExtract) -> None:
+    """Refuse a chat turn while the mentor's memory is being built.
+
+    Until the build ends the persona may still be a placeholder and none of the
+    sources are searchable, so replies would be generic (and stay in the history).
+    A ``failed`` memory is allowed: the mentor answers from the persona alone.
+
+    Raises:
+        MentorNotReadyError: If the memory is ``building``.
+    """
+    if mentor.memory == "building":
+        raise MentorNotReadyError
 
 
 class MentorService:
@@ -112,6 +130,15 @@ class MentorService:
         await self.get_mentor(mentor_id)  # raises MentorNotFoundError if missing
         msg = "This mentor's memory is being built; remove them once it finishes."
         raise MemoryBuildInProgressError(msg)
+
+    async def fail_interrupted_builds(self) -> int:
+        """Mark every memory still ``building`` as ``failed``; returns how many.
+
+        Builds run as in-process background tasks, so at start-up any ``building``
+        status is left over from a process that stopped mid-build. Without this the
+        mentor would stay locked out of chat until someone rebuilt them by hand.
+        """
+        return await self.repository.update_many({"memory": "building"}, {"memory": "failed"})
 
     async def set_memory_status(self, mentor_id: str, status: MemoryStatus) -> None:
         """Record how a memory build ended."""

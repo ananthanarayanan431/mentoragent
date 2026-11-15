@@ -50,7 +50,8 @@ async def create_mentor(
     Returns at once, with memory ``building`` and a placeholder for any persona
     field left out. In the background the mentor is researched on the web (unless
     ``research`` is false), the persona and sources are completed, and the memory
-    is built; poll the mentor until its memory is ``ready``.
+    is built; poll the mentor until its memory is ``ready``. Chat is refused (409)
+    until then.
     """
     fields = body.model_dump(exclude={"research"})
     write: list[PersonaField] = [field for field in PERSONA_FIELDS if fields[field] is None]
@@ -81,8 +82,8 @@ async def add_random_mentor(
 ) -> MentorOut:
     """Add a random mentor from the pool, and build their memory in the background.
 
-    The mentor can be talked to at once; answers draw on their memory once its
-    status turns ``ready``. 409 when every pool mentor is already here.
+    The mentor can be talked to once their memory status leaves ``building``.
+    409 when every pool mentor is already here.
     """
     mentor = await mentors.add_from_pool(pool, _rng)
     background.add_task(memory.rebuild, mentor.id)

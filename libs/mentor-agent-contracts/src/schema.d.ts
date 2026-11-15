@@ -12,7 +12,7 @@ export interface paths {
         put?: never;
         /**
          * Chat
-         * @description Send a message to a mentor and get the full reply.
+         * @description Send a message to a mentor and get the full reply (409 while their memory builds).
          */
         post: operations["chat_api_v1_chat_post"];
         delete?: never;
@@ -61,7 +61,8 @@ export interface paths {
          *     Returns at once, with memory ``building`` and a placeholder for any persona
          *     field left out. In the background the mentor is researched on the web (unless
          *     ``research`` is false), the persona and sources are completed, and the memory
-         *     is built; poll the mentor until its memory is ``ready``.
+         *     is built; poll the mentor until its memory is ``ready``. Chat is refused (409)
+         *     until then.
          */
         post: operations["create_mentor_api_v1_mentors_post"];
         delete?: never;
@@ -103,8 +104,8 @@ export interface paths {
          * Add Random Mentor
          * @description Add a random mentor from the pool, and build their memory in the background.
          *
-         *     The mentor can be talked to at once; answers draw on their memory once its
-         *     status turns ``ready``. 409 when every pool mentor is already here.
+         *     The mentor can be talked to once their memory status leaves ``building``.
+         *     409 when every pool mentor is already here.
          */
         post: operations["add_random_mentor_api_v1_mentors_random_post"];
         delete?: never;

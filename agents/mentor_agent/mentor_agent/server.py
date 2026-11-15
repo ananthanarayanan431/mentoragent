@@ -62,6 +62,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.mentors = MentorService(
         AsyncMongoRepository(MentorExtract, settings.mongo.MENTORS_COLLECTION)
     )
+    interrupted = await app.state.mentors.fail_interrupted_builds()
+    if interrupted:
+        logger.warning("Marked {} interrupted memory build(s) as failed", interrupted)
     app.state.pool = await run_in_threadpool(_load_pool)
     app.state.memory = MentorMemoryBuilder(app.state.mentors, _rebuild_one, delete_mentor_memory)
     app.state.enricher = MentorEnricher(

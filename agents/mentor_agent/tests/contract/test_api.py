@@ -92,6 +92,33 @@ def test_chat_unknown_mentor_is_404(client: TestClient) -> None:
     assert response.status_code == 404
 
 
+def test_chat_is_refused_while_the_memory_builds(mentor_extract: MentorExtract) -> None:
+    building = mentor_extract.model_copy(update={"memory": "building"})
+    with _client(building, [AIMessage(content="Too early.")]) as client:
+        response = client.post("/api/v1/chat", json={"mentor_id": "ada", "message": "Hi"})
+    assert response.status_code == 409
+    assert "still reading up" in response.json()["detail"]
+
+
+def test_chat_is_allowed_when_the_memory_failed(mentor_extract: MentorExtract) -> None:
+    failed = mentor_extract.model_copy(update={"memory": "failed"})
+    with _client(failed, [AIMessage(content="From the persona.")]) as client:
+        response = client.post("/api/v1/chat", json={"mentor_id": "ada", "message": "Hi"})
+    assert response.status_code == 200
+
+
+def test_websocket_refuses_a_mentor_whose_memory_builds(mentor_extract: MentorExtract) -> None:
+    building = mentor_extract.model_copy(update={"memory": "building"})
+    with (
+        _client(building, [AIMessage(content="Too early.")]) as client,
+        client.websocket_connect("/api/v1/ws/chat") as ws,
+    ):
+        ws.send_json({"mentor_id": "ada", "message": "Hi"})
+        error = ws.receive_json()
+    assert error["type"] == "error"
+    assert "still reading up" in error["detail"]
+
+
 def test_delete_conversation(client: TestClient) -> None:
     assert client.delete("/api/v1/conversations/ada/abc123").status_code == 204
 

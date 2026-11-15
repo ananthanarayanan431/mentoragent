@@ -73,6 +73,14 @@ class MemoryBuildInProgressError(ConflictError):
     default_message = "This mentor's memory is already being built."
 
 
+class MentorNotReadyError(ConflictError):
+    """The mentor's memory is still being built, so they cannot be talked to yet."""
+
+    default_message = (
+        "This mentor is still reading up on their sources. You can chat once their memory is ready."
+    )
+
+
 class NotFoundError(MentorAgentError):
     """A requested object does not exist."""
 

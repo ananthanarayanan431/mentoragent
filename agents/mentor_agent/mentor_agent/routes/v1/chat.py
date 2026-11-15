@@ -15,6 +15,7 @@ from mentor_agent.core.dependencies import (
 from mentor_agent.core.errors import MentorAgentError, unpack_validation_error
 from mentor_agent.schemas.common import ConversationId
 from mentor_agent.schemas.v1.chat import ChatRequest, ChatResponse
+from mentor_agent.services.mentors import ensure_ready_to_chat
 
 router = APIRouter(tags=["chat"])
 websocket_router = APIRouter(tags=["chat"])
@@ -28,8 +29,9 @@ def _new_conversation_id() -> str:
 async def chat(
     body: ChatRequest, mentors: MentorServiceDep, conversations: ConversationServiceDep
 ) -> ChatResponse:
-    """Send a message to a mentor and get the full reply."""
+    """Send a message to a mentor and get the full reply (409 while their memory builds)."""
     mentor = await mentors.get_mentor(body.mentor_id)
+    ensure_ready_to_chat(mentor)
     conversation_id = body.conversation_id or _new_conversation_id()
     reply = await conversations.respond(mentor.to_mentor(), body.message, conversation_id)
     return ChatResponse(
@@ -64,7 +66,8 @@ async def chat_websocket(
         {"type": "end", "conversation_id": "...", "response": "..."}
         {"type": "error", "detail": ...}
 
-    An error ends the current turn, not the connection.
+    An error ends the current turn, not the connection. A mentor whose memory is
+    still building gets an ``error`` event and no ``start``.
     """
     await websocket.accept()
     try:
@@ -83,6 +86,7 @@ async def chat_websocket(
             conversation_id = body.conversation_id or _new_conversation_id()
             try:
                 mentor = await mentors.get_mentor(body.mentor_id)
+                ensure_ready_to_chat(mentor)
                 await websocket.send_json({"type": "start", "conversation_id": conversation_id})
                 parts: list[str] = []
                 async for token in conversations.stream(

@@ -573,7 +573,7 @@
   "paths": {
     "/api/v1/chat": {
       "post": {
-        "description": "Send a message to a mentor and get the full reply.",
+        "description": "Send a message to a mentor and get the full reply (409 while their memory builds).",
         "operationId": "chat_api_v1_chat_post",
         "requestBody": {
           "content": {
@@ -700,7 +700,7 @@
         ]
       },
       "post": {
-        "description": "Add a mentor you describe: a name plus videos, web pages, PDFs or pasted text.\n\nReturns at once, with memory ``building`` and a placeholder for any persona\nfield left out. In the background the mentor is researched on the web (unless\n``research`` is false), the persona and sources are completed, and the memory\nis built; poll the mentor until its memory is ``ready``.",
+        "description": "Add a mentor you describe: a name plus videos, web pages, PDFs or pasted text.\n\nReturns at once, with memory ``building`` and a placeholder for any persona\nfield left out. In the background the mentor is researched on the web (unless\n``research`` is false), the persona and sources are completed, and the memory\nis built; poll the mentor until its memory is ``ready``. Chat is refused (409)\nuntil then.",
         "operationId": "create_mentor_api_v1_mentors_post",
         "requestBody": {
           "content": {
@@ -774,7 +774,7 @@
     },
     "/api/v1/mentors/random": {
       "post": {
-        "description": "Add a random mentor from the pool, and build their memory in the background.\n\nThe mentor can be talked to at once; answers draw on their memory once its\nstatus turns ``ready``. 409 when every pool mentor is already here.",
+        "description": "Add a random mentor from the pool, and build their memory in the background.\n\nThe mentor can be talked to once their memory status leaves ``building``.\n409 when every pool mentor is already here.",
         "operationId": "add_random_mentor_api_v1_mentors_random_post",
         "responses": {
           "201": {
