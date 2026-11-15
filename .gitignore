@@ -40,3 +40,10 @@ htmlcov/
 .Trashes
 Thumbs.db
 ehthumbs.db
+
+# Launch video intermediates (rebuild with marketing-video/work scripts)
+marketing-video/work/footage/
+marketing-video/work/frames/
+marketing-video/work/*.png
+marketing-video/work/*.wav
+marketing-video/*.mp4

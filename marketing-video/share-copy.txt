@@ -1,0 +1,1 @@
+What would Charlie Munger tell you? MentorAgents is a tiny pixel-art town where AI mentors walk around, and each one answers from their own published work: books, talks, interviews and posts. Walk up, press Space, ask anything. Open source: github.com/ananthanarayanan431/mentoragent

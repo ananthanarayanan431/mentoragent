@@ -1,0 +1,496 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --canvas: #fdfcf9;
+        --ink: #2a2622;
+        --muted: #7a7168;
+        --accent: #b8621b;
+        --accent-soft: #f7ebdc;
+        --line: #e6e2dc;
+        --positive: #3f9a5c;
+        --night: #1c1917;
+        --gold: #f0b35a;
+        --paper: #f5f2ec;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--night);
+        font-family: Inter, sans-serif;
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+        display: none;
+        overflow: hidden;
+      }
+      .mono {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+      }
+
+      /* footage */
+      #foot {
+        background: #2f4a2c;
+      }
+      #foot img {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+        transform-origin: 0 0;
+      }
+      .cap {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .chip {
+        align-self: flex-start;
+        font:
+          700 22px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.14em;
+        color: #fff;
+        background: var(--accent);
+        padding: 10px 14px;
+        border-radius: 6px;
+      }
+      .capline {
+        font-weight: 700;
+        font-size: 64px;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+        background: var(--canvas);
+        padding: 18px 30px;
+        border-radius: 16px;
+        box-shadow: 0 18px 50px rgba(28, 25, 23, 0.28);
+        line-height: 1.1;
+      }
+      .capsub {
+        font-weight: 500;
+        font-size: 34px;
+        color: var(--muted);
+        background: var(--canvas);
+        padding: 14px 26px;
+        border-radius: 12px;
+        box-shadow: 0 12px 30px rgba(28, 25, 23, 0.2);
+        align-self: flex-start;
+      }
+
+      /* hook + outro */
+      .dark {
+        background: radial-gradient(1200px 700px at 50% 45%, #2a2420 0%, var(--night) 70%);
+      }
+      .grid {
+        position: absolute;
+        inset: -40px;
+        background-image:
+          linear-gradient(rgba(240, 179, 90, 0.06) 2px, transparent 2px),
+          linear-gradient(90deg, rgba(240, 179, 90, 0.06) 2px, transparent 2px);
+        background-size: 48px 48px;
+      }
+      .hook {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .hook div {
+        font-weight: 800;
+        font-size: 128px;
+        letter-spacing: -0.035em;
+        color: var(--paper);
+        line-height: 1.05;
+      }
+      .hook .who {
+        color: var(--gold);
+      }
+
+      /* memory scene */
+      #mem {
+        background: var(--canvas);
+      }
+      #mem .title {
+        position: absolute;
+        top: 160px;
+        width: 100%;
+        text-align: center;
+        font-weight: 800;
+        font-size: 84px;
+        letter-spacing: -0.03em;
+        color: var(--ink);
+      }
+      #mem .title span {
+        color: var(--accent);
+      }
+      .src {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 18px 26px;
+        background: #fff;
+        border: 2px solid var(--line);
+        border-radius: 14px;
+        font-weight: 600;
+        font-size: 42px;
+        color: var(--ink);
+        box-shadow: 0 10px 24px rgba(28, 25, 23, 0.08);
+        white-space: nowrap;
+      }
+      .src i {
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+        background: var(--accent);
+        display: block;
+      }
+      .card {
+        position: absolute;
+        left: 860px;
+        top: 390px;
+        width: 900px;
+        padding: 48px;
+        background: #fff;
+        border: 2px solid var(--line);
+        border-radius: 24px;
+        box-shadow: 0 30px 70px rgba(28, 25, 23, 0.12);
+      }
+      .card .row {
+        display: flex;
+        gap: 26px;
+        align-items: center;
+      }
+      .avatar {
+        width: 128px;
+        height: 128px;
+        flex: none;
+        border-radius: 50%;
+        background: var(--accent-soft);
+        color: var(--accent);
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        font-size: 40px;
+      }
+      .card h3 {
+        font-size: 56px;
+        font-weight: 700;
+        color: var(--ink);
+        letter-spacing: -0.02em;
+      }
+      .card p {
+        margin-top: 10px;
+        font-size: 30px;
+        color: var(--muted);
+        line-height: 1.35;
+      }
+      .badge {
+        margin-top: 30px;
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        font: 600 34px Inter;
+        padding: 14px 26px;
+        border-radius: 999px;
+      }
+      .badge.building {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .badge.ready {
+        background: #e3f3e7;
+        color: var(--positive);
+      }
+      .dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      /* outro */
+      .outro {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 34px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 34px;
+      }
+      .brand svg {
+        width: 150px;
+        height: 150px;
+      }
+      .word {
+        font-weight: 800;
+        font-size: 128px;
+        letter-spacing: -0.035em;
+        color: var(--paper);
+      }
+      .word span {
+        color: var(--gold);
+      }
+      .tag {
+        font-weight: 500;
+        font-size: 52px;
+        color: #d9d2c7;
+        letter-spacing: -0.01em;
+      }
+      .url {
+        margin-top: 26px;
+        font:
+          600 34px ui-monospace,
+          Menlo,
+          monospace;
+        color: var(--gold);
+        padding: 16px 28px;
+        border: 2px solid rgba(240, 179, 90, 0.45);
+        border-radius: 12px;
+      }
+      .small {
+        font-size: 26px;
+        color: #a39a8e;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+      }
+      #fade {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="scene dark" id="hook">
+      <div class="grid"></div>
+      <div class="hook">
+        <div id="h1">What would</div>
+        <div id="h2" class="who">Charlie Munger</div>
+        <div id="h3">tell you?</div>
+      </div>
+    </section>
+
+    <section class="scene" id="foot">
+      <img id="fimg" />
+      <div class="cap" id="cap2" style="left: 90px; bottom: 90px">
+        <div class="chip">MENTOR SQUARE</div>
+        <div class="capline">A tiny town of AI mentors.</div>
+      </div>
+      <div class="cap" id="cap3" style="left: 90px; top: 70px">
+        <div class="capline">Ask anything.</div>
+        <div class="capsub">Answers come from their own published work.</div>
+      </div>
+      <div class="cap" id="cap5" style="right: 90px; bottom: 90px; align-items: flex-end">
+        <div class="chip" style="align-self: flex-end">ADD A MENTOR</div>
+        <div class="capline">New mentors join anytime.</div>
+      </div>
+    </section>
+
+    <section class="scene" id="mem">
+      <div class="title">Built from <span>their own words.</span></div>
+      <div class="src" id="s0"><i></i>PDFs</div>
+      <div class="src" id="s1"><i></i>Wikipedia</div>
+      <div class="src" id="s2"><i></i>YouTube</div>
+      <div class="src" id="s3"><i></i>X posts</div>
+      <div class="card" id="card">
+        <div class="row">
+          <div class="avatar">BG</div>
+          <div>
+            <h3>Benjamin Graham</h3>
+            <p>Security analysis, margin of safety and the intelligent investor's temperament</p>
+          </div>
+        </div>
+        <div class="badge building" id="badge">
+          <span class="dot"></span><span id="btext">Building memory</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene dark" id="outro">
+      <div class="grid"></div>
+      <div class="outro">
+        <div class="brand" id="brand">
+          <svg viewBox="0 0 24 24">
+            <rect width="24" height="24" rx="6" fill="#2a2420" stroke="#3a322c" stroke-width=".4" />
+            <g fill="none" stroke="#f0b35a" stroke-width="1.8" stroke-linecap="round">
+              <path d="M9 4.8a4.2 4.2 0 0 0 0 8.4" />
+              <path d="M15 19.2a4.2 4.2 0 0 0 0-8.4" />
+              <circle cx="9" cy="16.6" r="2.2" />
+              <circle cx="15" cy="7.4" r="2.2" />
+            </g>
+          </svg>
+          <div class="word">Mentor<span>Agents</span></div>
+        </div>
+        <div class="tag" id="tag">Where human expertise meets AI.</div>
+        <div class="url" id="url">github.com/ananthanarayanan431/mentoragent</div>
+        <div class="small" id="small">OPEN SOURCE · MIT</div>
+      </div>
+    </section>
+
+    <div id="fade"></div>
+
+    <script>
+      const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x))
+      const ease = (x) => {
+        x = clamp(x)
+        return 1 - Math.pow(1 - x, 3)
+      }
+      const inOut = (x) => {
+        x = clamp(x)
+        return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2
+      }
+      const back = (x) => {
+        x = clamp(x)
+        const c = 1.5
+        return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2)
+      }
+      const lerp = (a, b, t) => a + (b - a) * t
+      const $ = (id) => document.getElementById(id)
+      const show = (id) => {
+        for (const s of document.querySelectorAll('.scene'))
+          s.style.display = s.id === id ? 'block' : 'none'
+      }
+      function rise(el, f, start, dist = 50, dur = 9) {
+        const p = ease((f - start) / dur)
+        el.style.opacity = p
+        el.style.transform = `translateY(${(1 - p) * dist}px)`
+      }
+      function pop(el, f, start, dur = 10) {
+        const p = clamp((f - start) / dur)
+        el.style.opacity = clamp(p * 2)
+        el.style.transform = `scale(${lerp(0.85, 1, back(p))})`
+      }
+      function fade(color, a) {
+        $('fade').style.background = color
+        $('fade').style.opacity = a
+      }
+
+      // Footage camera: scale s around focus point (cx, cy), clamped to the frame.
+      function camera(s, cx, cy) {
+        const w = 1920 / s,
+          h = 1080 / s
+        const x = clamp(cx - w / 2, 0, 1920 - w),
+          y = clamp(cy - h / 2, 0, 1080 - h)
+        $('fimg').style.transform = `scale(${s}) translate(${-x}px, ${-y}px)`
+      }
+      const pad = (n) => String(n).padStart(4, '0')
+      function footage(n) {
+        const img = $('fimg'),
+          src = `footage/${pad(Math.round(n))}.png`
+        if (img.getAttribute('src') === src) return Promise.resolve()
+        return new Promise((r) => {
+          img.onload = r
+          img.onerror = r
+          img.setAttribute('src', src)
+        })
+      }
+
+      async function seek(f) {
+        fade('transparent', 0)
+        for (const id of ['cap2', 'cap3', 'cap5']) $(id).style.opacity = 0
+        if (f < 75) {
+          show('hook')
+          rise($('h1'), f, 0)
+          rise($('h2'), f, 7.5)
+          rise($('h3'), f, 15)
+          $('hook').querySelector('.grid').style.transform = `translateY(${-f * 0.4}px)`
+          const out = inOut((f - 68) / 7)
+          $('hook').querySelector('.hook').style.transform = `scale(${1 + out * 0.25})`
+          $('hook').querySelector('.hook').style.opacity = 1 - out
+        } else if (f < 330) {
+          show('foot')
+          if (f < 150) {
+            const t = f - 75
+            await footage(t)
+            camera(lerp(1, 1.1, inOut(t / 75)), 960, 520)
+            rise($('cap2'), f, 80)
+            if (f >= 142) $('cap2').style.opacity = 1 - (f - 142) / 8
+            fade('#1c1917', 1 - ease((f - 75) / 6))
+          } else {
+            const t = f - 150
+            await footage(Math.min(316, 118 + t * 1.1))
+            const z = inOut(t / 16)
+            camera(lerp(1.1, 2.0, z), 960, lerp(520, 810, z))
+            rise($('cap3').children[0], f, 160)
+            rise($('cap3').children[1], f, 166)
+            $('cap3').style.opacity = 1
+            fade('#fdfcf9', ease((f - 322) / 8))
+          }
+        } else if (f < 405) {
+          show('mem')
+          const t = f - 330
+          rise($('mem').querySelector('.title'), f, 332)
+          pop($('card'), f, 333)
+          const starts = [330, 335, 340, 345]
+          const lands = [367.5, 375, 382.5, 390]
+          starts.forEach((s, i) => {
+            const el = $('s' + i)
+            const enter = ease((f - s) / 9)
+            const fly = inOut((f - (lands[i] - 10)) / 10)
+            const x0 = 190,
+              y0 = 370 + i * 130
+            const x = lerp(lerp(-400, x0, enter), 1050, fly)
+            const y = lerp(y0, 560, fly)
+            el.style.transform = `translate(${x}px, ${y}px) scale(${1 - fly * 0.5})`
+            el.style.opacity = f < s ? 0 : 1 - clamp((fly - 0.7) / 0.3)
+          })
+          const ready = f >= 390
+          $('badge').className = 'badge ' + (ready ? 'ready' : 'building')
+          $('btext').textContent = ready ? 'Memory ready' : 'Building memory'
+          $('badge').style.transform = `scale(${ready ? lerp(1.15, 1, ease((f - 390) / 8)) : 1})`
+          // card nudges as each chip lands
+          const hits = lands.filter((h) => f >= h && f < h + 6).length
+          $('card').querySelector('.avatar').style.transform = `scale(${1 + hits * 0.06})`
+          fade('#fdfcf9', 1 - ease((f - 330) / 6))
+          if (f >= 399) fade('#fdfcf9', ease((f - 399) / 6))
+        } else if (f < 465) {
+          show('foot')
+          const t = f - 405
+          await footage(345 + t)
+          camera(lerp(1.7, 1.55, inOut(t / 60)), 640, 300)
+          rise($('cap5'), f, 409)
+          fade('#fdfcf9', 1 - ease((f - 405) / 6))
+          if (f >= 459) fade('#1c1917', ease((f - 459) / 6))
+        } else {
+          show('outro')
+          pop($('brand'), f, 465, 12)
+          rise($('tag'), f, 480)
+          rise($('url'), f, 495)
+          rise($('small'), f, 502.5)
+          $('outro').querySelector('.grid').style.transform = `translateY(${-(f - 465) * 0.4}px)`
+          fade('#1c1917', 1 - ease((f - 465) / 6))
+        }
+        await document.fonts.ready
+      }
+      window.seek = seek
+    </script>
+  </body>
+</html>
