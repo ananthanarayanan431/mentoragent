@@ -53,6 +53,7 @@ class CometSettings(BaseSettings):
     Attributes:
         API_KEY: The API key for the Comet ML and Opik services.
         PROJECT: The project name for Comet ML and Opik tracking.
+        WORKSPACE: The Opik workspace; blank uses the account's default.
     """
 
     model_config = settings_config("COMET_")
@@ -63,6 +64,10 @@ class CometSettings(BaseSettings):
     PROJECT: str = Field(
         default="mentor_agents",
         description="Project name for Comet ML and Opik tracking.",
+    )
+    WORKSPACE: str | None = Field(
+        default=None,
+        description="Opik workspace. Blank uses the account's default workspace.",
     )
 
     @property

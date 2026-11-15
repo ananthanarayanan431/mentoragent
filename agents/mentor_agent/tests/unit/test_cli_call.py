@@ -13,6 +13,7 @@ from tests.fakes import InMemoryMentorService, build_fake_conversation_service
 
 if TYPE_CHECKING:
     from mentor_agent.models.mentor_extract import MentorExtract
+    from mentor_agent.services.conversation import ConversationService
     from mentor_agent.services.mentors import MentorService
 
 
@@ -60,6 +61,7 @@ async def test_call_rejects_an_unknown_mentor(mentor_extract: MentorExtract) -> 
 def cli_services(monkeypatch: pytest.MonkeyPatch, mentor_extract: MentorExtract) -> list[str]:
     """Wire `mentor-agent call` to the fakes; returns the replies it will give, in order."""
     import mentor_agent.core.bootstrap
+    import mentor_agent.core.tracing
     import mentor_agent.db.client
     import mentor_agent.services.mentors
 
@@ -75,7 +77,14 @@ def cli_services(monkeypatch: pytest.MonkeyPatch, mentor_extract: MentorExtract)
     def no_repository(*_args: object, **_kwargs: object) -> None:
         return None
 
-    monkeypatch.setattr(mentor_agent.core.bootstrap, "build_conversation_service", lambda: service)
+    def conversation_service(*, tracing: bool = False) -> ConversationService:
+        del tracing
+        return service
+
+    monkeypatch.setattr(
+        mentor_agent.core.bootstrap, "build_conversation_service", conversation_service
+    )
+    monkeypatch.setattr(mentor_agent.core.tracing, "configure_opik", lambda: False)
     monkeypatch.setattr(mentor_agent.services.mentors, "MentorService", mentor_service)
     monkeypatch.setattr(mentor_agent.db.client, "AsyncMongoRepository", no_repository)
     monkeypatch.setattr(mentor_agent.db.client, "close_mongo_clients", no_clients)
@@ -125,7 +134,8 @@ def test_call_command_explains_a_missing_api_key(
     import mentor_agent.core.bootstrap
     from mentor_agent.config.base import MissingSettingError
 
-    def no_key() -> None:
+    def no_key(*, tracing: bool = False) -> None:
+        del tracing
         msg = "ANTHROPIC_API_KEY is empty: set it in .env"
         raise MissingSettingError(msg)
 

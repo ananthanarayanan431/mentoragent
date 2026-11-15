@@ -37,7 +37,7 @@ def configure_opik() -> bool:
         return False
 
     api_key = comet.API_KEY.get_secret_value()
-    workspace = _default_workspace(api_key)
+    workspace = comet.WORKSPACE or _default_workspace(api_key)
     os.environ["OPIK_PROJECT_NAME"] = comet.PROJECT
     try:
         opik.configure(api_key=api_key, workspace=workspace, use_local=False, force=True)

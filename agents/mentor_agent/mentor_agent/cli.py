@@ -70,9 +70,12 @@ def call(
     from mentor_agent.config.base import MissingSettingError
     from mentor_agent.core.bootstrap import build_conversation_service
     from mentor_agent.core.errors import MentorAgentError
+    from mentor_agent.core.tracing import configure_opik
     from mentor_agent.db.client import AsyncMongoRepository, close_mongo_clients
     from mentor_agent.models.mentor_extract import MentorExtract
     from mentor_agent.services.mentors import MentorService
+
+    tracing = configure_opik()
 
     async def run() -> str:
         mentors = MentorService(
@@ -80,7 +83,7 @@ def call(
         )
         try:
             return await call_mentor(
-                build_conversation_service(),
+                build_conversation_service(tracing=tracing),
                 mentors,
                 mentor_id=mentor_id,
                 query=query,
@@ -92,6 +95,10 @@ def call(
 
     try:
         used_id = asyncio.run(run())
+        if tracing:
+            import opik
+
+            opik.flush_tracker()
     except (MentorAgentError, MissingSettingError) as exc:
         # An expected failure (unknown mentor, the model not answering, no API key):
         # a clean message and a non-zero exit, not a traceback.
