@@ -17,6 +17,10 @@ export interface GameEvents {
   ready: Record<string, never>
   /** The scene could not build the world (the page shows an error instead of a spinner). */
   failed: { message: string }
+  /** The visitor reached the host: both stand face to face, ready to talk. */
+  met: { visitorId: string; hostId: string }
+  /** A visit was given up (no way there, stuck, or the player started talking to one). */
+  visitFailed: { visitorId: string; hostId: string }
 }
 
 /** Commands React sends to the game. */
@@ -32,6 +36,12 @@ export interface GameCommands {
   endTalk: { mentorId: string }
   /** Speech bubble text per mentor id (what they told you); missing ids show none. */
   bubbles: { texts: Record<string, string> }
+  /** Send `visitorId` walking over to `hostId`; answered with `met` or `visitFailed`. */
+  visit: { visitorId: string; hostId: string }
+  /** Show a line over a mentor in a meeting (replacing the other's line). */
+  say: { mentorId: string; text: string }
+  /** The meeting is over: both clear their lines and wander again. */
+  endVisit: { visitorId: string; hostId: string }
 }
 
 type Listener<T> = (payload: T) => void

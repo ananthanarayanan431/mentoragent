@@ -34,6 +34,7 @@ import {
   type WorldMap,
 } from './map'
 import { isForTheGame, oncePerEvent } from './keys'
+import { startVisit, stepVisit, type VisitState } from './visits'
 import {
   facingFor,
   facingTowards,
@@ -80,11 +81,27 @@ interface MentorActor extends Actor {
   label: Phaser.GameObjects.Text
   /** What they told you, shown over their head as the player walks past. */
   bubble: Phaser.GameObjects.Text
+  /** The ledger text for the bubble; `saying` takes its place during a meeting. */
+  bubbleText: string
+  /** A line said in a meeting with another mentor, shown whatever the distance. */
+  saying: string | null
+  /** Walking to another mentor, waiting for one, or meeting one; null when free. */
+  visit: Visit | null
   wander: WanderState
   home: Point
   rng: Rng
   talking: boolean
   lastPosition: Point
+}
+
+type Visit =
+  | { role: 'visitor'; otherId: string; walk: VisitState }
+  | { role: 'host'; otherId: string }
+  | { role: 'meeting'; otherId: string }
+
+/** Already talking to the player or in another visit (or not here at all). */
+function busy(mentor: MentorActor | undefined): boolean {
+  return !mentor || mentor.talking || mentor.visit !== null
 }
 
 type MoveKeys = Record<
@@ -312,6 +329,9 @@ export class WorldScene extends Phaser.Scene {
       name: mentor.name,
       label,
       bubble,
+      bubbleText: '',
+      saying: null,
+      visit: null,
       home,
       rng,
       wander: startWander(home, rng),
@@ -444,7 +464,21 @@ export class WorldScene extends Phaser.Scene {
       }),
       commands.on('addMentor', (mentor) => this.spawnMentor(mentor, true)),
       commands.on('bubbles', ({ texts }) => {
-        for (const mentor of this.mentors) mentor.bubble.setText(texts[mentor.id] ?? '')
+        for (const mentor of this.mentors) mentor.bubbleText = texts[mentor.id] ?? ''
+      }),
+      commands.on('visit', ({ visitorId, hostId }) => this.startVisit(visitorId, hostId)),
+      commands.on('say', ({ mentorId, text }) => {
+        const speaker = this.mentor(mentorId)
+        if (!speaker?.visit) return
+        const other = this.mentor(speaker.visit.otherId)
+        if (other) other.saying = null
+        speaker.saying = text
+      }),
+      commands.on('endVisit', ({ visitorId, hostId }) => {
+        for (const id of [visitorId, hostId]) {
+          const mentor = this.mentor(id)
+          if (mentor) this.leaveVisit(mentor)
+        }
       }),
       commands.on('endTalk', ({ mentorId }) => {
         const mentor = this.mentors.find((m) => m.id === mentorId)
@@ -522,12 +556,87 @@ export class WorldScene extends Phaser.Scene {
     this.animate(this.player, velocity)
   }
 
+  private mentor(id: string): MentorActor | undefined {
+    return this.mentors.find((mentor) => mentor.id === id)
+  }
+
+  /** Sends one mentor walking over to another; `visitFailed` when it cannot start. */
+  private startVisit(visitorId: string, hostId: string): void {
+    const visitor = this.mentor(visitorId)
+    const host = this.mentor(hostId)
+    const walk =
+      visitor && host && visitorId !== hostId && !busy(visitor) && !busy(host)
+        ? startVisit(this.map, this.feet(visitor), this.feet(host))
+        : null
+    if (!visitor || !host || !walk) {
+      this.options.bridge.events.emit('visitFailed', { visitorId, hostId })
+      return
+    }
+    visitor.visit = { role: 'visitor', otherId: hostId, walk }
+    host.visit = { role: 'host', otherId: visitorId }
+  }
+
+  /** Ends a mentor's part in a visit: their line clears and they wander from here. */
+  private leaveVisit(mentor: MentorActor): void {
+    mentor.visit = null
+    mentor.saying = null
+    mentor.wander = startWander(mentor.home, mentor.rng)
+  }
+
+  /** Gives a visit up for both mentors and tells React. */
+  private failVisit(mentor: MentorActor): void {
+    const visit = mentor.visit
+    if (!visit) return
+    const other = this.mentor(visit.otherId)
+    const visitorId = visit.role === 'visitor' ? mentor.id : visit.otherId
+    const hostId = visit.role === 'visitor' ? visit.otherId : mentor.id
+    this.leaveVisit(mentor)
+    if (other) this.leaveVisit(other)
+    this.options.bridge.events.emit('visitFailed', { visitorId, hostId })
+  }
+
+  /** A mentor taking part in a visit: walk (visitor) or stand facing the other. */
+  private updateVisit(mentor: MentorActor, visit: Visit, delta: number): void {
+    const sprite = mentor.sprite
+    const other = this.mentor(visit.otherId)
+    if (!other) {
+      this.leaveVisit(mentor)
+      return
+    }
+    if (visit.role === 'visitor') {
+      const step = stepVisit(visit.walk, this.feet(mentor), delta, MENTOR_SPEED)
+      if (step.failed) {
+        this.failVisit(mentor)
+        return
+      }
+      if (!step.arrived) {
+        mentor.visit = { ...visit, walk: step.state }
+        sprite.setVelocity(step.velocity.x, step.velocity.y)
+        this.animate(mentor, step.velocity)
+        return
+      }
+      mentor.visit = { role: 'meeting', otherId: other.id }
+      other.visit = { role: 'meeting', otherId: mentor.id }
+      this.options.bridge.events.emit('met', { visitorId: mentor.id, hostId: other.id })
+    }
+    sprite.setVelocity(0, 0)
+    if (
+      visit.role !== 'host' ||
+      Math.hypot(sprite.x - other.sprite.x, sprite.y - other.sprite.y) < TILE * 3
+    ) {
+      mentor.facing = facingTowards(this.feet(mentor), this.feet(other))
+    }
+    this.animate(mentor, { x: 0, y: 0 })
+  }
+
   private updateMentor(mentor: MentorActor, delta: number): void {
     const sprite = mentor.sprite
     if (mentor.talking) {
       sprite.setVelocity(0, 0)
       mentor.facing = facingTowards(this.feet(mentor), this.feet(this.player))
       this.animate(mentor, { x: 0, y: 0 })
+    } else if (mentor.visit) {
+      this.updateVisit(mentor, mentor.visit, delta)
     } else {
       const position = this.feet(mentor)
       const moved = Math.hypot(
@@ -572,19 +681,27 @@ export class WorldScene extends Phaser.Scene {
     }
     for (const mentor of this.mentors) {
       const at = this.feet(mentor)
-      mentor.bubble.setVisible(
-        showBubble({
-          hasText: mentor.bubble.text.length > 0,
-          distance: Math.hypot(at.x - feet.x, at.y - feet.y),
-          reach: BUBBLE_REACH,
-          talking: mentor.talking,
-          prompted: showPrompt && mentor === nearby,
-        }),
-      )
+      // A line said in a meeting shows whatever the distance; otherwise the ledger hint.
+      const text = mentor.saying ?? mentor.bubbleText
+      if (mentor.bubble.text !== text) mentor.bubble.setText(text)
+      const visible =
+        mentor.saying !== null
+          ? !mentor.talking
+          : showBubble({
+              hasText: text.length > 0,
+              distance: Math.hypot(at.x - feet.x, at.y - feet.y),
+              reach: BUBBLE_REACH,
+              talking: mentor.talking,
+              prompted: showPrompt && mentor === nearby,
+            })
+      mentor.bubble.setVisible(visible)
     }
   }
 
   private startTalk(mentor: MentorActor): void {
+    // Walking up to a mentor in a visit ends it; React may turn this talk into
+    // joining their conversation.
+    this.failVisit(mentor)
     mentor.talking = true
     this.player.facing = facingTowards(this.feet(this.player), this.feet(mentor))
     this.player.sprite.setVelocity(0, 0)
