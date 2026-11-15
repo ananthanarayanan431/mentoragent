@@ -38,11 +38,13 @@ export type LedgerLine = LedgerLineOut
  * `silent` answers a request to speak first when the mentor has nothing new to say.
  */
 export type ServerEvent =
-  | { type: 'start'; conversation_id: string }
-  | { type: 'chunk'; content: string }
-  | { type: 'end'; conversation_id: string; response: string }
+  | { type: 'start'; conversation_id: string; mentor_id?: string }
+  | { type: 'chunk'; content: string; mentor_id?: string }
+  | { type: 'end'; conversation_id: string; response: string; mentor_id?: string }
   | { type: 'error'; detail: unknown }
   | { type: 'silent'; conversation_id: string | null }
+  /** A group turn is over: both mentors have answered. */
+  | { type: 'turn_end'; conversation_id: string }
 
 /** Asks a mentor to speak first (WebSocket only), when the player walks up to them. */
 export interface OpenerRequest {
@@ -51,8 +53,20 @@ export interface OpenerRequest {
   conversation_id?: string
 }
 
+/**
+ * A message to two mentors at once (WebSocket only); the first answers first, then
+ * the second, having read the first. Every reply event carries `mentor_id`.
+ */
+export interface GroupChatRequest {
+  mentor_ids: [string, string]
+  message: string
+  conversation_id?: string
+  /** The ambient chat the player joined; sent on the first turn only. */
+  ambient_id?: string
+}
+
 /** What the client sends over the WebSocket. */
-export type ClientMessage = ChatRequest | OpenerRequest
+export type ClientMessage = ChatRequest | OpenerRequest | GroupChatRequest
 
 export type Role = 'user' | 'mentor'
 
@@ -64,4 +78,6 @@ export interface Message {
   streaming?: boolean
   /** True when the message is an error notice rather than a real reply. */
   failed?: boolean
+  /** Which mentor said it, in a conversation with two; absent one-on-one. */
+  mentorId?: string
 }

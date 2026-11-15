@@ -136,6 +136,80 @@ describe('chatReducer: the mentor speaks first', () => {
   })
 })
 
+/** A server event action, typed (keeps the group turn below readable). */
+function server(action: Parameters<typeof chatReducer>[1] & { type: 'server' }) {
+  return action
+}
+
+describe('chatReducer: two mentors in one conversation', () => {
+  const sendGroup = { type: 'sendGroup', id: 'u1', content: 'How should I invest?' } as const
+  const turn = [
+    sendGroup,
+    server({
+      type: 'server',
+      event: { type: 'start', conversation_id: 'c1', mentor_id: 'buffett' },
+    }),
+    server({ type: 'server', event: { type: 'chunk', content: 'Index ', mentor_id: 'buffett' } }),
+    server({
+      type: 'server',
+      event: { type: 'end', conversation_id: 'c1', response: 'Index funds.', mentor_id: 'buffett' },
+    }),
+    server({
+      type: 'server',
+      event: { type: 'start', conversation_id: 'c1', mentor_id: 'munger' },
+    }),
+    server({
+      type: 'server',
+      event: {
+        type: 'end',
+        conversation_id: 'c1',
+        response: 'Agreed, no fees.',
+        mentor_id: 'munger',
+      },
+    }),
+  ]
+
+  it('adds your message and waits for the speakers', () => {
+    const state = reduce(sendGroup)
+    expect(state.isStreaming).toBe(true)
+    expect(state.messages).toEqual([{ id: 'u1', role: 'user', content: 'How should I invest?' }])
+  })
+
+  it('gives each mentor their own reply, in order, and keeps streaming between them', () => {
+    const state = reduce(...turn)
+
+    expect(state.messages.map((m) => [m.role, m.mentorId, m.content])).toEqual([
+      ['user', undefined, 'How should I invest?'],
+      ['mentor', 'buffett', 'Index funds.'],
+      ['mentor', 'munger', 'Agreed, no fees.'],
+    ])
+    expect(state.isStreaming).toBe(true)
+    expect(state.conversationId).toBe('c1')
+  })
+
+  it('ends the turn only when the server says so', () => {
+    const state = reduce(...turn, {
+      type: 'server',
+      event: { type: 'turn_end', conversation_id: 'c1' },
+    })
+    expect(state.isStreaming).toBe(false)
+    expect(state.messages.every((m) => !m.streaming)).toBe(true)
+  })
+
+  it('keeps the first reply when an error stops the second', () => {
+    const state = reduce(...turn.slice(0, 5), {
+      type: 'server',
+      event: { type: 'error', detail: 'The mentor could not respond.' },
+    })
+    expect(state.isStreaming).toBe(false)
+    expect(state.messages.map((m) => m.content)).toEqual([
+      'How should I invest?',
+      'Index funds.',
+      'The mentor could not respond.',
+    ])
+  })
+})
+
 describe('parseServerEvent', () => {
   it('accepts well-formed events', () => {
     expect(parseServerEvent('{"type":"chunk","content":"x"}')).toEqual({
@@ -156,6 +230,18 @@ describe('parseServerEvent', () => {
     expect(parseServerEvent('{"type":"silent","conversation_id":null}')).toEqual({
       type: 'silent',
       conversation_id: null,
+    })
+  })
+
+  it('keeps the speaker of a group reply, and the end of a group turn', () => {
+    expect(parseServerEvent('{"type":"chunk","content":"x","mentor_id":"munger"}')).toEqual({
+      type: 'chunk',
+      content: 'x',
+      mentor_id: 'munger',
+    })
+    expect(parseServerEvent('{"type":"turn_end","conversation_id":"c1"}')).toEqual({
+      type: 'turn_end',
+      conversation_id: 'c1',
     })
   })
 

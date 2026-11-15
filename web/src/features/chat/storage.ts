@@ -18,6 +18,14 @@ function key(mentorId: string): string {
   return `${PREFIX}${mentorId}`
 }
 
+/**
+ * The storage id of a conversation with two mentors: the same pair, whichever was
+ * walked up to. Pass it wherever a mentor id is expected.
+ */
+export function groupKey(mentorIds: readonly [string, string]): string {
+  return `group:${mentorIds.toSorted().join('+')}`
+}
+
 function isRole(value: unknown): value is Role {
   return value === 'user' || value === 'mentor'
 }
@@ -38,10 +46,16 @@ function parseState(raw: string): ChatState | null {
   const restored: Message[] = []
   for (const item of messages) {
     if (!item || typeof item !== 'object') continue
-    const { id, role, content, failed } = item as Record<string, unknown>
+    const { id, role, content, failed, mentorId } = item as Record<string, unknown>
     if (typeof id !== 'string' || !isRole(role) || typeof content !== 'string') continue
     // A reply that was mid-stream when the tab closed is never resumed.
-    restored.push({ id, role, content, ...(failed === true ? { failed: true } : {}) })
+    restored.push({
+      id,
+      role,
+      content,
+      ...(failed === true ? { failed: true } : {}),
+      ...(typeof mentorId === 'string' ? { mentorId } : {}),
+    })
   }
 
   return {
@@ -66,7 +80,13 @@ export function saveConversation(mentorId: string, state: ChatState): void {
     const messages = state.messages
       .filter((m) => m.content.length > 0)
       .slice(-MAX_STORED_MESSAGES)
-      .map(({ id, role, content, failed }) => ({ id, role, content, failed }))
+      .map((m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        failed: m.failed,
+        mentorId: m.mentorId,
+      }))
 
     if (!messages.length && !state.conversationId) {
       window.localStorage.removeItem(key(mentorId))
