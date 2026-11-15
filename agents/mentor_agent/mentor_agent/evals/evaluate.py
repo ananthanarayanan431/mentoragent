@@ -17,17 +17,17 @@ from opik.evaluation.metrics import (
     Moderation,
 )
 
-from mentor_agent.chat.prompt import (
-    EXTEND_SUMMARY_PROMPT,
-    MENTOR_CHARACTER_PROMPT,
-    SUMMARY_PROMPT,
-)
 from mentor_agent.chat.state import state_to_str
 from mentor_agent.config import settings
 from mentor_agent.core.bootstrap import build_conversation_service
 from mentor_agent.core.errors import MentorNotFoundError
 from mentor_agent.db.client import MongoRepository
 from mentor_agent.models.mentor_extract import MentorExtract
+from mentor_agent.prompts import (
+    EXTEND_SUMMARY_PROMPT,
+    MENTOR_CHARACTER_PROMPT,
+    SUMMARY_PROMPT,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine

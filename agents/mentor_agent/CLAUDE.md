@@ -30,6 +30,7 @@
 | `mentor_agent/config/`                  | `settings.<group>.<FIELD>`, one module per group; `API_V1_PREFIX`            |
 | `mentor_agent/core/bootstrap.py`        | Composition root: models, retriever, graph, checkpointer                     |
 | `mentor_agent/chat/graph.py`            | The LangGraph graph, and the `MentorGraph` / `Checkpointer` types            |
+| `mentor_agent/prompts/`                 | Every model prompt, one module each; `register_prompts` versions in Opik     |
 | `mentor_agent/services/conversation.py` | One chat turn (invoke or stream) and conversation deletion                   |
 | `mentor_agent/services/mentors.py`      | The catalogue: list, add (pool or custom), edit, memory status               |
 | `mentor_agent/services/custom.py`       | Ids for custom mentors, from their name (pure, tested)                       |

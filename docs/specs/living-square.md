@@ -142,7 +142,7 @@ agents/mentor_agent/mentor_agent/
   routes/v1/square.py     /goal, /ledger, /ambient
   routes/v1/chat.py       opener and group turns on the WebSocket
   schemas/v1/square.py    request and response bodies
-  chat/prompt.py          context block, opener and ambient prompts
+  prompts/                context block, opener and ambient prompts
 web/src/
   features/world/         goal in the quest log, bubbles, ambient chats, joining
   features/world/game/    a mentor visiting another (pure, in wander.ts)

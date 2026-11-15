@@ -36,7 +36,7 @@ calls no model.
   - Stream from `self.graph`'s mentor chain directly, not through the graph, so
     no fake user message lands in the history: build the same inputs
     `conversation_node` builds (`chat/nodes.py`) with `messages=[HumanMessage(OPENER_INSTRUCTION)]`,
-    where `OPENER_INSTRUCTION` is a new prompt in `chat/prompt.py`: "The user
+    where `OPENER_INSTRUCTION` is a new prompt in `prompts/opener.py`: "The user
     has just walked up to you. In one or two short sentences, react to what
     another mentor told them, in your own voice. Do not greet at length."
     The chains are reachable through the `Nodes` instance the graph was built
@@ -76,5 +76,5 @@ docstring is the contract task 08 follows.
 
 - `agents/mentor_agent/mentor_agent/routes/v1/chat.py`, `schemas/v1/chat.py`
 - `agents/mentor_agent/mentor_agent/services/conversation.py`, `services/ledger.py`, `services/profile.py`
-- `agents/mentor_agent/mentor_agent/chat/prompt.py`, `core/bootstrap.py`
+- `agents/mentor_agent/mentor_agent/prompts/opener.py`, `core/bootstrap.py`
 - `agents/mentor_agent/tests/unit/test_opener.py` (new), `tests/contract/test_api.py`

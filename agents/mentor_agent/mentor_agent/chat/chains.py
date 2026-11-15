@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from mentor_agent.chat.prompt import (
+from mentor_agent.prompts import (
     CONTEXT_SUMMARY_PROMPT,
     EXTEND_SUMMARY_PROMPT,
     MENTOR_CHARACTER_PROMPT,

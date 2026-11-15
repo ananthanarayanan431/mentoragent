@@ -12,7 +12,7 @@ square starts to share context.
 
 - **The slot already exists and is unused.** `chat/state.py` `MentorState` has
   `mentor_context: str`; `chat/nodes.py` `conversation_node` passes it to the
-  prompt; `chat/prompt.py` `MENTOR_CHARACTER_PROMPT` renders it as
+  prompt; `prompts/mentor_character.py` `MENTOR_CHARACTER_PROMPT` renders it as
   `Additional context: {{ mentor_context }}`. `ConversationService.respond` and
   `.stream` (`services/conversation.py`) already take a `mentor_context: str = ""`
   argument and put it in the graph input. Nothing passes it today.
@@ -69,7 +69,7 @@ None. The web app is unchanged; the effect is in the replies.
 ## Files likely touched
 
 - `agents/mentor_agent/mentor_agent/services/ledger.py`
-- `agents/mentor_agent/mentor_agent/chat/prompt.py`
+- `agents/mentor_agent/mentor_agent/prompts/`
 - `agents/mentor_agent/mentor_agent/routes/v1/chat.py`
 - `agents/mentor_agent/mentor_agent/config/agent.py`
 - `agents/mentor_agent/tests/unit/test_ledger_context.py` (new), `tests/contract/test_api.py`

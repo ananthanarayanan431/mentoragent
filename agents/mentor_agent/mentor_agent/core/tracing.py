@@ -45,7 +45,7 @@ def configure_opik() -> bool:
         logger.opt(exception=True).warning("Could not configure Opik; tracing disabled")
         return False
 
-    from mentor_agent.chat.prompt import register_prompts
+    from mentor_agent.prompts import register_prompts
 
     register_prompts()
     logger.info("Opik configured (workspace={}, project={})", workspace, comet.PROJECT)
