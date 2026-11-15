@@ -9,6 +9,7 @@ import type {
   ChatRequest,
   ChatResponse,
   GoalOut,
+  LedgerLineOut,
   MentorCreate,
   MentorOut,
   MentorSources,
@@ -26,6 +27,8 @@ export type {
   PoolOut,
 }
 export type Mentor = MentorOut
+/** One piece of advice a mentor gave you, as every mentor reads it. */
+export type LedgerLine = LedgerLineOut
 
 /** Events the WebSocket sends, one per turn: start -> chunk* -> end, or error. */
 export type ServerEvent =

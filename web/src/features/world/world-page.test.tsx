@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { Mentor } from '@/lib/types'
+import type { LedgerLine, Mentor } from '@/lib/types'
 import type { WorldBridge } from './world-bridge'
 import { WorldPage } from './world-page'
 
@@ -43,6 +43,8 @@ const api = vi.hoisted(() => ({
   addRandomMentor: vi.fn<() => Promise<Mentor>>(),
   getGoal: vi.fn<() => Promise<{ goal: string | null }>>(),
   setGoal: vi.fn<(goal: string) => Promise<{ goal: string | null }>>(),
+  listLedger: vi.fn<() => Promise<LedgerLine[]>>(),
+  deleteLedgerLine: vi.fn<(id: string) => Promise<void>>(),
 }))
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
@@ -51,6 +53,8 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   addRandomMentor: api.addRandomMentor,
   getGoal: api.getGoal,
   setGoal: api.setGoal,
+  listLedger: api.listLedger,
+  deleteLedgerLine: api.deleteLedgerLine,
 }))
 
 // No real socket in tests; the dialogue only needs the hook to render.
@@ -93,6 +97,8 @@ beforeEach(() => {
   api.listMentors.mockResolvedValue(MENTORS)
   api.getGoal.mockResolvedValue({ goal: null })
   api.setGoal.mockImplementation(async (goal) => ({ goal }))
+  api.listLedger.mockResolvedValue([])
+  api.deleteLedgerLine.mockResolvedValue()
 })
 
 describe('WorldPage', () => {
@@ -119,6 +125,25 @@ describe('WorldPage', () => {
     await user.click(screen.getByRole('button', { name: /mentors met/i }))
 
     expect(await screen.findByText('Retire by 45')).toBeInTheDocument()
+  })
+
+  it('shows what the mentors have told you in the quest log', async () => {
+    api.listLedger.mockResolvedValue([
+      {
+        id: 'l1',
+        mentor_id: 'ada',
+        mentor_name: 'Ada',
+        topic: 'engines',
+        advice: 'Recommends studying the engine.',
+        created_at: '2026-11-15T10:00:00Z',
+      },
+    ])
+    const user = userEvent.setup()
+    await renderWorld()
+    await user.click(screen.getByRole('button', { name: /enter the square/i }))
+    await user.click(screen.getByRole('button', { name: /mentors met/i }))
+
+    expect(await screen.findByText('Recommends studying the engine.')).toBeInTheDocument()
   })
 
   it('stops the player walking while a goal is typed, and saves it', async () => {

@@ -7,9 +7,11 @@ import { MEMORY_POLL_MS } from '@/lib/config'
 import type { Mentor } from '@/lib/types'
 import { DialogueBox } from './dialogue-box'
 import { GoalPanel } from './goal-panel'
+import { LedgerList } from './ledger-list'
 import { useMediaQuery } from '@/lib/use-media-query'
 import { PauseMenu, QuestLog, TitleScreen } from './menus'
 import { levelFor, loadFriendship, recordMessage } from './progress'
+import { useLedger } from './use-ledger'
 import { createWorldBridge } from './world-bridge'
 
 type Mode =
@@ -78,6 +80,8 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
   const [adding, setAdding] = useState(false)
   const [goal, setGoalText] = useState<string | null>(null)
   const [typingGoal, setTypingGoal] = useState(false)
+  const ledger = useLedger()
+  const { refreshSoon: refreshLedgerSoon } = ledger
   const labelsRef = useRef(labelsVisible)
   // The game is built once from the first roster; later arrivals go through `addMentor`.
   const firstRoster = useRef(initialMentors)
@@ -216,7 +220,9 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
     if (mode.kind === 'talking') bridge.commands.emit('endTalk', { mentorId: mode.mentorId })
     setMode({ kind: 'playing' })
     containerRef.current?.focus()
-  }, [bridge, mode])
+    // The advice from this conversation is noted just after the reply.
+    refreshLedgerSoon()
+  }, [bridge, mode, refreshLedgerSoon])
 
   const messageSent = useCallback((mentor: Mentor) => {
     const { friendship: next, levelUp } = recordMessage(friendshipRef.current, mentor.id)
@@ -278,6 +284,7 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
         {mode.kind !== 'title' && (
           <QuestLog mentors={mentors} friendship={friendship}>
             <GoalPanel goal={goal} onSave={saveGoal} onEditingChange={setTypingGoal} />
+            <LedgerList lines={ledger.lines} error={ledger.error} onForget={ledger.forget} />
           </QuestLog>
         )}
 

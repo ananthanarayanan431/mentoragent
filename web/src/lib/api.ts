@@ -5,6 +5,7 @@ import type {
   ChatRequest,
   ChatResponse,
   GoalOut,
+  LedgerLine,
   Mentor,
   MentorCreate,
   MentorSources,
@@ -153,6 +154,16 @@ export function getGoal(signal?: AbortSignal): Promise<GoalOut> {
 /** Sets or changes the goal. */
 export function setGoal(goal: string): Promise<GoalOut> {
   return request<GoalOut>(`${API_PREFIX}/goal`, { method: 'PUT', body: JSON.stringify({ goal }) })
+}
+
+/** What the mentors have told you, newest first. */
+export function listLedger(signal?: AbortSignal): Promise<LedgerLine[]> {
+  return request<LedgerLine[]>(`${API_PREFIX}/ledger?limit=50`, signal ? { signal } : {})
+}
+
+/** Forgets one piece of advice, so no mentor reads it again. */
+export function deleteLedgerLine(id: string): Promise<void> {
+  return request<void>(`${API_PREFIX}/ledger/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
 /** Rebuilds the mentor's long-term memory from their sources, in the background. */
