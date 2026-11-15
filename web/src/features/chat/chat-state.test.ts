@@ -81,6 +81,61 @@ describe('chatReducer', () => {
   })
 })
 
+describe('chatReducer: the mentor speaks first', () => {
+  const open = { type: 'open', id: 'o1' } as const
+
+  it('adds only a placeholder for the mentor, no message from you', () => {
+    const state = reduce(open)
+
+    expect(state.isStreaming).toBe(true)
+    expect(state.messages).toEqual([{ id: 'o1', role: 'mentor', content: '', streaming: true }])
+  })
+
+  it('fills the opener like any reply', () => {
+    const state = reduce(
+      open,
+      { type: 'server', event: { type: 'start', conversation_id: 'c1' } },
+      { type: 'server', event: { type: 'chunk', content: 'I hear ' } },
+      { type: 'server', event: { type: 'end', conversation_id: 'c1', response: 'I hear you.' } },
+    )
+
+    expect(state.isStreaming).toBe(false)
+    expect(state.conversationId).toBe('c1')
+    expect(state.messages).toEqual([
+      { id: 'o1', role: 'mentor', content: 'I hear you.', streaming: false },
+    ])
+  })
+
+  it('drops the placeholder when the mentor has nothing to say', () => {
+    const state = reduce(open, {
+      type: 'server',
+      event: { type: 'silent', conversation_id: null },
+    })
+
+    expect(state).toEqual(initialChatState)
+  })
+
+  it('keeps the conversation when silent, and its id when one comes back', () => {
+    const before = reduce(send, {
+      type: 'server',
+      event: { type: 'end', conversation_id: 'c1', response: 'Hi.' },
+    })
+    const state = [
+      { type: 'open', id: 'o2' } as const,
+      { type: 'server', event: { type: 'silent', conversation_id: 'c1' } } as const,
+    ].reduce(chatReducer, before)
+
+    expect(state.messages).toEqual(before.messages)
+    expect(state.conversationId).toBe('c1')
+    expect(state.isStreaming).toBe(false)
+  })
+
+  it('ignores an opener while a reply is streaming', () => {
+    const streaming = reduce(send)
+    expect(chatReducer(streaming, open)).toBe(streaming)
+  })
+})
+
 describe('parseServerEvent', () => {
   it('accepts well-formed events', () => {
     expect(parseServerEvent('{"type":"chunk","content":"x"}')).toEqual({
@@ -90,6 +145,17 @@ describe('parseServerEvent', () => {
     expect(parseServerEvent('{"type":"start","conversation_id":"c1"}')).toEqual({
       type: 'start',
       conversation_id: 'c1',
+    })
+  })
+
+  it('accepts silence, with or without a conversation id', () => {
+    expect(parseServerEvent('{"type":"silent","conversation_id":"c1"}')).toEqual({
+      type: 'silent',
+      conversation_id: 'c1',
+    })
+    expect(parseServerEvent('{"type":"silent","conversation_id":null}')).toEqual({
+      type: 'silent',
+      conversation_id: null,
     })
   })
 

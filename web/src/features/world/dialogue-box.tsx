@@ -32,7 +32,7 @@ interface Props {
  * `key={mentor.id}`; the conversation is the same one the chat page shows.
  */
 export function DialogueBox({ mentor, level, onClose, onMessageSent }: Props) {
-  const { state, send, startNewChat } = useMentorConversation(mentor.id)
+  const { state, send, requestOpener, startNewChat } = useMentorConversation(mentor.id)
   const [draft, setDraft] = useState('')
   const [showLog, setShowLog] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -58,6 +58,16 @@ export function DialogueBox({ mentor, level, onClose, onMessageSent }: Props) {
   const revealing = !typewriter.done
   const thinking = (reply?.streaming ?? false) && reply?.content.length === 0
   const finished = typewriter.done && !(reply?.streaming ?? false)
+
+  // Walking up to a mentor: they may speak first with what they heard from the
+  // others. Asked once, as soon as they can talk (a ref, so a remount in strict mode
+  // does not ask twice).
+  const askedOpener = useRef(false)
+  useEffect(() => {
+    if (locked || askedOpener.current) return
+    askedOpener.current = true
+    requestOpener()
+  }, [locked, requestOpener])
 
   // Focus on open, and again when the memory finishes (a disabled box loses focus).
   useEffect(() => {

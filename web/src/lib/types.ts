@@ -30,12 +30,26 @@ export type Mentor = MentorOut
 /** One piece of advice a mentor gave you, as every mentor reads it. */
 export type LedgerLine = LedgerLineOut
 
-/** Events the WebSocket sends, one per turn: start -> chunk* -> end, or error. */
+/**
+ * Events the WebSocket sends, one per turn: start -> chunk* -> end, or error.
+ * `silent` answers a request to speak first when the mentor has nothing new to say.
+ */
 export type ServerEvent =
   | { type: 'start'; conversation_id: string }
   | { type: 'chunk'; content: string }
   | { type: 'end'; conversation_id: string; response: string }
   | { type: 'error'; detail: unknown }
+  | { type: 'silent'; conversation_id: string | null }
+
+/** Asks a mentor to speak first (WebSocket only), when the player walks up to them. */
+export interface OpenerRequest {
+  mentor_id: string
+  opener: true
+  conversation_id?: string
+}
+
+/** What the client sends over the WebSocket. */
+export type ClientMessage = ChatRequest | OpenerRequest
 
 export type Role = 'user' | 'mentor'
 

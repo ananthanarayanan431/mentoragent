@@ -4,12 +4,12 @@ import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MAX_MESSAGE_CHARS } from '@/lib/config'
-import type { ChatRequest, Mentor, ServerEvent } from '@/lib/types'
+import type { ClientMessage, Mentor, ServerEvent } from '@/lib/types'
 import { DialogueBox } from './dialogue-box'
 import { levelFor } from './progress'
 
 const sent = vi.hoisted(() => ({
-  requests: [] as ChatRequest[],
+  requests: [] as ClientMessage[],
   onEvent: (() => {}) as (event: ServerEvent) => void,
 }))
 
@@ -19,7 +19,7 @@ vi.mock('@/features/chat/use-chat-socket', () => ({
     return {
       status: 'open',
       reconnect: () => {},
-      send: (request: ChatRequest) => {
+      send: (request: ClientMessage) => {
         sent.requests.push(request)
         return true
       },
@@ -45,7 +45,24 @@ function spokenLine(): string {
 
 const ADA: Mentor = { id: 'ada', name: 'Ada', expertise: 'Engines', perspective: '', style: '' }
 
-function renderBox(mentor: Mentor = ADA) {
+/** What was sent as real messages (not requests to speak first). */
+function chatMessages() {
+  return sent.requests.filter((request) => 'message' in request)
+}
+
+/** The mentor answers a request to speak first with silence. */
+function silent() {
+  act(() => sent.onEvent({ type: 'silent', conversation_id: null }))
+}
+
+/**
+ * Renders the box. Unless `opener` is 'pending', the mentor's request to speak first
+ * is answered with silence, as when nobody else has given advice yet.
+ */
+function renderBox(
+  mentor: Mentor = ADA,
+  { opener = 'silent' }: { opener?: 'silent' | 'pending' } = {},
+) {
   const onClose = vi.fn<() => void>()
   const onMessageSent = vi.fn<() => void>()
   const view = (m: Mentor) => (
@@ -54,6 +71,7 @@ function renderBox(mentor: Mentor = ADA) {
     </MemoryRouter>
   )
   const { rerender } = render(view(mentor))
+  if (opener === 'silent' && mentor.memory !== 'building') silent()
   return {
     onClose,
     onMessageSent,
@@ -68,6 +86,31 @@ beforeEach(() => {
 })
 
 describe('DialogueBox', () => {
+  it('asks the mentor once to speak first, and types out what they say', async () => {
+    renderBox(ADA, { opener: 'pending' })
+
+    expect(sent.requests).toEqual([{ mentor_id: 'ada', opener: true }])
+    reply('I hear Charlie told you to concentrate.')
+    await userEvent.setup().keyboard(' ')
+
+    expect(spokenLine()).toBe('I hear Charlie told you to concentrate.')
+    expect(screen.queryByText(/You:/)).not.toBeInTheDocument()
+  })
+
+  it('keeps the greeting when the mentor has nothing new to say', async () => {
+    renderBox()
+
+    expect(
+      await screen.findByText(/What would you like to talk about/, {}, { timeout: 3000 }),
+    ).toBeInTheDocument()
+    expect(screen.queryByLabelText('Thinking')).not.toBeInTheDocument()
+  })
+
+  it('does not ask a mentor who is still reading up to speak first', () => {
+    renderBox({ ...ADA, memory: 'building' })
+    expect(sent.requests).toEqual([])
+  })
+
   it('greets the player, then shows thinking dots while the mentor works on a reply', async () => {
     const user = userEvent.setup()
     const { input } = renderBox()
@@ -139,12 +182,15 @@ describe('DialogueBox', () => {
     expect(screen.getByText(/still reading up on their own work/)).toBeInTheDocument()
 
     rerender({ ...ADA, memory: 'ready' })
+    // Once ready, the mentor is asked to speak first; here they have nothing to say.
+    expect(sent.requests).toEqual([{ mentor_id: 'ada', opener: true }])
+    silent()
     expect(input).toBeEnabled()
     expect(input).toHaveFocus()
     expect(screen.queryByText(/still reading up/)).not.toBeInTheDocument()
 
     await user.type(input, 'Hello{Enter}')
-    expect(sent.requests).toEqual([{ mentor_id: 'ada', message: 'Hello' }])
+    expect(chatMessages()).toEqual([{ mentor_id: 'ada', message: 'Hello' }])
   })
 
   it('still allows talking when the memory build failed', () => {
@@ -160,7 +206,7 @@ describe('DialogueBox', () => {
 
     await user.type(input, 'What is a moat?{Enter}')
 
-    expect(sent.requests).toEqual([{ mentor_id: 'ada', message: 'What is a moat?' }])
+    expect(chatMessages()).toEqual([{ mentor_id: 'ada', message: 'What is a moat?' }])
     expect(onMessageSent).toHaveBeenCalledTimes(1)
     expect(input).toHaveValue('')
     expect(screen.getByText('What is a moat?')).toBeInTheDocument()
@@ -173,7 +219,7 @@ describe('DialogueBox', () => {
     await user.type(input, 'line one{Shift>}{Enter}{/Shift}line two')
 
     expect(input).toHaveValue('line one\nline two')
-    expect(sent.requests).toEqual([])
+    expect(chatMessages()).toEqual([])
   })
 
   it('refuses blank and over-long messages', async () => {
@@ -181,14 +227,14 @@ describe('DialogueBox', () => {
     const { input, onMessageSent } = renderBox()
 
     await user.type(input, '   {Enter}')
-    expect(sent.requests).toEqual([])
+    expect(chatMessages()).toEqual([])
 
     await user.clear(input)
     await user.click(input)
     await user.paste('x'.repeat(MAX_MESSAGE_CHARS + 1))
     await user.keyboard('{Enter}')
 
-    expect(sent.requests).toEqual([])
+    expect(chatMessages()).toEqual([])
     expect(onMessageSent).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
   })

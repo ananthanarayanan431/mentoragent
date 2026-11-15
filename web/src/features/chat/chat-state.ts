@@ -18,6 +18,8 @@ export interface ChatState {
 export type ChatAction =
   | { type: 'restore'; state: ChatState }
   | { type: 'send'; id: string; content: string }
+  /** The mentor was asked to speak first: a reply may arrive with no message from you. */
+  | { type: 'open'; id: string }
   | { type: 'server'; event: ServerEvent }
   | { type: 'failed'; detail: string }
   | { type: 'reset' }
@@ -91,6 +93,17 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         ],
       }
 
+    case 'open':
+      if (state.isStreaming) return state
+      return {
+        ...state,
+        isStreaming: true,
+        messages: [
+          ...state.messages,
+          { id: action.id, role: 'mentor', content: '', streaming: true },
+        ],
+      }
+
     case 'failed':
       return fail(state, action.detail)
 
@@ -128,6 +141,16 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
         case 'error':
           return fail(state, formatDetail(event.detail))
+
+        case 'silent':
+          return {
+            ...state,
+            conversationId: event.conversation_id ?? state.conversationId,
+            isStreaming: false,
+            messages: state.messages.filter(
+              (m) => !(m.role === 'mentor' && m.streaming && m.content.length === 0),
+            ),
+          }
       }
     }
   }
@@ -158,6 +181,10 @@ export function parseServerEvent(data: unknown): ServerEvent | null {
         : null
     case 'error':
       return { type: 'error', detail: event.detail }
+    case 'silent':
+      return typeof event.conversation_id === 'string' || event.conversation_id === null
+        ? { type: 'silent', conversation_id: event.conversation_id }
+        : null
     default:
       return null
   }

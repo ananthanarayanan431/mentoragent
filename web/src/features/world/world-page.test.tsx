@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { LedgerLine, Mentor } from '@/lib/types'
+import type { ClientMessage, LedgerLine, Mentor, ServerEvent } from '@/lib/types'
 import type { WorldBridge } from './world-bridge'
 import { WorldPage } from './world-page'
 
@@ -57,9 +57,19 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   deleteLedgerLine: api.deleteLedgerLine,
 }))
 
-// No real socket in tests; the dialogue only needs the hook to render.
+// No real socket in tests. A request to speak first is answered with silence, as
+// the server does when no other mentor has given advice yet.
 vi.mock('@/features/chat/use-chat-socket', () => ({
-  useChatSocket: () => ({ status: 'open', reconnect: () => {}, send: () => true }),
+  useChatSocket: ({ onEvent }: { onEvent: (event: ServerEvent) => void }) => ({
+    status: 'open',
+    reconnect: () => {},
+    send: (request: ClientMessage) => {
+      if ('opener' in request) {
+        queueMicrotask(() => onEvent({ type: 'silent', conversation_id: null }))
+      }
+      return true
+    },
+  }),
 }))
 
 /** Plays the game's side: runs `run` with the bridge the page gave the game. */
