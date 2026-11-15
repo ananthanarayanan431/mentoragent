@@ -21,6 +21,7 @@ from pydantic import ValidationError
 
 from mentor_agent.core.dependencies import (
     AdviceLedgerDep,
+    AmbientStoreDep,
     ConversationServiceDep,
     LedgerWriterDep,
     MentorServiceDep,
@@ -32,10 +33,13 @@ from mentor_agent.schemas.common import ConversationId
 from mentor_agent.schemas.v1.chat import (
     ChatRequest,
     ChatResponse,
+    GroupChatRequest,
     OpenerRequest,
     parse_client_message,
 )
+from mentor_agent.services.ambient import AmbientStore
 from mentor_agent.services.conversation import ConversationService
+from mentor_agent.services.group import group_context
 from mentor_agent.services.ledger import (
     AdviceLedger,
     LedgerWriter,
@@ -108,6 +112,7 @@ async def chat_websocket(
     ledger_writer: LedgerWriterDep,
     profile: ProfileServiceDep,
     ledger: AdviceLedgerDep,
+    ambient_store: AmbientStoreDep,
 ) -> None:
     """Stream mentor replies over a WebSocket.
 
@@ -115,6 +120,8 @@ async def chat_websocket(
 
         {"mentor_id": "...", "message": "...", "conversation_id": "..."?}   a turn
         {"mentor_id": "...", "opener": true, "conversation_id": "..."?}     speak first
+        {"mentor_ids": [first, second], "message": "...", "conversation_id": "..."?,
+         "ambient_id": "..."?}                                              a group turn
 
     Server -> client events::
 
@@ -123,13 +130,18 @@ async def chat_websocket(
         {"type": "end", "conversation_id": "...", "response": "..."}
         {"type": "error", "detail": ...}
         {"type": "silent", "conversation_id": ...}  an opener with nothing to say
+        {"type": "turn_end", "conversation_id": "..."}  after both group replies
+
+    In a group turn the first mentor streams ``start``, ``chunk``s and ``end``, then
+    the second does, every event carrying ``mentor_id``; the second has read the
+    first's answer. ``ambient_id`` (first turn only) is the chat the user joined.
 
     An error ends the current turn, not the connection. A mentor whose memory is
     still building gets an ``error`` event and no ``start`` (an opener: ``silent``).
     A mentor opens only with advice from another mentor that is newer than what
     they already said or reacted to; the opener is saved in the conversation.
     """
-    square = _Square(mentors, conversations, ledger_writer, profile, ledger)
+    square = _Square(mentors, conversations, ledger_writer, profile, ledger, ambient_store)
     await websocket.accept()
     try:
         while True:
@@ -147,6 +159,8 @@ async def chat_websocket(
             try:
                 if isinstance(body, OpenerRequest):
                     await _open(websocket, square, body)
+                elif isinstance(body, GroupChatRequest):
+                    await _group(websocket, square, body)
                 else:
                     await _reply(websocket, square, body)
             except MentorAgentError as exc:
@@ -174,18 +188,26 @@ class _Square:
     ledger_writer: LedgerWriter
     profile: ProfileService
     ledger: AdviceLedger
+    ambient_store: AmbientStore
 
 
-async def _stream(websocket: WebSocket, conversation_id: str, tokens: AsyncIterator[str]) -> str:
-    """Send ``start``, a ``chunk`` per token and ``end``; return the whole reply."""
-    await websocket.send_json({"type": "start", "conversation_id": conversation_id})
+async def _stream(
+    websocket: WebSocket,
+    conversation_id: str,
+    tokens: AsyncIterator[str],
+    mentor_id: str | None = None,
+) -> str:
+    """Send ``start``, a ``chunk`` per token and ``end``; return the whole reply.
+    In a group turn every event also names the speaker."""
+    tag = {"mentor_id": mentor_id} if mentor_id else {}
+    await websocket.send_json({"type": "start", "conversation_id": conversation_id, **tag})
     parts: list[str] = []
     async for token in tokens:
         parts.append(token)
-        await websocket.send_json({"type": "chunk", "content": token})
+        await websocket.send_json({"type": "chunk", "content": token, **tag})
     reply = "".join(parts)
     await websocket.send_json(
-        {"type": "end", "conversation_id": conversation_id, "response": reply}
+        {"type": "end", "conversation_id": conversation_id, "response": reply, **tag}
     )
     return reply
 
@@ -215,3 +237,34 @@ async def _open(websocket: WebSocket, square: _Square, body: OpenerRequest) -> N
     tokens = square.conversations.open(mentor.to_mentor(), conversation_id, context)
     await _stream(websocket, conversation_id, tokens)
     await square.profile.mark_heard(mentor.id, datetime.now(UTC))
+
+
+async def _group(websocket: WebSocket, square: _Square, body: GroupChatRequest) -> None:
+    conversation_id = body.conversation_id or _new_conversation_id()
+    first = await square.mentors.get_mentor(body.mentor_ids[0])
+    second = await square.mentors.get_mentor(body.mentor_ids[1])
+    ensure_ready_to_chat(first)
+    ensure_ready_to_chat(second)
+    names = {first.id: first.name, second.id: second.name}
+    ambient: list[tuple[str, str]] | None = None
+    if body.ambient_id:
+        chat = await square.ambient_store.get(body.ambient_id)
+        if chat:
+            ambient = [
+                (names.get(line.mentor_id, line.mentor_id), line.text) for line in chat.lines
+            ]
+
+    answer: str | None = None
+    for speaker, other in ((first, second), (second, first)):
+        shared = await shared_context(square.profile, square.ledger, speaker.id)
+        last = None if answer else await square.conversations.last_reply(other.id, conversation_id)
+        group = group_context(other.name, ambient=ambient, just_said=answer, last_said=last)
+        tokens = square.conversations.stream(
+            speaker.to_mentor(),
+            body.message,
+            conversation_id,
+            mentor_context="\n\n".join(part for part in (shared, group) if part),
+        )
+        answer = await _stream(websocket, conversation_id, tokens, mentor_id=speaker.id)
+        _note_later(square.ledger_writer.record(speaker, conversation_id, body.message, answer))
+    await websocket.send_json({"type": "turn_end", "conversation_id": conversation_id})

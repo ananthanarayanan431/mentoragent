@@ -205,6 +205,16 @@ class ConversationService:
             logger.opt(exception=exc).error("Opener in {} failed", thread_id)
             raise ConversationError from exc
 
+    async def last_reply(self, mentor_id: str, conversation_id: str) -> str | None:
+        """The mentor's latest reply in a conversation, or ``None`` before they spoke."""
+        config = self._config(thread_id_for(mentor_id, conversation_id))
+        snapshot = await self.graph.aget_state(config)  # pyright: ignore[reportUnknownMemberType]
+        values = cast("dict[str, Any]", snapshot.values)
+        for message in reversed(cast("list[BaseMessage]", values.get("messages", []))):
+            if isinstance(message, AIMessage) and _text(message):
+                return _text(message)
+        return None
+
     async def delete_conversation(self, mentor_id: str, conversation_id: str) -> None:
         """Forget one conversation's history."""
         checkpointer = self.graph.checkpointer  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]

@@ -78,11 +78,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     await ledger_repository.collection.create_index("created_at")
     app.state.ledger = MongoAdviceLedger(ledger_repository)
     app.state.ledger_writer = LlmLedgerWriter(build_summary_model, app.state.ledger)
+    app.state.ambient_store = MongoAmbientStore(
+        AsyncMongoRepository(AmbientChat, settings.mongo.AMBIENT_COLLECTION)
+    )
     app.state.ambient = AmbientChats(
         app.state.mentors,
         app.state.ledger,
         app.state.profile,
-        MongoAmbientStore(AsyncMongoRepository(AmbientChat, settings.mongo.AMBIENT_COLLECTION)),
+        app.state.ambient_store,
         LlmAmbientWriter(build_summary_model),
     )
     app.state.pool = await run_in_threadpool(_load_pool)

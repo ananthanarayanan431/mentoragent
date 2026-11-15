@@ -15,6 +15,7 @@ from mentor_agent.config import settings
 from mentor_agent.server import create_app
 from tests.fakes import (
     InMemoryAdviceLedger,
+    InMemoryAmbientStore,
     InMemoryMentorService,
     InMemoryProfileService,
     RecordingLedgerWriter,
@@ -44,6 +45,7 @@ def _client(
         app.state.profile = InMemoryProfileService()
         app.state.ledger = InMemoryAdviceLedger()
         app.state.ledger_writer = ledger_writer or RecordingLedgerWriter()
+        app.state.ambient_store = InMemoryAmbientStore()
         yield
 
     return TestClient(create_app(lifespan))

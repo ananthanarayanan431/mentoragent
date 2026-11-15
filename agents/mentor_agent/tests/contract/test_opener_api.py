@@ -12,6 +12,7 @@ from mentor_agent.models.ledger import LedgerLine
 from mentor_agent.server import create_app
 from tests.fakes import (
     InMemoryAdviceLedger,
+    InMemoryAmbientStore,
     InMemoryMentorService,
     InMemoryProfileService,
     RecordingLedgerWriter,
@@ -51,6 +52,7 @@ class _Setup:
             app.state.profile = self.profile
             app.state.ledger = InMemoryAdviceLedger(lines)
             app.state.ledger_writer = self.writer
+            app.state.ambient_store = InMemoryAmbientStore()
             yield
 
         self.client = TestClient(create_app(lifespan))
