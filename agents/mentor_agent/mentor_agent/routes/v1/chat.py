@@ -1,14 +1,25 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
-from typing import Annotated
+from collections.abc import Coroutine
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Path, WebSocket, WebSocketDisconnect, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Path,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from loguru import logger
 from pydantic import ValidationError
 
 from mentor_agent.core.dependencies import (
     ConversationServiceDep,
+    LedgerWriterDep,
     MentorServiceDep,
     require_websocket_api_key,
 )
@@ -20,6 +31,15 @@ from mentor_agent.services.mentors import ensure_ready_to_chat
 router = APIRouter(tags=["chat"])
 websocket_router = APIRouter(tags=["chat"])
 
+# Ledger notes run after the reply was sent; the set keeps each task alive until it ends.
+_ledger_tasks: set[asyncio.Task[None]] = set()
+
+
+def _note_later(coroutine: Coroutine[Any, Any, None]) -> None:
+    task = asyncio.create_task(coroutine)
+    _ledger_tasks.add(task)
+    task.add_done_callback(_ledger_tasks.discard)
+
 
 def _new_conversation_id() -> str:
     return uuid.uuid4().hex
@@ -27,13 +47,18 @@ def _new_conversation_id() -> str:
 
 @router.post("/chat")
 async def chat(
-    body: ChatRequest, mentors: MentorServiceDep, conversations: ConversationServiceDep
+    body: ChatRequest,
+    mentors: MentorServiceDep,
+    conversations: ConversationServiceDep,
+    ledger_writer: LedgerWriterDep,
+    background: BackgroundTasks,
 ) -> ChatResponse:
     """Send a message to a mentor and get the full reply (409 while their memory builds)."""
     mentor = await mentors.get_mentor(body.mentor_id)
     ensure_ready_to_chat(mentor)
     conversation_id = body.conversation_id or _new_conversation_id()
     reply = await conversations.respond(mentor.to_mentor(), body.message, conversation_id)
+    background.add_task(ledger_writer.record, mentor, conversation_id, body.message, reply.content)
     return ChatResponse(
         mentor_id=mentor.id, conversation_id=conversation_id, response=reply.content
     )
@@ -51,7 +76,10 @@ async def delete_conversation(
 
 @websocket_router.websocket("/ws/chat", dependencies=[Depends(require_websocket_api_key)])
 async def chat_websocket(
-    websocket: WebSocket, mentors: MentorServiceDep, conversations: ConversationServiceDep
+    websocket: WebSocket,
+    mentors: MentorServiceDep,
+    conversations: ConversationServiceDep,
+    ledger_writer: LedgerWriterDep,
 ) -> None:
     """Stream mentor replies over a WebSocket.
 
@@ -94,9 +122,11 @@ async def chat_websocket(
                 ):
                     parts.append(token)
                     await websocket.send_json({"type": "chunk", "content": token})
+                reply = "".join(parts)
                 await websocket.send_json(
-                    {"type": "end", "conversation_id": conversation_id, "response": "".join(parts)}
+                    {"type": "end", "conversation_id": conversation_id, "response": reply}
                 )
+                _note_later(ledger_writer.record(mentor, conversation_id, body.message, reply))
             except MentorAgentError as exc:
                 await websocket.send_json({"type": "error", "detail": exc.message})
             except WebSocketDisconnect:

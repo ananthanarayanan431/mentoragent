@@ -25,10 +25,12 @@ from mentor_agent.core.request_context import install_middleware
 from mentor_agent.core.tracing import configure_opik
 from mentor_agent.db.client import AsyncMongoRepository, close_mongo_clients
 from mentor_agent.integrations.factory import IntegrationFactory
+from mentor_agent.models.ledger import LedgerLine
 from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.models.profile import Profile
 from mentor_agent.routes import health, v1
 from mentor_agent.services.enrich import MentorEnricher
+from mentor_agent.services.ledger import LlmLedgerWriter, MongoAdviceLedger
 from mentor_agent.services.maintenance import delete_mentor_memory
 from mentor_agent.services.memory import MentorMemoryBuilder
 from mentor_agent.services.mentors import MentorService
@@ -70,6 +72,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.profile = ProfileService(
         AsyncMongoRepository(Profile, settings.mongo.PROFILE_COLLECTION)
     )
+    ledger_repository = AsyncMongoRepository(LedgerLine, settings.mongo.LEDGER_COLLECTION)
+    await ledger_repository.collection.create_index("created_at")
+    app.state.ledger = MongoAdviceLedger(ledger_repository)
+    app.state.ledger_writer = LlmLedgerWriter(build_summary_model, app.state.ledger)
     app.state.pool = await run_in_threadpool(_load_pool)
     app.state.memory = MentorMemoryBuilder(app.state.mentors, _rebuild_one, delete_mentor_memory)
     app.state.enricher = MentorEnricher(

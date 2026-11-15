@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
     from langchain_core.callbacks import CallbackManagerForLLMRun, CallbackManagerForRetrieverRun
 
+    from mentor_agent.models.ledger import LedgerLine
     from mentor_agent.models.mentor_extract import MemoryStatus
     from mentor_agent.services.research import ResearchFindings
 
@@ -223,6 +224,36 @@ class InMemoryProfileService:
     async def set_goal(self, goal: str) -> Profile:
         self.profile = self.profile.model_copy(update={"goal": goal})
         return self.profile
+
+
+class InMemoryAdviceLedger:
+    """The advice ledger, kept in memory, newest last."""
+
+    def __init__(self, lines: list[LedgerLine] | None = None) -> None:
+        self.lines = list(lines or [])
+
+    async def add(self, line: LedgerLine) -> None:
+        self.lines.append(line)
+
+    async def recent(self, limit: int) -> list[LedgerLine]:
+        return sorted(self.lines, key=lambda line: line.created_at, reverse=True)[:limit]
+
+    async def delete(self, line_id: str) -> bool:
+        before = len(self.lines)
+        self.lines = [line for line in self.lines if line.id != line_id]
+        return len(self.lines) < before
+
+
+class RecordingLedgerWriter:
+    """Records which exchanges would be noted in the ledger; calls no model."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str, str, str]] = []
+
+    async def record(
+        self, mentor: MentorExtract, conversation_id: str, question: str, reply: str
+    ) -> None:
+        self.calls.append((mentor.id, conversation_id, question, reply))
 
 
 class RecordingMemoryBuilder:
