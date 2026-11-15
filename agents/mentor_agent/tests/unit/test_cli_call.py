@@ -145,3 +145,33 @@ def test_call_command_explains_a_missing_api_key(
     assert result.exit_code == 1
     assert "error: ANTHROPIC_API_KEY is empty" in result.stderr
     assert "Traceback" not in result.output
+
+
+def test_call_command_traces_and_flushes_when_opik_is_configured(
+    monkeypatch: pytest.MonkeyPatch, cli_services: list[str], mentor_extract: MentorExtract
+) -> None:
+    import opik
+
+    import mentor_agent.core.bootstrap
+    import mentor_agent.core.tracing
+
+    service = mentor_agent.core.bootstrap.build_conversation_service()
+    traced: list[bool] = []
+    flushed: list[bool] = []
+
+    def conversation_service(*, tracing: bool = False) -> object:
+        traced.append(tracing)
+        return service
+
+    monkeypatch.setattr(mentor_agent.core.tracing, "configure_opik", lambda: True)
+    monkeypatch.setattr(
+        mentor_agent.core.bootstrap, "build_conversation_service", conversation_service
+    )
+    monkeypatch.setattr(opik, "flush_tracker", lambda: flushed.append(True))
+
+    result = CliRunner().invoke(app, ["call", "--mentor-id", mentor_extract.id, "--query", "Hi"])
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout.strip() == cli_services[0]
+    assert traced == [True]
+    assert flushed == [True]

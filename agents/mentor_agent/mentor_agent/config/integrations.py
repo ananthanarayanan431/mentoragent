@@ -26,27 +26,6 @@ class ArcadeSettings(BaseSettings):
         return self.API_KEY is not None and bool(self.USER_ID)
 
 
-class LangSmithSettings(BaseSettings):
-    """LangSmith tracing configuration.
-
-    LangChain reads these straight from the process environment (``.env`` is
-    exported at start-up); they are declared here for validation and docs.
-
-    Attributes:
-        API_KEY: The API key for the LangSmith services.
-        TRACING: Whether to enable tracing.
-        ENDPOINT: The LangSmith API endpoint.
-        PROJECT: The LangSmith project name.
-    """
-
-    model_config = settings_config("LANGSMITH_")
-
-    API_KEY: OptionalSecret = None
-    TRACING: bool = False
-    ENDPOINT: str = "https://api.smith.langchain.com"
-    PROJECT: str = "mentoragents"
-
-
 class CometSettings(BaseSettings):
     """Comet ML and Opik configuration. Optional: tracing is off without a key.
 

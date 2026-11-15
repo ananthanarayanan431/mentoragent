@@ -32,7 +32,6 @@ from mentor_agent.config.integrations import (
     CometSettings,
     ExaSettings,
     FirecrawlSettings,
-    LangSmithSettings,
 )
 from mentor_agent.config.llm import AnthropicSettings, OpenRouterSettings
 from mentor_agent.config.mongo import MongoSettings
@@ -42,8 +41,8 @@ from mentor_agent.config.rag import RagSettings
 # Every v1 route lives under this prefix (routes/v1); a v2 would get its own.
 API_V1_PREFIX = "/api/v1"
 
-# Also export the variables into os.environ: LangChain and LangSmith read
-# LANGSMITH_* straight from the process environment, not through Settings.
+# Also export the variables into os.environ, for libraries that read the
+# process environment directly rather than through Settings.
 # override=False: real environment variables (e.g. from the deployment
 # platform) always win over the file.
 load_dotenv(ENV_FILE, override=False)
@@ -62,7 +61,6 @@ class Settings(BaseSettings):
         agent: Conversation behaviour and limits.
         rag: Embedding model and retrieval tuning.
         arcade: Arcade tool-calling credentials.
-        langsmith: LangSmith tracing configuration.
         comet: Comet ML and Opik configuration.
         exa: Exa search credentials, used to research custom mentors.
         firecrawl: Firecrawl credentials, used to read web pages for memory.
@@ -86,7 +84,6 @@ class Settings(BaseSettings):
     agent: AgentSettings = Field(default_factory=AgentSettings)
     rag: RagSettings = Field(default_factory=RagSettings)
     arcade: ArcadeSettings = Field(default_factory=ArcadeSettings)
-    langsmith: LangSmithSettings = Field(default_factory=LangSmithSettings)
     comet: CometSettings = Field(default_factory=CometSettings)
     exa: ExaSettings = Field(default_factory=ExaSettings)
     firecrawl: FirecrawlSettings = Field(default_factory=FirecrawlSettings)
@@ -105,7 +102,6 @@ __all__ = [
     "CorsSettings",
     "ExaSettings",
     "FirecrawlSettings",
-    "LangSmithSettings",
     "MongoSettings",
     "OpenRouterSettings",
     "PathSettings",

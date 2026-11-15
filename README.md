@@ -70,7 +70,7 @@ no CORS setup. To run everything in containers instead:
 `make -C infra stack-up`, then open <http://localhost:8080>.
 
 `ANTHROPIC_API_KEY` (chat, Claude Haiku / Sonnet) and `OPENROUTER_API_KEY`
-(embeddings only) are the required keys. Arcade (tweets), LangSmith and Comet/Opik (tracing, evaluation) are
+(embeddings only) are the required keys. Arcade (tweets) and Comet/Opik (tracing, evaluation) are
 optional; `agents/mentor_agent/.env.example` documents every variable.
 
 ## Repository layout

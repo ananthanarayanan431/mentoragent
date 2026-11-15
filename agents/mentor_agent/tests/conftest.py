@@ -14,7 +14,6 @@ _TEST_ENV = {
     "OPENROUTER_API_KEY": "test-openrouter-key",
     "ARCADE_API_KEY": "test-arcade-key",
     "ARCADE_USER_ID": "test-user",
-    "LANGSMITH_TRACING": "false",
     "ADDITIONAL_CORS_ORIGINS": "http://allowed.test",
     "COMET_API_KEY": "",
     "EXA_API_KEY": "",

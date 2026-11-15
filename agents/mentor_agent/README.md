@@ -176,12 +176,11 @@ default to keep cost down, and thinking is turned off on every call.
 Optional integrations switch on when their keys are set (a blank value counts
 as unset):
 
-| Variable                                       | Enables                                                  |
-| ---------------------------------------------- | -------------------------------------------------------- |
-| `API_KEY`                                      | API-key protection for `/api/v1`                         |
-| `ARCADE_API_KEY`, `ARCADE_USER_ID`             | Fetching tweets during ingestion                         |
-| `COMET_API_KEY`                                | Opik tracing, prompt versioning, `mentor-agent evaluate` |
-| `LANGSMITH_API_KEY` + `LANGSMITH_TRACING=true` | LangSmith tracing                                        |
+| Variable                           | Enables                                                  |
+| ---------------------------------- | -------------------------------------------------------- |
+| `API_KEY`                          | API-key protection for `/api/v1`                         |
+| `ARCADE_API_KEY`, `ARCADE_USER_ID` | Fetching tweets during ingestion                         |
+| `COMET_API_KEY`                    | Opik tracing, prompt versioning, `mentor-agent evaluate` |
 
 Every other variable has a default. [`.env.example`](.env.example) lists them all.
 
