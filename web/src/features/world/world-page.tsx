@@ -241,13 +241,13 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
     bridge.commands.emit('paused', { paused: mode.kind === 'title' || mode.kind === 'paused' })
   }, [bridge, mode, ready])
 
-  // Now and then two mentors who both advised you meet and talk about your goal; only
-  // while you walk around the square (never on the title, paused, or in a dialogue).
+  // Now and then two mentors meet: about your goal if both advised you, otherwise a
+  // short hello. Only while you walk around the square (never on the title, paused,
+  // or in a dialogue).
   const meeting = useAmbientChats({
     bridge,
     active: ready && mode.kind === 'playing',
     mentors,
-    ledger: ledger.lines,
   })
   useEffect(() => {
     meetingRef.current = meeting

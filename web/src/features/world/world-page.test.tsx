@@ -203,6 +203,7 @@ describe('WorldPage', () => {
     api.startAmbientChat.mockImplementation(async ([visitorId, hostId]) => ({
       id: 'amb1',
       mentor_ids: [visitorId, hostId],
+      about_user: true,
       lines: [{ mentor_id: visitorId, text: 'About their goal...' }],
       created_at: '2026-11-15T10:00:00Z',
     }))

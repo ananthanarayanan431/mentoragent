@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { LedgerLine, Mentor } from '@/lib/types'
+import type { Mentor } from '@/lib/types'
 import {
   AMBIENT_MAX_DELAY_MS,
   AMBIENT_MIN_DELAY_MS,
@@ -8,6 +8,8 @@ import {
   JOIN_WINDOW_MS,
   joinableMeeting,
   lineDurationMs,
+  lineSchedule,
+  MAX_TALK_MS,
   type Meeting,
   nextDelayMs,
   pickPair,
@@ -17,21 +19,9 @@ function mentor(id: string, memory: Mentor['memory'] = 'ready'): Mentor {
   return { id, name: id, expertise: 'e', perspective: 'p', style: 's', memory }
 }
 
-function advised(mentorId: string): LedgerLine {
-  return {
-    id: mentorId,
-    mentor_id: mentorId,
-    mentor_name: mentorId,
-    topic: 't',
-    advice: 'a',
-    created_at: '2026-11-15T10:00:00Z',
-  }
-}
-
 describe('eligiblePairs', () => {
-  it('pairs every two mentors who have both advised you', () => {
-    const mentors = [mentor('a'), mentor('b'), mentor('c'), mentor('d')]
-    expect(eligiblePairs(mentors, [advised('a'), advised('b'), advised('c')])).toEqual([
+  it('pairs any two mentors (what they talk about is up to the server)', () => {
+    expect(eligiblePairs([mentor('a'), mentor('b'), mentor('c')])).toEqual([
       ['a', 'b'],
       ['a', 'c'],
       ['b', 'c'],
@@ -39,9 +29,7 @@ describe('eligiblePairs', () => {
   })
 
   it('leaves out a mentor who is still reading up', () => {
-    expect(
-      eligiblePairs([mentor('a'), mentor('b', 'building')], [advised('a'), advised('b')]),
-    ).toEqual([])
+    expect(eligiblePairs([mentor('a'), mentor('b', 'building')])).toEqual([])
   })
 })
 
@@ -100,5 +88,21 @@ describe('joinableMeeting', () => {
   it('is about the two of them only', () => {
     expect(joinableMeeting(going, 'dalio', 1000)).toBeNull()
     expect(joinableMeeting(null, 'buffett', 1000)).toBeNull()
+  })
+})
+
+describe('lineSchedule', () => {
+  it('gives each line its reading time when they fit in thirty seconds', () => {
+    expect(lineSchedule(['Hi.', 'Hello.'])).toEqual([
+      lineDurationMs('Hi.'),
+      lineDurationMs('Hello.'),
+    ])
+  })
+
+  it('never lets the mentors talk for more than thirty seconds', () => {
+    const times = lineSchedule(Array.from({ length: 8 }, () => 'x'.repeat(200)))
+    expect(times).toHaveLength(8)
+    expect(times.reduce((sum, ms) => sum + ms, 0)).toBeLessThanOrEqual(MAX_TALK_MS)
+    expect(MAX_TALK_MS).toBe(30_000)
   })
 })

@@ -1,10 +1,11 @@
 /**
- * Ambient chats: now and then, while the square is open, two mentors who have both
- * advised you meet and talk about your goal. Pure rules; `use-ambient-chats.ts`
- * runs them and the scene walks and draws.
+ * Ambient chats: now and then, while the square is open, two mentors meet. If both
+ * have advised you they talk about your goal; otherwise they have a short chat and
+ * move on (the server decides). Pure rules; `use-ambient-chats.ts` runs them and the
+ * scene walks and draws.
  */
 
-import type { LedgerLine, Mentor } from '@/lib/types'
+import type { Mentor } from '@/lib/types'
 
 /** Shortest and longest wait between two chats (the server's floor is 3 minutes). */
 export const AMBIENT_MIN_DELAY_MS = 180_000
@@ -14,6 +15,8 @@ export const AMBIENT_MAX_DELAY_MS = 300_000
 const LINE_BASE_MS = 1500
 const LINE_PER_CHAR_MS = 60
 const LINE_MAX_MS = 6000
+/** The longest a meeting's lines may play, all together. */
+export const MAX_TALK_MS = 30_000
 
 export type Pair = [visitorId: string, hostId: string]
 
@@ -46,12 +49,9 @@ export function joinableMeeting(
   return meeting
 }
 
-/** Every two mentors who have both advised you and are not still reading up. */
-export function eligiblePairs(mentors: readonly Mentor[], ledger: readonly LedgerLine[]): Pair[] {
-  const advised = new Set(ledger.map((line) => line.mentor_id))
-  const ids = mentors
-    .filter((mentor) => advised.has(mentor.id) && mentor.memory !== 'building')
-    .map((mentor) => mentor.id)
+/** Every two mentors who are not still reading up on their sources. */
+export function eligiblePairs(mentors: readonly Mentor[]): Pair[] {
+  const ids = mentors.filter((mentor) => mentor.memory !== 'building').map((mentor) => mentor.id)
   return ids.flatMap((a, i) => ids.slice(i + 1).map((b): Pair => [a, b]))
 }
 
@@ -80,4 +80,15 @@ export function nextDelayMs(rng: () => number): number {
 
 export function lineDurationMs(text: string): number {
   return Math.min(LINE_MAX_MS, LINE_BASE_MS + text.length * LINE_PER_CHAR_MS)
+}
+
+/**
+ * How long each line stays up: its reading time, shrunk evenly when together they
+ * would run past `MAX_TALK_MS`, so a meeting never talks for more than that.
+ */
+export function lineSchedule(texts: readonly string[]): number[] {
+  const wanted = texts.map(lineDurationMs)
+  const total = wanted.reduce((sum, ms) => sum + ms, 0)
+  if (total <= MAX_TALK_MS) return wanted
+  return wanted.map((ms) => Math.floor((ms * MAX_TALK_MS) / total))
 }

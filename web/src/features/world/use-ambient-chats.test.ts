@@ -2,8 +2,8 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/lib/api'
-import type { AmbientChat, LedgerLine, Mentor } from '@/lib/types'
-import { AMBIENT_MIN_DELAY_MS, lineDurationMs } from './ambient'
+import type { AmbientChat, Mentor } from '@/lib/types'
+import { AMBIENT_MIN_DELAY_MS, lineDurationMs, MAX_TALK_MS } from './ambient'
 import { useAmbientChats } from './use-ambient-chats'
 import { createWorldBridge, type WorldBridge } from './world-bridge'
 
@@ -23,17 +23,10 @@ const MENTORS: Mentor[] = ['buffett', 'munger'].map((id) => ({
   style: 's',
   memory: 'ready',
 }))
-const LEDGER: LedgerLine[] = ['buffett', 'munger'].map((id) => ({
-  id,
-  mentor_id: id,
-  mentor_name: id,
-  topic: 't',
-  advice: 'a',
-  created_at: '2026-11-15T10:00:00Z',
-}))
 const CHAT: AmbientChat = {
   id: 'amb1',
   mentor_ids: ['buffett', 'munger'],
+  about_user: true,
   lines: [
     { mentor_id: 'buffett', text: 'Index funds.' },
     { mentor_id: 'munger', text: 'Agreed.' },
@@ -46,8 +39,7 @@ let commands: { name: string; payload: unknown }[]
 
 function render(active = true) {
   return renderHook(
-    ({ on }) =>
-      useAmbientChats({ bridge, active: on, mentors: MENTORS, ledger: LEDGER, random: () => 0 }),
+    ({ on }) => useAmbientChats({ bridge, active: on, mentors: MENTORS, random: () => 0 }),
     { initialProps: { on: active } },
   )
 }
@@ -156,5 +148,27 @@ describe('useAmbientChats', () => {
     expect(result.current?.endedAt).not.toBeNull()
     await wait(AMBIENT_MIN_DELAY_MS)
     expect(commands.filter((c) => c.name === 'visit')).toHaveLength(2)
+  })
+
+  it('lets them talk for thirty seconds at most, however long the lines', async () => {
+    api.startAmbientChat.mockResolvedValue({
+      ...CHAT,
+      lines: Array.from({ length: 4 }, (_, i) => ({
+        mentor_id: i % 2 ? 'munger' : 'buffett',
+        text: 'x'.repeat(400),
+      })),
+    })
+    render()
+    await wait(AMBIENT_MIN_DELAY_MS)
+    act(() => bridge.events.emit('met', { visitorId: 'buffett', hostId: 'munger' }))
+    await wait(0)
+
+    await wait(MAX_TALK_MS)
+
+    expect(commands.filter((c) => c.name === 'say')).toHaveLength(4)
+    expect(commands.at(-1)).toEqual({
+      name: 'endVisit',
+      payload: { visitorId: 'buffett', hostId: 'munger' },
+    })
   })
 })

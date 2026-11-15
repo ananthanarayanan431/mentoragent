@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { startAmbientChat } from '@/lib/api'
-import type { LedgerLine, Mentor } from '@/lib/types'
+import type { Mentor } from '@/lib/types'
 import {
   eligiblePairs,
-  lineDurationMs,
+  lineSchedule,
   nextDelayMs,
   pickPair,
   type Meeting,
@@ -17,21 +17,20 @@ interface Options {
   /** True while the player is walking around (not on the title, paused, or talking). */
   active: boolean
   mentors: readonly Mentor[]
-  ledger: readonly LedgerLine[]
   random?: () => number
   now?: () => number
 }
 
 /**
  * Now and then, while the square is played and the tab is visible, sends a mentor
- * over to another who has also advised you, plays their chat about your goal as
- * bubbles, and lets them go. Nothing runs otherwise: no request, no timer.
+ * over to another, plays their chat as bubbles (about your goal if both advised you,
+ * a short hello otherwise; never longer than `MAX_TALK_MS`), and lets them go.
+ * Nothing runs otherwise: no request, no timer.
  */
 export function useAmbientChats({
   bridge,
   active,
   mentors,
-  ledger,
   random = Math.random,
   now = Date.now,
 }: Options): Meeting | null {
@@ -41,7 +40,6 @@ export function useAmbientChats({
   // re-subscribing: the latest props, the running meeting, and pending timers.
   const live = useRef({
     mentors,
-    ledger,
     random,
     now,
     running: false,
@@ -51,8 +49,8 @@ export function useAmbientChats({
     generation: 0,
   })
   useEffect(() => {
-    Object.assign(live.current, { mentors, ledger, random, now })
-  }, [mentors, ledger, random, now])
+    Object.assign(live.current, { mentors, random, now })
+  }, [mentors, random, now])
 
   useEffect(() => {
     const onChange = () => setVisible(document.visibilityState !== 'hidden')
@@ -85,11 +83,7 @@ export function useAmbientChats({
       scheduleNext()
     }
     function start() {
-      const pair = pickPair(
-        eligiblePairs(state.mentors, state.ledger),
-        state.random,
-        state.lastPair,
-      )
+      const pair = pickPair(eligiblePairs(state.mentors), state.random, state.lastPair)
       if (!pair) {
         scheduleNext()
         return
@@ -108,14 +102,15 @@ export function useAmbientChats({
           lines: chat.lines.map((line) => ({ mentorId: line.mentor_id, text: line.text })),
         }
         update(withChat)
+        const times = lineSchedule(chat.lines.map((line) => line.text))
         let at = 0
-        for (const line of chat.lines) {
+        chat.lines.forEach((line, index) => {
           later(at, () => {
             if (state.meeting !== withChat) return
             bridge.commands.emit('say', { mentorId: line.mentor_id, text: line.text })
           })
-          at += lineDurationMs(line.text)
-        }
+          at += times[index]!
+        })
         later(at, () => finish(withChat, true))
       } catch {
         // Not eligible, too soon, or the model failed: skip this one quietly.
