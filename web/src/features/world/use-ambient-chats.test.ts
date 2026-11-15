@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/lib/api'
 import type { AmbientChat, Mentor } from '@/lib/types'
-import { AMBIENT_MIN_DELAY_MS, lineDurationMs, MAX_TALK_MS } from './ambient'
+import { AMBIENT_MIN_DELAY_MS, ENCOUNTER_RETRY_MS, lineDurationMs, MAX_TALK_MS } from './ambient'
 import { useAmbientChats } from './use-ambient-chats'
 import { createWorldBridge, type WorldBridge } from './world-bridge'
 
@@ -170,5 +170,43 @@ describe('useAmbientChats', () => {
       name: 'endVisit',
       payload: { visitorId: 'buffett', hostId: 'munger' },
     })
+  })
+
+  it('lets two mentors who bump into each other stop and chat', async () => {
+    render()
+    act(() => bridge.events.emit('encounter', { mentorIds: ['munger', 'buffett'] }))
+
+    expect(commands).toEqual([
+      { name: 'visit', payload: { visitorId: 'munger', hostId: 'buffett' } },
+    ])
+  })
+
+  it('lets them pass by when the last chat was under three minutes ago', async () => {
+    render()
+    act(() => bridge.events.emit('encounter', { mentorIds: ['munger', 'buffett'] }))
+    act(() => bridge.events.emit('met', { visitorId: 'munger', hostId: 'buffett' }))
+    await wait(MAX_TALK_MS) // the chat plays and ends
+    await wait(AMBIENT_MIN_DELAY_MS - MAX_TALK_MS - 1000)
+
+    act(() => bridge.events.emit('encounter', { mentorIds: ['buffett', 'munger'] }))
+
+    expect(commands.filter((c) => c.name === 'visit')).toHaveLength(1)
+  })
+
+  it('tries again soon after a meeting that came to nothing', async () => {
+    render()
+    act(() => bridge.events.emit('encounter', { mentorIds: ['munger', 'buffett'] }))
+    act(() => bridge.events.emit('visitFailed', { visitorId: 'munger', hostId: 'buffett' }))
+    await wait(ENCOUNTER_RETRY_MS)
+
+    act(() => bridge.events.emit('encounter', { mentorIds: ['buffett', 'munger'] }))
+
+    expect(commands.filter((c) => c.name === 'visit')).toHaveLength(2)
+  })
+
+  it('ignores encounters while the square is not being played', () => {
+    render(false)
+    act(() => bridge.events.emit('encounter', { mentorIds: ['munger', 'buffett'] }))
+    expect(commands).toEqual([])
   })
 })

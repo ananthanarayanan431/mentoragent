@@ -20,6 +20,12 @@ export const MAX_TALK_MS = 30_000
 
 export type Pair = [visitorId: string, hostId: string]
 
+/**
+ * After a meeting that came to nothing (the walk failed, the server said no),
+ * mentors who bump into each other may try again this soon.
+ */
+export const ENCOUNTER_RETRY_MS = 20_000
+
 /** How long after two mentors finish talking you can still join them. */
 export const JOIN_WINDOW_MS = 10_000
 
@@ -55,7 +61,7 @@ export function eligiblePairs(mentors: readonly Mentor[]): Pair[] {
   return ids.flatMap((a, i) => ids.slice(i + 1).map((b): Pair => [a, b]))
 }
 
-const samePair = (x: Pair, y: Pair) =>
+export const samePair = (x: Pair, y: Pair) =>
   (x[0] === y[0] && x[1] === y[1]) || (x[0] === y[1] && x[1] === y[0])
 
 /**

@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   facingFor,
   facingTowards,
+  findEncounter,
+  MENTOR_SPEED_RATIO,
+  mentorSpeed,
   nearestWithin,
   pickTarget,
   seededRng,
@@ -73,6 +76,57 @@ describe('stepWander', () => {
   it('is reproducible with the same seed', () => {
     expect(firstTarget(42)).toEqual(firstTarget(42))
     expect(firstTarget(42)).not.toEqual(firstTarget(43))
+  })
+})
+
+describe('mentor speed', () => {
+  it('is at least three quarters of the player speed, so mentors can be followed', () => {
+    expect(MENTOR_SPEED_RATIO).toBeGreaterThanOrEqual(0.75)
+    expect(MENTOR_SPEED_RATIO).toBeLessThan(1)
+    expect(mentorSpeed(150)).toBe(120)
+  })
+})
+
+describe('stepWander along a route', () => {
+  /** A route that goes via a corner, as round an obstacle. */
+  const via = { x: 100, y: 60 }
+  const routed: WanderConfig = { ...config, route: (_from, to) => [via, to] }
+
+  it('walks the route waypoint by waypoint', () => {
+    const rng = seededRng(7)
+    let step = stepWander(startWander(config.home, rng), routed, config.home, 10_000, rng)
+    expect(step.state.mode).toBe('walk')
+    step = stepWander(step.state, routed, config.home, 16, rng)
+    // Heading for the corner first: straight up.
+    expect(step.velocity.x).toBeCloseTo(0)
+    expect(step.velocity.y).toBeLessThan(0)
+
+    step = stepWander(step.state, routed, via, 16, rng)
+    expect(step.state.mode).toBe('walk')
+    expect(step.state.waypoints).toEqual([step.state.target])
+  })
+
+  it('stays put a little longer when there is no way to the target', () => {
+    const rng = seededRng(7)
+    const blocked: WanderConfig = { ...config, route: () => null }
+    const step = stepWander(startWander(config.home, rng), blocked, config.home, 10_000, rng)
+    expect(step.state.mode).toBe('idle')
+    expect(step.state.timer).toBeGreaterThan(0)
+  })
+})
+
+/** A mentor at a point on a line, for encounter tests. */
+function at(id: string, x: number, y = 0) {
+  return { id, x, y }
+}
+
+describe('findEncounter', () => {
+  it('finds two mentors who walk close past each other', () => {
+    expect(findEncounter([at('a', 0), at('b', 100), at('c', 120)], 30)).toEqual(['b', 'c'])
+  })
+
+  it('is null when everyone keeps their distance', () => {
+    expect(findEncounter([at('a', 0), at('b', 100)], 30)).toBeNull()
   })
 })
 

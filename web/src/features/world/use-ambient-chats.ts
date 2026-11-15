@@ -3,10 +3,13 @@ import { useEffect, useRef, useState } from 'react'
 import { startAmbientChat } from '@/lib/api'
 import type { Mentor } from '@/lib/types'
 import {
+  AMBIENT_MIN_DELAY_MS,
+  ENCOUNTER_RETRY_MS,
   eligiblePairs,
   lineSchedule,
   nextDelayMs,
   pickPair,
+  samePair,
   type Meeting,
   type Pair,
 } from './ambient'
@@ -45,6 +48,8 @@ export function useAmbientChats({
     running: false,
     meeting: null as Meeting | null,
     lastPair: null as Pair | null,
+    /** Mentors who bump into each other may chat from this time on (ms since epoch). */
+    encountersFrom: 0,
     timers: new Set<ReturnType<typeof setTimeout>>(),
     generation: 0,
   })
@@ -79,7 +84,11 @@ export function useAmbientChats({
       if (state.meeting !== meetingNow) return
       const [visitorId, hostId] = meetingNow.mentorIds
       if (tell) bridge.commands.emit('endVisit', { visitorId, hostId })
-      update({ ...meetingNow, endedAt: state.now() })
+      const endedAt = state.now()
+      update({ ...meetingNow, endedAt })
+      // After a real chat, leave a few minutes before the next; after nothing, soon.
+      const chatted = meetingNow.lines.length > 0
+      state.encountersFrom = endedAt + (chatted ? AMBIENT_MIN_DELAY_MS : ENCOUNTER_RETRY_MS)
       scheduleNext()
     }
     function start() {
@@ -88,6 +97,9 @@ export function useAmbientChats({
         scheduleNext()
         return
       }
+      begin(pair)
+    }
+    function begin(pair: Pair) {
       state.lastPair = pair
       update({ mentorIds: pair, ambientId: null, lines: [], endedAt: null })
       bridge.commands.emit('visit', { visitorId: pair[0], hostId: pair[1] })
@@ -124,6 +136,16 @@ export function useAmbientChats({
       if (current.mentorIds[0] !== visitorId || current.mentorIds[1] !== hostId) return
       void play(current, state.generation)
     })
+    const offEncounter = bridge.events.on('encounter', ({ mentorIds }) => {
+      if (!state.running) return
+      if (state.meeting && state.meeting.endedAt === null) return
+      if (state.now() < state.encountersFrom) return
+      if (!eligiblePairs(state.mentors).some((pair) => samePair(pair, mentorIds))) return
+      // A chance meeting replaces the next planned one.
+      for (const timer of state.timers) clearTimeout(timer)
+      state.timers.clear()
+      begin(mentorIds)
+    })
     const offFailed = bridge.events.on('visitFailed', ({ visitorId, hostId }) => {
       const current = state.meeting
       if (!current || current.endedAt !== null) return
@@ -138,6 +160,7 @@ export function useAmbientChats({
 
     return () => {
       offMet()
+      offEncounter()
       offFailed()
       state.running = false
       for (const timer of state.timers) clearTimeout(timer)

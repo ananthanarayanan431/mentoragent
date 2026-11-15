@@ -17,6 +17,8 @@ export interface GameEvents {
   ready: Record<string, never>
   /** The scene could not build the world (the page shows an error instead of a spinner). */
   failed: { message: string }
+  /** Two roaming mentors came close to each other; they may stop and chat. */
+  encounter: { mentorIds: [string, string] }
   /** The visitor reached the host: both stand face to face, ready to talk. */
   met: { visitorId: string; hostId: string }
   /** A visit was given up (no way there, stuck, or the player started talking to one). */

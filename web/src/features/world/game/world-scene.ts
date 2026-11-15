@@ -34,10 +34,12 @@ import {
   type WorldMap,
 } from './map'
 import { isForTheGame, oncePerEvent } from './keys'
-import { startVisit, stepVisit, type VisitState } from './visits'
+import { cellOf, findPath, startVisit, stepVisit, type VisitState } from './visits'
 import {
   facingFor,
   facingTowards,
+  findEncounter,
+  mentorSpeed,
   nearestWithin,
   seededRng,
   startWander,
@@ -60,8 +62,13 @@ export interface WorldSceneOptions {
 }
 
 const PLAYER_SPEED = 150
-const MENTOR_SPEED = 42
-const WANDER_RADIUS = TILE * 3
+const MENTOR_SPEED = mentorSpeed(PLAYER_SPEED)
+/** How far from their spot a mentor roams: far enough to cross paths with others. */
+const WANDER_RADIUS = TILE * 9
+/** Two free mentors this close (feet to feet) have bumped into each other. */
+const ENCOUNTER_REACH = TILE * 1.5
+/** The same two mentors report bumping into each other at most this often. */
+const ENCOUNTER_REPEAT_MS = 15_000
 /** How close (feet to feet) the player must be to talk. */
 const TALK_REACH = TILE * 1.8
 /** How close the player must be to see what a mentor told them. */
@@ -119,6 +126,8 @@ export class WorldScene extends Phaser.Scene {
   private keys!: MoveKeys
   private prompt!: Phaser.GameObjects.Text
   private nearby: MentorActor | null = null
+  /** When each pair of mentors last bumped into each other (scene time, ms). */
+  private encounters = new Map<string, number>()
   // Frozen until the page says otherwise (it shows the title screen first).
   private inputEnabled = false
   private paused = true
@@ -505,6 +514,7 @@ export class WorldScene extends Phaser.Scene {
     }
     this.updatePlayer(delta)
     for (const mentor of this.mentors) this.updateMentor(mentor, delta)
+    this.updateEncounters()
     this.updateNearby()
     for (const actor of [this.player, ...this.mentors]) actor.sprite.setDepth(this.feet(actor).y)
   }
@@ -650,7 +660,12 @@ export class WorldScene extends Phaser.Scene {
       const wasWalking = mentor.wander.mode === 'walk' && sprite.body!.velocity.length() > 0
       const step = stepWander(
         mentor.wander,
-        { home: mentor.home, radius: WANDER_RADIUS, speed: MENTOR_SPEED },
+        {
+          home: mentor.home,
+          radius: WANDER_RADIUS,
+          speed: MENTOR_SPEED,
+          route: (from, to) => this.route(from, to),
+        },
         position,
         delta,
         mentor.rng,
@@ -664,6 +679,29 @@ export class WorldScene extends Phaser.Scene {
     mentor.label.setPosition(sprite.x, sprite.y - CHARACTER_H / 2 + 2).setDepth(100_000)
     // Above the name label (or where it would be), so the two never overlap.
     mentor.bubble.setPosition(sprite.x, sprite.y - CHARACTER_H / 2 - 14).setDepth(100_001)
+  }
+
+  /** A walkable way round trees, benches and the fountain, as cell centres. */
+  private route(from: Point, to: Point): Point[] | null {
+    const path = findPath(this.map, cellOf(from), cellOf(to))
+    return path ? path.map(cellCenter) : null
+  }
+
+  /** Tells React when two roaming mentors pass close by; they may stop and chat. */
+  private updateEncounters(): void {
+    const free = this.mentors
+      .filter((mentor) => !mentor.talking && !mentor.visit)
+      .map((mentor) => {
+        const feet = this.feet(mentor)
+        return { id: mentor.id, x: feet.x, y: feet.y }
+      })
+    const pair = findEncounter(free, ENCOUNTER_REACH)
+    if (!pair) return
+    const key = pair.toSorted().join('+')
+    const now = this.time.now
+    if (now - (this.encounters.get(key) ?? -Infinity) < ENCOUNTER_REPEAT_MS) return
+    this.encounters.set(key, now)
+    this.options.bridge.events.emit('encounter', { mentorIds: pair })
   }
 
   private updateNearby(): void {
