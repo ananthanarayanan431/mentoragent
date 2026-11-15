@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from mentor_agent.models.times import UtcDatetime
+
 #: There is one user, so there is one profile document, found by this key.
 PROFILE_KEY: Literal["me"] = "me"
 
@@ -24,5 +26,5 @@ class Profile(BaseModel):
 
     key: Literal["me"] = PROFILE_KEY
     goal: str | None = None
-    updated_at: datetime | None = None
-    heard_until: dict[str, datetime] = Field(default_factory=dict[str, datetime])
+    updated_at: UtcDatetime | None = None
+    heard_until: dict[str, UtcDatetime] = Field(default_factory=dict[str, datetime])

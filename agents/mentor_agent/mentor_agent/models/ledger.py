@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
+from mentor_agent.models.times import UtcDatetime
+
 
 class LedgerLine(BaseModel):
     """A piece of advice a mentor gave, short enough for every mentor to read.
@@ -27,4 +29,4 @@ class LedgerLine(BaseModel):
     conversation_id: str
     topic: str
     advice: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_at: UtcDatetime = Field(default_factory=lambda: datetime.now(UTC))
