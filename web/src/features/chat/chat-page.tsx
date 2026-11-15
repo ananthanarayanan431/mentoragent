@@ -9,6 +9,7 @@ import { MessageList } from './message-list'
 import { clearConversation } from './storage'
 import { ErrorState, Spinner } from '@/components/state-views'
 import { ApiError, getMentor } from '@/lib/api'
+import { MEMORY_POLL_MS } from '@/lib/config'
 import type { Mentor } from '@/lib/types'
 import { useMentorConversation } from './use-mentor-conversation'
 
@@ -48,11 +49,28 @@ function ChatView({ mentorId }: { mentorId: string }) {
     return () => controller.abort()
   }, [mentorId])
 
+  // The agent refuses a turn while the memory builds; poll until it is done.
+  const locked = mentor?.memory === 'building'
+  useEffect(() => {
+    if (!locked) return
+    const controller = new AbortController()
+    const timer = window.setInterval(() => {
+      getMentor(mentorId, controller.signal)
+        .then(setMentor)
+        .catch(() => {}) // a missed poll is retried on the next tick
+    }, MEMORY_POLL_MS)
+    return () => {
+      window.clearInterval(timer)
+      controller.abort()
+    }
+  }, [locked, mentorId])
+
   const submit = useCallback(
     (text: string) => {
+      if (locked) return
       if (send(text)) setDraft('')
     },
-    [send],
+    [locked, send],
   )
 
   // --- Render ---------------------------------------------------------------
@@ -145,7 +163,19 @@ function ChatView({ mentorId }: { mentorId: string }) {
           </button>
         </div>
 
-        <MessageList messages={state.messages} mentor={mentor} onSuggestion={submit} />
+        {locked && (
+          <p className="flex items-center justify-center gap-2 border-b border-line bg-raised px-4 py-2 text-sm text-muted">
+            <Spinner label="Building memory" />
+            {mentor.name} is still reading up on their sources. You can chat once that is done.
+          </p>
+        )}
+
+        <MessageList
+          messages={state.messages}
+          mentor={mentor}
+          onSuggestion={submit}
+          suggestionsDisabled={locked}
+        />
 
         <Composer
           value={draft}
@@ -153,6 +183,7 @@ function ChatView({ mentorId }: { mentorId: string }) {
           onSubmit={() => submit(draft)}
           disabled={state.isStreaming}
           mentorName={mentor.name}
+          lockedPlaceholder={locked ? `${mentor.name} is still reading up…` : undefined}
         />
       </div>
     </main>

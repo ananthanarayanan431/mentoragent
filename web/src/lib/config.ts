@@ -23,6 +23,9 @@ export const API_PREFIX = '/api/v1'
 /** The longest message the backend accepts (`AgentSettings.MAX_MESSAGE_CHARS`). */
 export const MAX_MESSAGE_CHARS = 4000
 
+/** How often to refresh a mentor while their memory is building. */
+export const MEMORY_POLL_MS = 5000
+
 /** Absolute URL for an API path, e.g. httpUrl('/api/v1/mentors'). */
 export function httpUrl(path: string): string {
   return `${API_BASE_URL}${path}`

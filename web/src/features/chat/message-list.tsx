@@ -11,9 +11,11 @@ interface Props {
   messages: Message[]
   mentor: Mentor
   onSuggestion: (text: string) => void
+  /** Conversation starters cannot be picked (the mentor is not ready yet). */
+  suggestionsDisabled?: boolean
 }
 
-export function MessageList({ messages, mentor, onSuggestion }: Props) {
+export function MessageList({ messages, mentor, onSuggestion, suggestionsDisabled }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [atBottom, setAtBottom] = useState(true)
 
@@ -39,7 +41,11 @@ export function MessageList({ messages, mentor, onSuggestion }: Props) {
   if (!messages.length) {
     return (
       <div className="flex flex-1 items-center justify-center overflow-y-auto p-6">
-        <ConversationStarters mentor={mentor} onPick={onSuggestion} />
+        <ConversationStarters
+          mentor={mentor}
+          onPick={onSuggestion}
+          disabled={suggestionsDisabled ?? false}
+        />
       </div>
     )
   }
@@ -81,9 +87,11 @@ export function MessageList({ messages, mentor, onSuggestion }: Props) {
 function ConversationStarters({
   mentor,
   onPick,
+  disabled,
 }: {
   mentor: Mentor
   onPick: (text: string) => void
+  disabled: boolean
 }) {
   const prompts = [
     `What first drew you to ${mentor.expertise.toLowerCase()}?`,
@@ -106,7 +114,8 @@ function ConversationStarters({
             <button
               type="button"
               onClick={() => onPick(prompt)}
-              className="w-full rounded-xl border border-line bg-surface px-4 py-2.5 text-sm transition-colors hover:border-line-strong hover:bg-raised"
+              disabled={disabled}
+              className="w-full rounded-xl border border-line bg-surface px-4 py-2.5 text-sm transition-colors hover:border-line-strong hover:bg-raised disabled:cursor-not-allowed disabled:opacity-50"
             >
               {prompt}
             </button>

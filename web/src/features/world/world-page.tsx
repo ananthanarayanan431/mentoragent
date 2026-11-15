@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ErrorState, Spinner } from '@/components/state-views'
 import { addRandomMentor, ApiError, getMentorPool, listMentors } from '@/lib/api'
+import { MEMORY_POLL_MS } from '@/lib/config'
 import type { Mentor } from '@/lib/types'
 import { DialogueBox } from './dialogue-box'
 import { useMediaQuery } from '@/lib/use-media-query'
@@ -60,9 +61,6 @@ export function WorldPage() {
   }
   return <World mentors={mentors} />
 }
-
-/** How often to refresh mentors while a memory is building. */
-const MEMORY_POLL_MS = 5000
 
 function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
   const containerRef = useRef<HTMLDivElement>(null)

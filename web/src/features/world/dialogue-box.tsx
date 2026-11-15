@@ -4,6 +4,7 @@ import type { FormEvent, KeyboardEvent } from 'react'
 import { Link } from 'react-router'
 
 import { Avatar } from '@/components/avatar'
+import { Spinner } from '@/components/state-views'
 import { MessageBubble } from '@/features/chat/message-bubble'
 import { useMentorConversation } from '@/features/chat/use-mentor-conversation'
 import { MAX_MESSAGE_CHARS } from '@/lib/config'
@@ -30,10 +31,14 @@ export function DialogueBox({ mentor, level, onClose, onMessageSent }: Props) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const lastContent = state.messages.at(-1)?.content
+  // Until the memory is built the persona may be a placeholder and no source is
+  // searchable, so the agent refuses the turn; say why instead of letting it fail.
+  const locked = mentor.memory === 'building'
 
+  // Focus on open, and again when the memory finishes (a disabled box loses focus).
   useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
+    if (!locked) inputRef.current?.focus()
+  }, [locked])
 
   // Escape closes the conversation from anywhere while it is open. Capture phase,
   // so the game's own Escape (the pause menu) never sees it.
@@ -56,7 +61,7 @@ export function DialogueBox({ mentor, level, onClose, onMessageSent }: Props) {
 
   function submit(event?: FormEvent) {
     event?.preventDefault()
-    if (draft.length > MAX_MESSAGE_CHARS) return
+    if (locked || draft.length > MAX_MESSAGE_CHARS) return
     if (send(draft)) {
       setDraft('')
       onMessageSent()
@@ -135,10 +140,11 @@ export function DialogueBox({ mentor, level, onClose, onMessageSent }: Props) {
         className="flex-1 space-y-4 overflow-y-auto px-4 py-3"
         aria-live="polite"
       >
-        {mentor.memory === 'building' && (
-          <p className="rounded-md bg-raised px-3 py-2 text-xs text-muted">
-            {mentor.name} just arrived and is still reading up on their own work; answers get richer
-            once that is done.
+        {locked && (
+          <p className="flex items-center gap-2 rounded-md bg-raised px-3 py-2 text-xs text-muted">
+            <Spinner label="Building memory" />
+            {mentor.name} is still reading up on their own work. You can talk once they are done;
+            this usually takes a minute or two.
           </p>
         )}
         {mentor.memory === 'failed' && (
@@ -174,12 +180,17 @@ export function DialogueBox({ mentor, level, onClose, onMessageSent }: Props) {
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={`Say something to ${mentor.name}…`}
+          disabled={locked}
+          placeholder={
+            locked ? `${mentor.name} is still reading up…` : `Say something to ${mentor.name}…`
+          }
           className="max-h-32 min-h-10 flex-1 resize-none rounded-lg border border-line bg-canvas px-3 py-2 text-sm outline-none focus:border-accent"
         />
         <button
           type="submit"
-          disabled={state.isStreaming || !draft.trim() || draft.length > MAX_MESSAGE_CHARS}
+          disabled={
+            locked || state.isStreaming || !draft.trim() || draft.length > MAX_MESSAGE_CHARS
+          }
           className="grid size-10 shrink-0 place-items-center rounded-lg bg-accent text-on-accent hover:bg-accent-hover disabled:opacity-40"
         >
           <SendHorizontal size={16} aria-hidden="true" />

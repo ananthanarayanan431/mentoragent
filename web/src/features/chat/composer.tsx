@@ -14,9 +14,18 @@ interface Props {
   onSubmit: () => void
   disabled: boolean
   mentorName: string
+  /** Set while the mentor cannot be messaged at all (memory still building). */
+  lockedPlaceholder?: string | undefined
 }
 
-export function Composer({ value, onChange, onSubmit, disabled, mentorName }: Props) {
+export function Composer({
+  value,
+  onChange,
+  onSubmit,
+  disabled,
+  mentorName,
+  lockedPlaceholder,
+}: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Grow with the content up to a cap, then scroll inside the textarea.
@@ -28,7 +37,8 @@ export function Composer({ value, onChange, onSubmit, disabled, mentorName }: Pr
   }, [value])
 
   const tooLong = value.length > MAX_MESSAGE_CHARS
-  const canSend = value.trim().length > 0 && !tooLong && !disabled
+  const locked = lockedPlaceholder !== undefined
+  const canSend = value.trim().length > 0 && !tooLong && !disabled && !locked
 
   function submit(event?: FormEvent) {
     event?.preventDefault()
@@ -63,10 +73,13 @@ export function Composer({ value, onChange, onSubmit, disabled, mentorName }: Pr
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={disabled ? 'Waiting for a reply…' : `Message ${mentorName}…`}
+          disabled={locked}
+          placeholder={
+            lockedPlaceholder ?? (disabled ? 'Waiting for a reply…' : `Message ${mentorName}…`)
+          }
           aria-describedby="composer-hint"
           aria-invalid={tooLong}
-          className="max-h-[200px] flex-1 resize-none bg-transparent px-2 py-1.5 text-[0.9375rem] leading-relaxed outline-none placeholder:text-faint"
+          className="max-h-[200px] flex-1 resize-none bg-transparent px-2 py-1.5 text-[0.9375rem] leading-relaxed outline-none placeholder:text-faint disabled:cursor-not-allowed"
         />
         <button
           type="submit"

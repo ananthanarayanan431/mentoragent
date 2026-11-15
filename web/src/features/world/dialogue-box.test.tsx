@@ -26,17 +26,18 @@ const ADA: Mentor = { id: 'ada', name: 'Ada', expertise: 'Engines', perspective:
 function renderBox(mentor: Mentor = ADA) {
   const onClose = vi.fn<() => void>()
   const onMessageSent = vi.fn<() => void>()
-  render(
+  const view = (m: Mentor) => (
     <MemoryRouter>
-      <DialogueBox
-        mentor={mentor}
-        level={levelFor(3)}
-        onClose={onClose}
-        onMessageSent={onMessageSent}
-      />
-    </MemoryRouter>,
+      <DialogueBox mentor={m} level={levelFor(3)} onClose={onClose} onMessageSent={onMessageSent} />
+    </MemoryRouter>
   )
-  return { onClose, onMessageSent, input: screen.getByRole('textbox', { name: 'Message Ada' }) }
+  const { rerender } = render(view(mentor))
+  return {
+    onClose,
+    onMessageSent,
+    rerender: (m: Mentor) => rerender(view(m)),
+    input: screen.getByRole('textbox', { name: 'Message Ada' }),
+  }
 }
 
 beforeEach(() => {
@@ -45,6 +46,30 @@ beforeEach(() => {
 })
 
 describe('DialogueBox', () => {
+  it('locks the text box while the memory builds, and opens it once ready', async () => {
+    const user = userEvent.setup()
+    const building: Mentor = { ...ADA, memory: 'building' }
+    const { input, rerender } = renderBox(building)
+
+    expect(input).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+    expect(screen.getByText(/still reading up on their own work/)).toBeInTheDocument()
+
+    rerender({ ...ADA, memory: 'ready' })
+    expect(input).toBeEnabled()
+    expect(input).toHaveFocus()
+    expect(screen.queryByText(/still reading up/)).not.toBeInTheDocument()
+
+    await user.type(input, 'Hello{Enter}')
+    expect(sent.requests).toEqual([{ mentor_id: 'ada', message: 'Hello' }])
+  })
+
+  it('still allows talking when the memory build failed', () => {
+    const { input } = renderBox({ ...ADA, memory: 'failed' })
+    expect(input).toBeEnabled()
+    expect(screen.getByText(/background reading failed/)).toBeInTheDocument()
+  })
+
   it('focuses the text box, sends on Enter and clears it', async () => {
     const user = userEvent.setup()
     const { input, onMessageSent } = renderBox()
