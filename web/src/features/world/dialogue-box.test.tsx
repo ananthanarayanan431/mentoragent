@@ -1,25 +1,47 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MAX_MESSAGE_CHARS } from '@/lib/config'
-import type { ChatRequest, Mentor } from '@/lib/types'
+import type { ChatRequest, Mentor, ServerEvent } from '@/lib/types'
 import { DialogueBox } from './dialogue-box'
 import { levelFor } from './progress'
 
-const sent = vi.hoisted(() => ({ requests: [] as ChatRequest[] }))
+const sent = vi.hoisted(() => ({
+  requests: [] as ChatRequest[],
+  onEvent: (() => {}) as (event: ServerEvent) => void,
+}))
 
 vi.mock('@/features/chat/use-chat-socket', () => ({
-  useChatSocket: () => ({
-    status: 'open',
-    reconnect: () => {},
-    send: (request: ChatRequest) => {
-      sent.requests.push(request)
-      return true
-    },
-  }),
+  useChatSocket: ({ onEvent }: { onEvent: (event: ServerEvent) => void }) => {
+    sent.onEvent = onEvent
+    return {
+      status: 'open',
+      reconnect: () => {},
+      send: (request: ChatRequest) => {
+        sent.requests.push(request)
+        return true
+      },
+    }
+  },
 }))
+
+const REPLY = 'A moat is a durable advantage that keeps rivals out.'
+
+/** The server answers the last message in full, in one go. */
+function reply(content: string = REPLY) {
+  act(() => {
+    sent.onEvent({ type: 'start', conversation_id: 'c1' })
+    sent.onEvent({ type: 'chunk', content })
+    sent.onEvent({ type: 'end', conversation_id: 'c1', response: content })
+  })
+}
+
+/** The mentor's visible line (the typed-out text, not the screen-reader copy). */
+function spokenLine(): string {
+  return document.querySelector('.prose-reply')?.textContent ?? ''
+}
 
 const ADA: Mentor = { id: 'ada', name: 'Ada', expertise: 'Engines', perspective: '', style: '' }
 
@@ -46,6 +68,67 @@ beforeEach(() => {
 })
 
 describe('DialogueBox', () => {
+  it('greets the player, then shows thinking dots while the mentor works on a reply', async () => {
+    const user = userEvent.setup()
+    const { input } = renderBox()
+    // The greeting types itself out too.
+    expect(
+      await screen.findByText(/What would you like to talk about/, {}, { timeout: 3000 }),
+    ).toBeInTheDocument()
+
+    await user.type(input, 'What is a moat?{Enter}')
+
+    expect(screen.getByText('What is a moat?')).toBeInTheDocument()
+    expect(screen.getByLabelText('Thinking')).toBeInTheDocument()
+  })
+
+  it('types the reply out, and Space on an empty box shows the rest at once', async () => {
+    const user = userEvent.setup()
+    const { input } = renderBox()
+    await user.type(input, 'What is a moat?{Enter}')
+    reply()
+
+    expect(spokenLine().length).toBeLessThan(REPLY.length)
+    expect(screen.getByText(/Space: skip/)).toBeInTheDocument()
+
+    await user.keyboard(' ')
+
+    expect(spokenLine()).toBe(REPLY)
+    expect(input).toHaveValue('')
+    expect(screen.getByText('▼')).toBeInTheDocument()
+    expect(screen.queryByText(/Space: skip/)).not.toBeInTheDocument()
+  })
+
+  it('finishes typing on its own, and gives screen readers the whole line once', async () => {
+    const user = userEvent.setup()
+    const { input } = renderBox()
+    await user.type(input, 'Hi{Enter}')
+    reply('Hello there.')
+
+    expect(await screen.findByText('▼')).toBeInTheDocument()
+    expect(spokenLine()).toBe('Hello there.')
+    expect(document.querySelector('[aria-live="polite"]')).toHaveTextContent('Hello there.')
+  })
+
+  it('shows only the newest exchange, and the whole conversation in the log', async () => {
+    const user = userEvent.setup()
+    const { input } = renderBox()
+    await user.type(input, 'First question{Enter}')
+    reply('First answer.')
+    await user.keyboard(' ')
+    await user.type(input, 'Second question{Enter}')
+    reply('Second answer.')
+
+    expect(screen.queryByText('First question')).not.toBeInTheDocument()
+    expect(screen.getByText('Second question')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Log' }))
+
+    expect(screen.getByText('First question')).toBeInTheDocument()
+    expect(screen.getByText('First answer.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Log' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
   it('locks the text box while the memory builds, and opens it once ready', async () => {
     const user = userEvent.setup()
     const building: Mentor = { ...ADA, memory: 'building' }
