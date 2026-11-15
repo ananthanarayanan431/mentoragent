@@ -21,6 +21,7 @@ class MongoSettings(BaseSettings):
         STATE_CHECKPOINT_COLLECTION: Collection for LangGraph state checkpoints.
         STATE_WRITES_COLLECTION: Collection for LangGraph state writes.
         LONG_TERM_MEMORY_COLLECTION: Collection for long term memory.
+        PROFILE_COLLECTION: Collection holding the user's profile (their goal).
         CONVERSATION_TTL_SECONDS: Expire conversation checkpoints this long
             after their last write; ``None`` keeps them forever.
     """
@@ -36,4 +37,5 @@ class MongoSettings(BaseSettings):
     STATE_CHECKPOINT_COLLECTION: str = "mentor_state_checkpoints"
     STATE_WRITES_COLLECTION: str = "mentor_state_writes"
     LONG_TERM_MEMORY_COLLECTION: str = "mentor_long_term_memory"
+    PROFILE_COLLECTION: str = "profile"
     CONVERSATION_TTL_SECONDS: OptionalInt = Field(default=None, gt=0)

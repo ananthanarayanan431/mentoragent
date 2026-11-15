@@ -41,6 +41,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/goal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Goal
+         * @description The goal every mentor knows about.
+         */
+        get: operations["get_goal_api_v1_goal_get"];
+        /**
+         * Set Goal
+         * @description Set or change the goal.
+         */
+        put: operations["set_goal_api_v1_goal_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mentors": {
         parameters: {
             query?: never;
@@ -277,6 +301,22 @@ export interface components {
             /** Response */
             response: string;
         };
+        /**
+         * GoalIn
+         * @description The user's goal: one line every mentor reads.
+         */
+        GoalIn: {
+            /** Goal */
+            goal: string;
+        };
+        /**
+         * GoalOut
+         * @description The user's goal, or ``null`` before one is set.
+         */
+        GoalOut: {
+            /** Goal */
+            goal: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -491,6 +531,59 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_goal_api_v1_goal_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalOut"];
+                };
+            };
+        };
+    };
+    set_goal_api_v1_goal_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoalIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalOut"];
+                };
             };
             /** @description Validation Error */
             422: {

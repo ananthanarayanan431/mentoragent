@@ -26,6 +26,7 @@ from mentor_agent.core.tracing import configure_opik
 from mentor_agent.db.client import AsyncMongoRepository, close_mongo_clients
 from mentor_agent.integrations.factory import IntegrationFactory
 from mentor_agent.models.mentor_extract import MentorExtract
+from mentor_agent.models.profile import Profile
 from mentor_agent.routes import health, v1
 from mentor_agent.services.enrich import MentorEnricher
 from mentor_agent.services.maintenance import delete_mentor_memory
@@ -33,6 +34,7 @@ from mentor_agent.services.memory import MentorMemoryBuilder
 from mentor_agent.services.mentors import MentorService
 from mentor_agent.services.persona import LlmPersonaWriter
 from mentor_agent.services.pool import load_pool
+from mentor_agent.services.profile import ProfileService
 from mentor_agent.services.research import ClaudeResearcher
 
 if TYPE_CHECKING:
@@ -65,6 +67,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     interrupted = await app.state.mentors.fail_interrupted_builds()
     if interrupted:
         logger.warning("Marked {} interrupted memory build(s) as failed", interrupted)
+    app.state.profile = ProfileService(
+        AsyncMongoRepository(Profile, settings.mongo.PROFILE_COLLECTION)
+    )
     app.state.pool = await run_in_threadpool(_load_pool)
     app.state.memory = MentorMemoryBuilder(app.state.mentors, _rebuild_one, delete_mentor_memory)
     app.state.enricher = MentorEnricher(

@@ -60,6 +60,43 @@
         "title": "ChatResponse",
         "type": "object"
       },
+      "GoalIn": {
+        "additionalProperties": false,
+        "description": "The user's goal: one line every mentor reads.",
+        "properties": {
+          "goal": {
+            "minLength": 1,
+            "title": "Goal",
+            "type": "string"
+          }
+        },
+        "required": [
+          "goal"
+        ],
+        "title": "GoalIn",
+        "type": "object"
+      },
+      "GoalOut": {
+        "description": "The user's goal, or ``null`` before one is set.",
+        "properties": {
+          "goal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          }
+        },
+        "required": [
+          "goal"
+        ],
+        "title": "GoalOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -666,6 +703,78 @@
         "summary": "Delete Conversation",
         "tags": [
           "chat"
+        ]
+      }
+    },
+    "/api/v1/goal": {
+      "get": {
+        "description": "The goal every mentor knows about.",
+        "operationId": "get_goal_api_v1_goal_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Get Goal",
+        "tags": [
+          "square"
+        ]
+      },
+      "put": {
+        "description": "Set or change the goal.",
+        "operationId": "set_goal_api_v1_goal_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoalIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Set Goal",
+        "tags": [
+          "square"
         ]
       }
     },

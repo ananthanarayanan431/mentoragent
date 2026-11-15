@@ -19,6 +19,7 @@ from mentor_agent.chat.nodes import Nodes
 from mentor_agent.chat.tools import build_retrieve_context_tool
 from mentor_agent.core.errors import MemoryBuildInProgressError, MentorNotFoundError
 from mentor_agent.models.mentor_extract import MentorExtract
+from mentor_agent.models.profile import Profile
 from mentor_agent.services.conversation import ConversationService
 from mentor_agent.services.custom import new_mentor_id
 from mentor_agent.services.persona import Persona
@@ -208,6 +209,20 @@ class InMemoryMentorService:
 
     async def set_memory_status(self, mentor_id: str, status: MemoryStatus) -> None:
         await self.update_mentor(mentor_id, {"memory": status})
+
+
+class InMemoryProfileService:
+    """The user's profile, kept in memory."""
+
+    def __init__(self, profile: Profile | None = None) -> None:
+        self.profile = profile or Profile()
+
+    async def get(self) -> Profile:
+        return self.profile
+
+    async def set_goal(self, goal: str) -> Profile:
+        self.profile = self.profile.model_copy(update={"goal": goal})
+        return self.profile
 
 
 class RecordingMemoryBuilder:

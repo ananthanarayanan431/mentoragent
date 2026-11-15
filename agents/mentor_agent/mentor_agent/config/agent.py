@@ -14,6 +14,7 @@ class AgentSettings(BaseSettings):
         TOTAL_MESSAGES_AFTER_SUMMARY: Messages kept verbatim after summarising.
         MAX_MESSAGE_CHARS: Longest user message accepted by the API.
         RECURSION_LIMIT: Maximum graph steps per turn; stops runaway tool loops.
+        GOAL_MAX_CHARS: Longest goal the user can set.
     """
 
     model_config = settings_config()
@@ -22,3 +23,4 @@ class AgentSettings(BaseSettings):
     TOTAL_MESSAGES_AFTER_SUMMARY: int = Field(default=5, gt=0)
     MAX_MESSAGE_CHARS: int = Field(default=4000, gt=0)
     RECURSION_LIMIT: int = Field(default=12, gt=3)
+    GOAL_MAX_CHARS: int = Field(default=280, gt=0)

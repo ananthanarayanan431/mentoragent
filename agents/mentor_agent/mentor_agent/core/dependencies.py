@@ -16,6 +16,7 @@ from mentor_agent.services.conversation import ConversationService
 from mentor_agent.services.enrich import Enricher
 from mentor_agent.services.memory import MemoryBuilder
 from mentor_agent.services.mentors import MentorService
+from mentor_agent.services.profile import ProfileService
 
 API_KEY_HEADER = "X-API-Key"
 _api_key_header = APIKeyHeader(name=API_KEY_HEADER, auto_error=False)
@@ -77,7 +78,13 @@ def get_enricher(connection: HTTPConnection) -> Enricher:
     return enricher
 
 
+def get_profile_service(connection: HTTPConnection) -> ProfileService:
+    service: ProfileService = connection.app.state.profile
+    return service
+
+
 MemoryBuilderDep = Annotated[MemoryBuilder, Depends(get_memory_builder)]
+ProfileServiceDep = Annotated[ProfileService, Depends(get_profile_service)]
 MentorPoolDep = Annotated[list[MentorExtract], Depends(get_mentor_pool)]
 EnricherDep = Annotated[Enricher, Depends(get_enricher)]
 
