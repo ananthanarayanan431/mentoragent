@@ -8,6 +8,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
 
 from mentor_agent.config import settings
+from mentor_agent.schemas.common import MentorId
 
 
 class GoalIn(BaseModel):
@@ -40,4 +41,36 @@ class LedgerLineOut(BaseModel):
     mentor_name: str
     topic: str
     advice: str
+    created_at: datetime
+
+
+class AmbientIn(BaseModel):
+    """Two different mentors; the first (the visitor) speaks first."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    mentor_ids: list[MentorId]
+
+    @field_validator("mentor_ids")
+    @classmethod
+    def two_different(cls, v: list[str]) -> list[str]:
+        if len(v) != 2 or v[0] == v[1]:
+            msg = "must be two different mentor ids"
+            raise ValueError(msg)
+        return v
+
+
+class AmbientLineOut(BaseModel):
+    """One thing one mentor said."""
+
+    mentor_id: str
+    text: str
+
+
+class AmbientChatOut(BaseModel):
+    """Two mentors chatting about the user's goal."""
+
+    id: str
+    mentor_ids: list[str]
+    lines: list[AmbientLineOut]
     created_at: datetime

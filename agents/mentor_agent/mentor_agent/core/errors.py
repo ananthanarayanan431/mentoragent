@@ -81,6 +81,19 @@ class MentorNotReadyError(ConflictError):
     )
 
 
+class AmbientNotEligibleError(ConflictError):
+    """The two mentors cannot chat: one is not ready or never advised the user."""
+
+    default_message = "These mentors have nothing to chat about yet."
+
+
+class AmbientTooSoonError(MentorAgentError):
+    """The last ambient chat was too recent."""
+
+    status_code = 429
+    default_message = "The mentors chatted a moment ago; try again later."
+
+
 class NotFoundError(MentorAgentError):
     """A requested object does not exist."""
 

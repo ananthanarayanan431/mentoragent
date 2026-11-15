@@ -23,6 +23,7 @@ class MongoSettings(BaseSettings):
         LONG_TERM_MEMORY_COLLECTION: Collection for long term memory.
         PROFILE_COLLECTION: Collection holding the user's profile (their goal).
         LEDGER_COLLECTION: Collection holding the advice ledger.
+        AMBIENT_COLLECTION: Collection holding the mentors' ambient chats.
         CONVERSATION_TTL_SECONDS: Expire conversation checkpoints this long
             after their last write; ``None`` keeps them forever.
     """
@@ -40,4 +41,5 @@ class MongoSettings(BaseSettings):
     LONG_TERM_MEMORY_COLLECTION: str = "mentor_long_term_memory"
     PROFILE_COLLECTION: str = "profile"
     LEDGER_COLLECTION: str = "advice_ledger"
+    AMBIENT_COLLECTION: str = "ambient_chats"
     CONVERSATION_TTL_SECONDS: OptionalInt = Field(default=None, gt=0)

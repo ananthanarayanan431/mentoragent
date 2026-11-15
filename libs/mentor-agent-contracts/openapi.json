@@ -1,6 +1,81 @@
 {
   "components": {
     "schemas": {
+      "AmbientChatOut": {
+        "description": "Two mentors chatting about the user's goal.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/AmbientLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "mentor_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Mentor Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "mentor_ids",
+          "lines",
+          "created_at"
+        ],
+        "title": "AmbientChatOut",
+        "type": "object"
+      },
+      "AmbientIn": {
+        "additionalProperties": false,
+        "description": "Two different mentors; the first (the visitor) speaks first.",
+        "properties": {
+          "mentor_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Mentor Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "mentor_ids"
+        ],
+        "title": "AmbientIn",
+        "type": "object"
+      },
+      "AmbientLineOut": {
+        "description": "One thing one mentor said.",
+        "properties": {
+          "mentor_id": {
+            "title": "Mentor Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mentor_id",
+          "text"
+        ],
+        "title": "AmbientLineOut",
+        "type": "object"
+      },
       "ChatRequest": {
         "additionalProperties": false,
         "description": "A user message to a mentor.\n\nOmit ``conversation_id`` to start a new conversation; send back the id\nfrom the response to continue it.",
@@ -648,6 +723,53 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/ambient": {
+      "post": {
+        "description": "Two mentors chat about the user's goal (the browser asks while the square is open).\n\n409 when a mentor is not ready or never advised the user; 429 when the last chat\nwas too recent; 502 when the model fails.",
+        "operationId": "start_ambient_chat_api_v1_ambient_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AmbientIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AmbientChatOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Start Ambient Chat",
+        "tags": [
+          "square"
+        ]
+      }
+    },
     "/api/v1/chat": {
       "post": {
         "description": "Send a message to a mentor and get the full reply (409 while their memory builds).",

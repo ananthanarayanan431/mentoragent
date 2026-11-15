@@ -17,7 +17,12 @@ from mentor_agent.chat.chains import Chains
 from mentor_agent.chat.graph import compile_graph
 from mentor_agent.chat.nodes import Nodes
 from mentor_agent.chat.tools import build_retrieve_context_tool
-from mentor_agent.core.errors import MemoryBuildInProgressError, MentorNotFoundError
+from mentor_agent.core.errors import (
+    ConversationError,
+    MemoryBuildInProgressError,
+    MentorNotFoundError,
+)
+from mentor_agent.models.ambient import AmbientLine
 from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.models.profile import Profile
 from mentor_agent.services.conversation import ConversationService
@@ -32,6 +37,7 @@ if TYPE_CHECKING:
 
     from langchain_core.callbacks import CallbackManagerForLLMRun, CallbackManagerForRetrieverRun
 
+    from mentor_agent.models.ambient import AmbientChat
     from mentor_agent.models.ledger import LedgerLine
     from mentor_agent.models.mentor_extract import MemoryStatus
     from mentor_agent.services.research import ResearchFindings
@@ -249,6 +255,40 @@ class InMemoryAdviceLedger:
         before = len(self.lines)
         self.lines = [line for line in self.lines if line.id != line_id]
         return len(self.lines) < before
+
+
+class InMemoryAmbientStore:
+    """Ambient chats, kept in memory."""
+
+    def __init__(self) -> None:
+        self.chats: list[AmbientChat] = []
+
+    async def add(self, chat: AmbientChat) -> None:
+        self.chats.append(chat)
+
+    async def newest_time(self) -> datetime | None:
+        return max((chat.created_at for chat in self.chats), default=None)
+
+    async def get(self, chat_id: str) -> AmbientChat | None:
+        return next((chat for chat in self.chats if chat.id == chat_id), None)
+
+
+class ScriptedAmbientWriter:
+    """Writes a fixed two-line chat (or fails, when told to); calls no model."""
+
+    def __init__(self) -> None:
+        self.fail = False
+
+    async def write(
+        self, a: MentorExtract, b: MentorExtract, goal: str | None, lines: Sequence[LedgerLine]
+    ) -> list[AmbientLine]:
+        if self.fail:
+            msg = "The mentors could not chat right now."
+            raise ConversationError(msg)
+        return [
+            AmbientLine(mentor_id=a.id, text=f"{b.name}, about their goal..."),
+            AmbientLine(mentor_id=b.id, text="I see it differently."),
+        ]
 
 
 class RecordingLedgerWriter:

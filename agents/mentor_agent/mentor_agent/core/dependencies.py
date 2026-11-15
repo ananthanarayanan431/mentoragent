@@ -12,6 +12,7 @@ from starlette.requests import HTTPConnection
 from mentor_agent.config import settings
 from mentor_agent.core.errors import PermissionDeniedError
 from mentor_agent.models.mentor_extract import MentorExtract
+from mentor_agent.services.ambient import AmbientChats
 from mentor_agent.services.conversation import ConversationService
 from mentor_agent.services.enrich import Enricher
 from mentor_agent.services.ledger import AdviceLedger, LedgerWriter
@@ -94,7 +95,13 @@ def get_ledger_writer(connection: HTTPConnection) -> LedgerWriter:
     return writer
 
 
+def get_ambient_chats(connection: HTTPConnection) -> AmbientChats:
+    ambient: AmbientChats = connection.app.state.ambient
+    return ambient
+
+
 MemoryBuilderDep = Annotated[MemoryBuilder, Depends(get_memory_builder)]
+AmbientChatsDep = Annotated[AmbientChats, Depends(get_ambient_chats)]
 AdviceLedgerDep = Annotated[AdviceLedger, Depends(get_ledger)]
 LedgerWriterDep = Annotated[LedgerWriter, Depends(get_ledger_writer)]
 ProfileServiceDep = Annotated[ProfileService, Depends(get_profile_service)]
