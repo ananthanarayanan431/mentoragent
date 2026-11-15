@@ -342,6 +342,8 @@ export interface components {
          * @description Two mentors chatting about the user's goal.
          */
         AmbientChatOut: {
+            /** About User */
+            about_user: boolean;
             /**
              * Created At
              * Format: date-time

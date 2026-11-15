@@ -278,10 +278,18 @@ class ScriptedAmbientWriter:
 
     def __init__(self) -> None:
         self.fail = False
+        self.about_user: list[bool] = []
 
     async def write(
-        self, a: MentorExtract, b: MentorExtract, goal: str | None, lines: Sequence[LedgerLine]
+        self,
+        a: MentorExtract,
+        b: MentorExtract,
+        goal: str | None,
+        lines: Sequence[LedgerLine],
+        *,
+        about_user: bool,
     ) -> list[AmbientLine]:
+        self.about_user.append(about_user)
         if self.fail:
             msg = "The mentors could not chat right now."
             raise ConversationError(msg)

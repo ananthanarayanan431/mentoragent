@@ -4,6 +4,10 @@
       "AmbientChatOut": {
         "description": "Two mentors chatting about the user's goal.",
         "properties": {
+          "about_user": {
+            "title": "About User",
+            "type": "boolean"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -32,6 +36,7 @@
           "id",
           "mentor_ids",
           "lines",
+          "about_user",
           "created_at"
         ],
         "title": "AmbientChatOut",

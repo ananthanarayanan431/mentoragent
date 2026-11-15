@@ -87,6 +87,8 @@ def test_two_eligible_mentors_chat_about_your_goal(client: TestClient, square: _
     assert response.status_code == 201
     body = response.json()
     assert body["mentor_ids"] == ["buffett", "dalio"]
+    assert body["about_user"] is True
+    assert square.writer.about_user == [True]
     assert [line["mentor_id"] for line in body["lines"]] == ["buffett", "dalio"]
     assert [chat.id for chat in square.store.chats] == [body["id"]]
 
@@ -103,8 +105,18 @@ def test_an_unknown_mentor_is_not_found(client: TestClient) -> None:
     )
 
 
-def test_a_mentor_with_nothing_to_say_is_a_conflict() -> None:
+def test_mentors_who_have_not_both_advised_you_just_chat() -> None:
     square = _Square([_mentor("buffett"), _mentor("dalio")], [_line("buffett")])
+    with TestClient(square.app) as client:
+        response = client.post("/api/v1/ambient", json={"mentor_ids": ["buffett", "dalio"]})
+
+    assert response.status_code == 201
+    assert response.json()["about_user"] is False
+    assert square.writer.about_user == [False]
+
+
+def test_a_mentor_still_reading_up_is_a_conflict() -> None:
+    square = _Square([_mentor("buffett"), _mentor("dalio", "building")], [])
     with TestClient(square.app) as client:
         response = client.post("/api/v1/ambient", json={"mentor_ids": ["buffett", "dalio"]})
     assert response.status_code == 409

@@ -1,5 +1,7 @@
-"""Ambient chats: now and then two mentors talk about the user's goal. The browser
-asks for one while the square is open; the server checks, writes and stores it."""
+"""Ambient chats: now and then two mentors meet in the square. If both have advised
+the user they talk about the user's goal; otherwise they have a simple chat and move
+on. The browser asks for one while the square is open; the server checks, writes and
+stores it."""
 
 from __future__ import annotations
 
@@ -17,7 +19,7 @@ from mentor_agent.core.errors import (
     ConversationError,
 )
 from mentor_agent.models.ambient import AmbientChat, AmbientLine
-from mentor_agent.prompts import AMBIENT_SYSTEM_PROMPT
+from mentor_agent.prompts import AMBIENT_SMALL_TALK_PROMPT, AMBIENT_SYSTEM_PROMPT
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -67,6 +69,8 @@ class AmbientWriter(Protocol):
         b: MentorExtract,
         goal: str | None,
         lines: Sequence[LedgerLine],
+        *,
+        about_user: bool,
     ) -> list[AmbientLine]: ...
 
 
@@ -74,20 +78,22 @@ class MentorReader(Protocol):
     async def get_mentor(self, mentor_id: str) -> MentorExtract: ...
 
 
-def check_eligible(a: MentorExtract, b: MentorExtract, lines: Sequence[LedgerLine]) -> None:
-    """Both mentors are ready and have advised the user. Pure.
+def check_eligible(a: MentorExtract, b: MentorExtract) -> None:
+    """Both mentors can chat: neither is still reading up on their sources. Pure.
 
     Raises:
-        AmbientNotEligibleError: Saying which mentor is not, and why.
+        AmbientNotEligibleError: Naming the mentor who cannot.
     """
-    advised = {line.mentor_id for line in lines}
     for mentor in (a, b):
         if mentor.memory == "building":
             msg = f"{mentor.name} is still reading up on their sources."
             raise AmbientNotEligibleError(msg)
-        if mentor.id not in advised:
-            msg = f"{mentor.name} has not advised you yet."
-            raise AmbientNotEligibleError(msg)
+
+
+def chat_about_user(a: MentorExtract, b: MentorExtract, lines: Sequence[LedgerLine]) -> bool:
+    """Whether the two talk about the user: only when both have advised them. Pure."""
+    advised = {line.mentor_id for line in lines}
+    return a.id in advised and b.id in advised
 
 
 def too_soon(last: datetime | None, now: datetime, interval_seconds: int) -> bool:
@@ -132,23 +138,28 @@ class AmbientChats:
     async def start(self, a_id: str, b_id: str) -> AmbientChat:
         """Write and store a chat between ``a_id`` (who speaks first) and ``b_id``.
 
+        Both talk about the user's goal when both have advised them; otherwise they
+        have a simple chat between themselves.
+
         Raises:
             MentorNotFoundError: If a mentor does not exist.
-            AmbientNotEligibleError: If a mentor is not ready or never advised the user.
+            AmbientNotEligibleError: If a mentor is still reading up on their sources.
             AmbientTooSoonError: If the last chat was too recent.
             ConversationError: If the model fails.
         """
         a = await self.mentors.get_mentor(a_id)
         b = await self.mentors.get_mentor(b_id)
         lines = await self.ledger.recent(_LINES_SCANNED)
-        check_eligible(a, b, lines)
+        check_eligible(a, b)
         interval = settings.agent.AMBIENT_MIN_INTERVAL_SECONDS
         if too_soon(await self.store.newest_time(), self.clock(), interval):
             raise AmbientTooSoonError
         goal = (await self.profile.get()).goal
+        about_user = chat_about_user(a, b, lines)
         chat = AmbientChat(
             mentor_ids=[a.id, b.id],
-            lines=await self.writer.write(a, b, goal, lines),
+            lines=await self.writer.write(a, b, goal, lines, about_user=about_user),
+            about_user=about_user,
             created_at=self.clock(),
         )
         await self.store.add(chat)
@@ -172,15 +183,18 @@ class MongoAmbientStore:
         return await self.repository.fetch_one({"id": chat_id})
 
 
-def _persona(label: str, mentor: MentorExtract, lines: Sequence[LedgerLine]) -> str:
-    advice = [line.advice for line in lines if line.mentor_id == mentor.id][:_ADVICE_PER_MENTOR]
-    told = "\n".join(f"  - {item}" for item in advice) or "  - (nothing yet)"
-    return (
+def _persona(label: str, mentor: MentorExtract, lines: Sequence[LedgerLine] | None) -> str:
+    """One mentor for the writer; with ``lines``, also what they told the user."""
+    persona = (
         f"Mentor {label}: {mentor.name}\n"
         f"  Perspective: {mentor.perspective}\n"
-        f"  Style: {mentor.style}\n"
-        f"  What they told the user:\n{told}"
+        f"  Style: {mentor.style}"
     )
+    if lines is None:
+        return persona
+    advice = [line.advice for line in lines if line.mentor_id == mentor.id][:_ADVICE_PER_MENTOR]
+    told = "\n".join(f"  - {item}" for item in advice) or "  - (nothing yet)"
+    return f"{persona}\n  What they told the user:\n{told}"
 
 
 class LlmAmbientWriter:
@@ -199,18 +213,22 @@ class LlmAmbientWriter:
         b: MentorExtract,
         goal: str | None,
         lines: Sequence[LedgerLine],
+        *,
+        about_user: bool,
     ) -> list[AmbientLine]:
-        prompt = "\n\n".join(
-            [
-                f"The user's goal: {goal or '(not stated)'}",
-                _persona("a", a, lines),
-                _persona("b", b, lines),
-            ]
-        )
+        if about_user:
+            system = AMBIENT_SYSTEM_PROMPT
+            parts = [f"The user's goal: {goal or '(not stated)'}"]
+            parts += [_persona("a", a, lines), _persona("b", b, lines)]
+        else:
+            # A simple chat: no goal and no advice, so nothing about the user leaks in.
+            system = AMBIENT_SMALL_TALK_PROMPT
+            parts = [_persona("a", a, None), _persona("b", b, None)]
+        prompt = "\n\n".join(parts)
         try:
             model = self.model_factory().with_structured_output(AmbientScript)
             result = await model.ainvoke(
-                [SystemMessage(content=AMBIENT_SYSTEM_PROMPT), HumanMessage(content=prompt)]
+                [SystemMessage(content=system), HumanMessage(content=prompt)]
             )
             return lines_for(AmbientScript.model_validate(result), a.id, b.id)
         except Exception as exc:

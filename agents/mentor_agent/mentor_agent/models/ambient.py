@@ -24,10 +24,13 @@ class AmbientChat(BaseModel):
         id: Unique id (hex); joining the chat continues from it.
         mentor_ids: The visitor first, then the host.
         lines: What they said, in order.
+        about_user: True when both had advised the user and talked about their goal;
+            False for a simple chat between the two of them.
         created_at: When it was written.
     """
 
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     mentor_ids: list[str]
     lines: list[AmbientLine]
+    about_user: bool = True
     created_at: UtcDatetime = Field(default_factory=lambda: datetime.now(UTC))

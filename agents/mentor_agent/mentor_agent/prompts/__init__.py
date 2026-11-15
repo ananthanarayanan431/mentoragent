@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from loguru import logger
 
-from mentor_agent.prompts.ambient import AMBIENT_SYSTEM_PROMPT
+from mentor_agent.prompts.ambient import AMBIENT_SMALL_TALK_PROMPT, AMBIENT_SYSTEM_PROMPT
 from mentor_agent.prompts.base import Prompt
 from mentor_agent.prompts.context_summary import CONTEXT_SUMMARY_PROMPT
 from mentor_agent.prompts.evaluate_dataset_generation import EVALUATE_DATASET_GENERATION_PROMPT
@@ -24,6 +24,7 @@ from mentor_agent.prompts.summary import SUMMARY_PROMPT
 
 __all__ = [
     "ALL_PROMPTS",
+    "AMBIENT_SMALL_TALK_PROMPT",
     "AMBIENT_SYSTEM_PROMPT",
     "CONTEXT_SUMMARY_PROMPT",
     "EVALUATE_DATASET_GENERATION_PROMPT",

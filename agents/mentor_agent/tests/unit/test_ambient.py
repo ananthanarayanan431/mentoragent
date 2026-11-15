@@ -11,6 +11,7 @@ from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.services.ambient import (
     AmbientScript,
     AmbientScriptLine,
+    chat_about_user,
     check_eligible,
     lines_for,
     too_soon,
@@ -38,18 +39,22 @@ def _line(mentor_id: str) -> LedgerLine:
     )
 
 
-def test_two_ready_mentors_who_both_advised_you_can_chat() -> None:
-    check_eligible(_mentor("a"), _mentor("b"), [_line("a"), _line("b")])
+def test_any_two_ready_mentors_can_chat() -> None:
+    check_eligible(_mentor("a"), _mentor("b"))
 
 
-def test_a_mentor_who_never_advised_you_has_nothing_to_chat_about() -> None:
-    with pytest.raises(AmbientNotEligibleError, match="b has not advised you yet"):
-        check_eligible(_mentor("a"), _mentor("b"), [_line("a")])
+def test_mentors_who_both_advised_you_talk_about_you() -> None:
+    assert chat_about_user(_mentor("a"), _mentor("b"), [_line("a"), _line("b")])
+
+
+def test_otherwise_they_just_chat_between_themselves() -> None:
+    assert not chat_about_user(_mentor("a"), _mentor("b"), [_line("a")])
+    assert not chat_about_user(_mentor("a"), _mentor("b"), [])
 
 
 def test_a_mentor_whose_memory_builds_cannot_chat() -> None:
     with pytest.raises(AmbientNotEligibleError, match="still reading up"):
-        check_eligible(_mentor("a"), _mentor("b", "building"), [_line("a"), _line("b")])
+        check_eligible(_mentor("a"), _mentor("b", "building"))
 
 
 def test_the_floor_between_two_chats() -> None:

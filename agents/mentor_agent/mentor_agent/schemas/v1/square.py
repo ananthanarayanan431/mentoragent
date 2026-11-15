@@ -73,4 +73,5 @@ class AmbientChatOut(BaseModel):
     id: str
     mentor_ids: list[str]
     lines: list[AmbientLineOut]
+    about_user: bool
     created_at: datetime
