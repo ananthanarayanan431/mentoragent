@@ -5,6 +5,7 @@
  */
 import * as Phaser from 'phaser'
 
+import { showBubble } from '../bubbles'
 import type { WorldBridge } from '../world-bridge'
 import { appearanceFor, PLAYER_APPEARANCE, type Appearance } from './appearance'
 import {
@@ -62,6 +63,8 @@ const MENTOR_SPEED = 42
 const WANDER_RADIUS = TILE * 3
 /** How close (feet to feet) the player must be to talk. */
 const TALK_REACH = TILE * 1.8
+/** How close the player must be to see what a mentor told them. */
+const BUBBLE_REACH = TILE * 5
 /** Feet sit this far below the sprite's centre. */
 const FEET_OFFSET = CHARACTER_H / 2 - 6
 
@@ -75,6 +78,8 @@ interface MentorActor extends Actor {
   id: string
   name: string
   label: Phaser.GameObjects.Text
+  /** What they told you, shown over their head as the player walks past. */
+  bubble: Phaser.GameObjects.Text
   wander: WanderState
   home: Point
   rng: Rng
@@ -289,12 +294,24 @@ export class WorldScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setResolution(2)
       .setVisible(this.labelsVisible)
+    const bubble = this.add
+      .text(home.x, home.y, '', {
+        fontFamily: 'ui-monospace, Menlo, monospace',
+        fontSize: '10px',
+        color: '#1f2937',
+        backgroundColor: '#fdfcf7',
+        padding: { x: 5, y: 3 },
+      })
+      .setOrigin(0.5, 1)
+      .setResolution(2)
+      .setVisible(false)
 
     const added: MentorActor = {
       ...actor,
       id: mentor.id,
       name: mentor.name,
       label,
+      bubble,
       home,
       rng,
       wander: startWander(home, rng),
@@ -426,6 +443,9 @@ export class WorldScene extends Phaser.Scene {
         for (const mentor of this.mentors) mentor.label.setVisible(visible)
       }),
       commands.on('addMentor', (mentor) => this.spawnMentor(mentor, true)),
+      commands.on('bubbles', ({ texts }) => {
+        for (const mentor of this.mentors) mentor.bubble.setText(texts[mentor.id] ?? '')
+      }),
       commands.on('endTalk', ({ mentorId }) => {
         const mentor = this.mentors.find((m) => m.id === mentorId)
         if (mentor) mentor.talking = false
@@ -529,6 +549,8 @@ export class WorldScene extends Phaser.Scene {
       this.animate(mentor, step.velocity)
     }
     mentor.label.setPosition(sprite.x, sprite.y - CHARACTER_H / 2 + 2).setDepth(100_000)
+    // Above the name label (or where it would be), so the two never overlap.
+    mentor.bubble.setPosition(sprite.x, sprite.y - CHARACTER_H / 2 - 14).setDepth(100_001)
   }
 
   private updateNearby(): void {
@@ -547,6 +569,18 @@ export class WorldScene extends Phaser.Scene {
     this.prompt.setVisible(showPrompt)
     if (nearby && showPrompt) {
       this.prompt.setPosition(nearby.sprite.x, nearby.sprite.y - CHARACTER_H / 2 - 22)
+    }
+    for (const mentor of this.mentors) {
+      const at = this.feet(mentor)
+      mentor.bubble.setVisible(
+        showBubble({
+          hasText: mentor.bubble.text.length > 0,
+          distance: Math.hypot(at.x - feet.x, at.y - feet.y),
+          reach: BUBBLE_REACH,
+          talking: mentor.talking,
+          prompted: showPrompt && mentor === nearby,
+        }),
+      )
     }
   }
 

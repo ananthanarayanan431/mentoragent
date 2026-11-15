@@ -30,7 +30,7 @@ vi.mock('./game/create-game', () => ({
     if (game.fail) throw new Error('WebGL unavailable')
     game.bridge = options.bridge
     game.started.push(options.mentors)
-    for (const name of ['input', 'labels', 'endTalk', 'paused', 'addMentor'] as const) {
+    for (const name of ['input', 'labels', 'endTalk', 'paused', 'addMentor', 'bubbles'] as const) {
       options.bridge.commands.on(name, (payload) => game.commands.push({ name, payload }))
     }
     return { destroy: () => (game.destroyed += 1) }
@@ -156,6 +156,26 @@ describe('WorldPage', () => {
     expect(await screen.findByText('Recommends studying the engine.')).toBeInTheDocument()
   })
 
+  it('floats what each mentor told you over their head', async () => {
+    api.listLedger.mockResolvedValue([
+      {
+        id: 'l1',
+        mentor_id: 'ada',
+        mentor_name: 'Ada',
+        topic: 'engines',
+        advice: 'Recommends studying the engine.',
+        created_at: '2026-11-15T10:00:00Z',
+      },
+    ])
+    await renderWorld()
+
+    await waitFor(() =>
+      expect(game.commands.findLast((command) => command.name === 'bubbles')?.payload).toEqual({
+        texts: { ada: 'Told you about engines' },
+      }),
+    )
+  })
+
   it('stops the player walking while a goal is typed, and saves it', async () => {
     const user = userEvent.setup()
     await renderWorld()
@@ -169,7 +189,7 @@ describe('WorldPage', () => {
 
     expect(api.setGoal).toHaveBeenCalledWith('Retire by 45')
     expect(await screen.findByText('Retire by 45')).toBeInTheDocument()
-    expect(lastInput()).toBe(true)
+    await waitFor(() => expect(lastInput()).toBe(true))
   })
 
   it('opens a conversation when the game asks to talk, and closes it with Escape', async () => {

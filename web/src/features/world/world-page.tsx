@@ -5,6 +5,7 @@ import { ErrorState, Spinner } from '@/components/state-views'
 import { addRandomMentor, ApiError, getGoal, getMentorPool, listMentors, setGoal } from '@/lib/api'
 import { MEMORY_POLL_MS } from '@/lib/config'
 import type { Mentor } from '@/lib/types'
+import { bubbleTexts } from './bubbles'
 import { DialogueBox } from './dialogue-box'
 import { GoalPanel } from './goal-panel'
 import { LedgerList } from './ledger-list'
@@ -210,6 +211,11 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
   useEffect(() => {
     bridge.commands.emit('paused', { paused: mode.kind === 'title' || mode.kind === 'paused' })
   }, [bridge, mode, ready])
+
+  // What each mentor told you floats over them as the player walks past.
+  useEffect(() => {
+    bridge.commands.emit('bubbles', { texts: bubbleTexts(ledger.lines) })
+  }, [bridge, ledger.lines, ready])
 
   useEffect(() => {
     labelsRef.current = labelsVisible

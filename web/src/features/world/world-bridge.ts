@@ -30,6 +30,8 @@ export interface GameCommands {
   addMentor: { id: string; name: string }
   /** The dialogue with this mentor closed: they go back to wandering. */
   endTalk: { mentorId: string }
+  /** Speech bubble text per mentor id (what they told you); missing ids show none. */
+  bubbles: { texts: Record<string, string> }
 }
 
 type Listener<T> = (payload: T) => void
