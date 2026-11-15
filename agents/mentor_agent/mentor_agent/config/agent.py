@@ -14,6 +14,10 @@ class AgentSettings(BaseSettings):
         TOTAL_MESSAGES_AFTER_SUMMARY: Messages kept verbatim after summarising.
         MAX_MESSAGE_CHARS: Longest user message accepted by the API.
         RECURSION_LIMIT: Maximum graph steps per turn; stops runaway tool loops.
+        GOAL_MAX_CHARS: Longest goal the user can set.
+        LEDGER_LINES_IN_CONTEXT: How many of the other mentors' newest ledger
+            lines each mentor reads before replying.
+        AMBIENT_MIN_INTERVAL_SECONDS: Shortest time between two ambient chats.
     """
 
     model_config = settings_config()
@@ -22,3 +26,6 @@ class AgentSettings(BaseSettings):
     TOTAL_MESSAGES_AFTER_SUMMARY: int = Field(default=5, gt=0)
     MAX_MESSAGE_CHARS: int = Field(default=4000, gt=0)
     RECURSION_LIMIT: int = Field(default=12, gt=3)
+    GOAL_MAX_CHARS: int = Field(default=280, gt=0)
+    LEDGER_LINES_IN_CONTEXT: int = Field(default=8, ge=0)
+    AMBIENT_MIN_INTERVAL_SECONDS: int = Field(default=180, ge=30)

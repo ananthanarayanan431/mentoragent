@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { API_PREFIX, wsUrl } from '@/lib/config'
 import { parseServerEvent } from './chat-state'
-import type { ChatRequest, ServerEvent } from '@/lib/types'
+import type { ClientMessage, ServerEvent } from '@/lib/types'
 
 export type SocketStatus = 'connecting' | 'open' | 'reconnecting' | 'offline'
 
@@ -32,7 +32,7 @@ interface Options {
 export interface ChatSocket {
   status: SocketStatus
   /** Sends a turn. Returns false when the socket is not open. */
-  send: (request: ChatRequest) => boolean
+  send: (request: ClientMessage) => boolean
   /** Retry now, resetting the backoff (for a "Reconnect" button). */
   reconnect: () => void
 }
@@ -127,7 +127,7 @@ export function useChatSocket({ onEvent, onDropped }: Options): ChatSocket {
     }
   }, [connect])
 
-  const send = useCallback((request: ChatRequest): boolean => {
+  const send = useCallback((request: ClientMessage): boolean => {
     const socket = socketRef.current
     if (!socket || socket.readyState !== WebSocket.OPEN) return false
     socket.send(JSON.stringify(request))

@@ -218,14 +218,21 @@ class AsyncMongoRepository[T: BaseModel]:
         await self.collection.insert_one(document.model_dump(exclude={"_id"}))
         return document
 
-    async def update_one(self, query: Mapping[str, Any], changes: Mapping[str, Any]) -> T | None:
+    async def update_one(
+        self, query: Mapping[str, Any], changes: Mapping[str, Any], *, upsert: bool = False
+    ) -> T | None:
         """Set ``changes`` on the first document matching ``query``, atomically.
 
+        Args:
+            query: Which document to change.
+            changes: Fields to set.
+            upsert: Create the document when nothing matches.
+
         Returns:
-            The updated document, or ``None`` when nothing matched.
+            The updated document, or ``None`` when nothing matched (never with ``upsert``).
         """
         document = await self.collection.find_one_and_update(
-            query, {"$set": dict(changes)}, return_document=ReturnDocument.AFTER
+            query, {"$set": dict(changes)}, upsert=upsert, return_document=ReturnDocument.AFTER
         )
         return None if document is None else _to_model(self.model, document)
 

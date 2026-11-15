@@ -17,8 +17,14 @@ from mentor_agent.chat.chains import Chains
 from mentor_agent.chat.graph import compile_graph
 from mentor_agent.chat.nodes import Nodes
 from mentor_agent.chat.tools import build_retrieve_context_tool
-from mentor_agent.core.errors import MemoryBuildInProgressError, MentorNotFoundError
+from mentor_agent.core.errors import (
+    ConversationError,
+    MemoryBuildInProgressError,
+    MentorNotFoundError,
+)
+from mentor_agent.models.ambient import AmbientLine
 from mentor_agent.models.mentor_extract import MentorExtract
+from mentor_agent.models.profile import Profile
 from mentor_agent.services.conversation import ConversationService
 from mentor_agent.services.custom import new_mentor_id
 from mentor_agent.services.persona import Persona
@@ -27,9 +33,12 @@ from mentor_agent.services.pool import pick_new_mentor
 if TYPE_CHECKING:
     import random
     from collections.abc import Collection, Iterator, Mapping, Sequence
+    from datetime import datetime
 
     from langchain_core.callbacks import CallbackManagerForLLMRun, CallbackManagerForRetrieverRun
 
+    from mentor_agent.models.ambient import AmbientChat
+    from mentor_agent.models.ledger import LedgerLine
     from mentor_agent.models.mentor_extract import MemoryStatus
     from mentor_agent.services.research import ResearchFindings
 
@@ -155,7 +164,9 @@ def build_fake_conversation_service(
     summary_model = ScriptedChatModel(responses=[AIMessage(content=summary_text)])
     nodes = Nodes(Chains(chat_model, summary_model, tools), messages_after_summary)
     graph = compile_graph(nodes, tools, summary_trigger, checkpointer=InMemorySaver())
-    return ConversationService(graph, recursion_limit=12), chat_model, calls
+    chains = nodes.chains
+    service = ConversationService(graph, recursion_limit=12, opener=chains.mentor_opener)
+    return service, chat_model, calls
 
 
 class InMemoryMentorService:
@@ -208,6 +219,96 @@ class InMemoryMentorService:
 
     async def set_memory_status(self, mentor_id: str, status: MemoryStatus) -> None:
         await self.update_mentor(mentor_id, {"memory": status})
+
+
+class InMemoryProfileService:
+    """The user's profile, kept in memory."""
+
+    def __init__(self, profile: Profile | None = None) -> None:
+        self.profile = profile or Profile()
+
+    async def get(self) -> Profile:
+        return self.profile
+
+    async def set_goal(self, goal: str) -> Profile:
+        self.profile = self.profile.model_copy(update={"goal": goal})
+        return self.profile
+
+    async def mark_heard(self, mentor_id: str, at: datetime) -> None:
+        heard = {**self.profile.heard_until, mentor_id: at}
+        self.profile = self.profile.model_copy(update={"heard_until": heard})
+
+
+class InMemoryAdviceLedger:
+    """The advice ledger, kept in memory, newest last."""
+
+    def __init__(self, lines: list[LedgerLine] | None = None) -> None:
+        self.lines = list(lines or [])
+
+    async def add(self, line: LedgerLine) -> None:
+        self.lines.append(line)
+
+    async def recent(self, limit: int) -> list[LedgerLine]:
+        return sorted(self.lines, key=lambda line: line.created_at, reverse=True)[:limit]
+
+    async def delete(self, line_id: str) -> bool:
+        before = len(self.lines)
+        self.lines = [line for line in self.lines if line.id != line_id]
+        return len(self.lines) < before
+
+
+class InMemoryAmbientStore:
+    """Ambient chats, kept in memory."""
+
+    def __init__(self) -> None:
+        self.chats: list[AmbientChat] = []
+
+    async def add(self, chat: AmbientChat) -> None:
+        self.chats.append(chat)
+
+    async def newest_time(self) -> datetime | None:
+        return max((chat.created_at for chat in self.chats), default=None)
+
+    async def get(self, chat_id: str) -> AmbientChat | None:
+        return next((chat for chat in self.chats if chat.id == chat_id), None)
+
+
+class ScriptedAmbientWriter:
+    """Writes a fixed two-line chat (or fails, when told to); calls no model."""
+
+    def __init__(self) -> None:
+        self.fail = False
+        self.about_user: list[bool] = []
+
+    async def write(
+        self,
+        a: MentorExtract,
+        b: MentorExtract,
+        goal: str | None,
+        lines: Sequence[LedgerLine],
+        *,
+        about_user: bool,
+    ) -> list[AmbientLine]:
+        self.about_user.append(about_user)
+        if self.fail:
+            msg = "The mentors could not chat right now."
+            raise ConversationError(msg)
+        return [
+            AmbientLine(mentor_id=a.id, text=f"{b.name}, about their goal..."),
+            AmbientLine(mentor_id=b.id, text="I see it differently."),
+        ]
+
+
+class RecordingLedgerWriter:
+    """Records which exchanges would be noted in the ledger; calls no model."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str, str, str]] = []
+
+    async def record(
+        self, mentor: MentorExtract, conversation_id: str, question: str, reply: str
+    ) -> None:
+        self.calls.append((mentor.id, conversation_id, question, reply))
 
 
 class RecordingMemoryBuilder:

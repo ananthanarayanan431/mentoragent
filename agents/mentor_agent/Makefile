@@ -2,7 +2,7 @@
 # The gates are the CI ones (scripts/ci/python-checks.sh), run from the repo root.
 # MongoDB runs from infra/: make -C ../../infra up
 .DEFAULT_GOAL := help
-.PHONY: help install env dev seed evaluate fmt test audit coverage openapi shell \
+.PHONY: help install env dev fmt test audit coverage openapi shell \
         docker-up docker-down docker-logs docker-ps clean
 
 ROOT := ../..
@@ -22,12 +22,6 @@ env: ## Create .env from .env.example (never overwrites an existing .env)
 
 dev: ## Run the API with reload on :8000 (MongoDB must be up)
 	./run.sh api
-
-seed: ## Load the mentors and build their long-term memory (calls the embeddings API)
-	./run.sh seed
-
-evaluate: ## Generate an evaluation dataset and score the agent with Opik
-	./run.sh evaluate
 
 fmt: ## Format the code and apply safe lint fixes
 	uv run ruff format .

@@ -11,10 +11,11 @@ from fastapi import APIRouter, Depends
 
 from mentor_agent.config import API_V1_PREFIX
 from mentor_agent.core.dependencies import require_api_key
-from mentor_agent.routes.v1 import admin, chat, mentors
+from mentor_agent.routes.v1 import admin, chat, mentors, square
 
 router = APIRouter(prefix=API_V1_PREFIX, dependencies=[Depends(require_api_key)])
 router.include_router(mentors.router)
+router.include_router(square.router)
 router.include_router(chat.router)
 router.include_router(admin.router)
 

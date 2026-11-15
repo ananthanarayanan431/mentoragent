@@ -7,7 +7,7 @@ console error. Nothing here sends a chat message, so no model is called.
 ```bash
 cp infra/.env.example infra/.env                                   # once
 make -C infra stack-up                                             # MongoDB, agent, web on :8080
-docker exec mentoragent-mentor-agent-api mentor-agent load-mentors # the mentors
+docker exec -i mentoragent-mongo mongoimport --uri "mongodb://mentor_user:mentor_password@localhost:27017/?authSource=admin&directConnection=true" --db mentoragents --collection mentors --jsonArray --mode upsert --upsertFields id < agents/mentor_agent/data/extraction_metadata.json # the mentors
 pnpm e2e                                                           # all projects
 pnpm e2e -- --project=phone                                        # one project
 ```

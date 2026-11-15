@@ -12,10 +12,13 @@ from starlette.requests import HTTPConnection
 from mentor_agent.config import settings
 from mentor_agent.core.errors import PermissionDeniedError
 from mentor_agent.models.mentor_extract import MentorExtract
+from mentor_agent.services.ambient import AmbientChats, AmbientStore
 from mentor_agent.services.conversation import ConversationService
 from mentor_agent.services.enrich import Enricher
+from mentor_agent.services.ledger import AdviceLedger, LedgerWriter
 from mentor_agent.services.memory import MemoryBuilder
 from mentor_agent.services.mentors import MentorService
+from mentor_agent.services.profile import ProfileService
 
 API_KEY_HEADER = "X-API-Key"
 _api_key_header = APIKeyHeader(name=API_KEY_HEADER, auto_error=False)
@@ -77,7 +80,37 @@ def get_enricher(connection: HTTPConnection) -> Enricher:
     return enricher
 
 
+def get_profile_service(connection: HTTPConnection) -> ProfileService:
+    service: ProfileService = connection.app.state.profile
+    return service
+
+
+def get_ledger(connection: HTTPConnection) -> AdviceLedger:
+    ledger: AdviceLedger = connection.app.state.ledger
+    return ledger
+
+
+def get_ledger_writer(connection: HTTPConnection) -> LedgerWriter:
+    writer: LedgerWriter = connection.app.state.ledger_writer
+    return writer
+
+
+def get_ambient_chats(connection: HTTPConnection) -> AmbientChats:
+    ambient: AmbientChats = connection.app.state.ambient
+    return ambient
+
+
+def get_ambient_store(connection: HTTPConnection) -> AmbientStore:
+    store: AmbientStore = connection.app.state.ambient_store
+    return store
+
+
 MemoryBuilderDep = Annotated[MemoryBuilder, Depends(get_memory_builder)]
+AmbientStoreDep = Annotated[AmbientStore, Depends(get_ambient_store)]
+AmbientChatsDep = Annotated[AmbientChats, Depends(get_ambient_chats)]
+AdviceLedgerDep = Annotated[AdviceLedger, Depends(get_ledger)]
+LedgerWriterDep = Annotated[LedgerWriter, Depends(get_ledger_writer)]
+ProfileServiceDep = Annotated[ProfileService, Depends(get_profile_service)]
 MentorPoolDep = Annotated[list[MentorExtract], Depends(get_mentor_pool)]
 EnricherDep = Annotated[Enricher, Depends(get_enricher)]
 

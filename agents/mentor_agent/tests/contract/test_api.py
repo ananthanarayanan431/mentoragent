@@ -13,7 +13,15 @@ from starlette.websockets import WebSocketDisconnect
 
 from mentor_agent.config import settings
 from mentor_agent.server import create_app
-from tests.fakes import InMemoryMentorService, build_fake_conversation_service, tool_call
+from tests.fakes import (
+    InMemoryAdviceLedger,
+    InMemoryAmbientStore,
+    InMemoryMentorService,
+    InMemoryProfileService,
+    RecordingLedgerWriter,
+    build_fake_conversation_service,
+    tool_call,
+)
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterator
@@ -23,13 +31,21 @@ if TYPE_CHECKING:
     from mentor_agent.models.mentor_extract import MentorExtract
 
 
-def _client(mentor_extract: MentorExtract, responses: list[AIMessage]) -> TestClient:
+def _client(
+    mentor_extract: MentorExtract,
+    responses: list[AIMessage],
+    ledger_writer: RecordingLedgerWriter | None = None,
+) -> TestClient:
     service, _, _ = build_fake_conversation_service(responses)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         app.state.conversations = service
         app.state.mentors = InMemoryMentorService([mentor_extract])
+        app.state.profile = InMemoryProfileService()
+        app.state.ledger = InMemoryAdviceLedger()
+        app.state.ledger_writer = ledger_writer or RecordingLedgerWriter()
+        app.state.ambient_store = InMemoryAmbientStore()
         yield
 
     return TestClient(create_app(lifespan))
@@ -170,3 +186,40 @@ def test_websocket_requires_api_key_when_configured(client: TestClient, api_key:
     with client.websocket_connect(f"/api/v1/ws/chat?api_key={api_key}") as ws:
         ws.send_json({"mentor_id": "ada", "message": "Hi"})
         assert ws.receive_json()["type"] == "start"
+
+
+def test_a_reply_over_http_is_noted_in_the_ledger(mentor_extract: MentorExtract) -> None:
+    writer = RecordingLedgerWriter()
+    with _client(mentor_extract, [AIMessage(content="Buy index funds.")], writer) as client:
+        body = client.post(
+            "/api/v1/chat", json={"mentor_id": "ada", "message": "Invest how?"}
+        ).json()
+
+    assert writer.calls == [("ada", body["conversation_id"], "Invest how?", "Buy index funds.")]
+
+
+def test_a_streamed_reply_is_noted_once_after_it_ends(mentor_extract: MentorExtract) -> None:
+    writer = RecordingLedgerWriter()
+    with (
+        _client(mentor_extract, [AIMessage(content="Buy index funds.")], writer) as client,
+        client.websocket_connect("/api/v1/ws/chat") as ws,
+    ):
+        ws.send_json({"mentor_id": "ada", "message": "Invest how?"})
+        events = [ws.receive_json()]
+        while events[-1]["type"] not in {"end", "error"}:
+            events.append(ws.receive_json())
+
+    conversation_id = events[-1]["conversation_id"]
+    assert writer.calls == [("ada", conversation_id, "Invest how?", "Buy index funds.")]
+
+
+def test_a_failed_turn_is_not_noted(mentor_extract: MentorExtract) -> None:
+    writer = RecordingLedgerWriter()
+    with (
+        _client(mentor_extract, [AIMessage(content="unused")], writer) as client,
+        client.websocket_connect("/api/v1/ws/chat") as ws,
+    ):
+        ws.send_json({"mentor_id": "nobody", "message": "Hi"})
+        assert ws.receive_json()["type"] == "error"
+
+    assert writer.calls == []

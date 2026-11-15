@@ -2,8 +2,11 @@
 
 import { API_KEY, API_PREFIX, httpUrl } from './config'
 import type {
+  AmbientChat,
   ChatRequest,
   ChatResponse,
+  GoalOut,
+  LedgerLine,
   Mentor,
   MentorCreate,
   MentorSources,
@@ -142,6 +145,37 @@ export function updateMentor(mentorId: string, changes: MentorUpdate): Promise<M
 /** Removes a mentor and their memory. A pool mentor can be added back later. */
 export function removeMentor(mentorId: string): Promise<void> {
   return request<void>(mentorPath(mentorId), { method: 'DELETE' })
+}
+
+/** The goal every mentor in the square knows about (null before one is set). */
+export function getGoal(signal?: AbortSignal): Promise<GoalOut> {
+  return request<GoalOut>(`${API_PREFIX}/goal`, signal ? { signal } : {})
+}
+
+/** Sets or changes the goal. */
+export function setGoal(goal: string): Promise<GoalOut> {
+  return request<GoalOut>(`${API_PREFIX}/goal`, { method: 'PUT', body: JSON.stringify({ goal }) })
+}
+
+/** What the mentors have told you, newest first. */
+export function listLedger(signal?: AbortSignal): Promise<LedgerLine[]> {
+  return request<LedgerLine[]>(`${API_PREFIX}/ledger?limit=50`, signal ? { signal } : {})
+}
+
+/** Forgets one piece of advice, so no mentor reads it again. */
+export function deleteLedgerLine(id: string): Promise<void> {
+  return request<void>(`${API_PREFIX}/ledger/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+/**
+ * Asks two mentors who both advised you to chat about your goal; the first speaks
+ * first. 409 when they cannot, 429 when the last chat was too recent.
+ */
+export function startAmbientChat(mentorIds: [string, string]): Promise<AmbientChat> {
+  return request<AmbientChat>(`${API_PREFIX}/ambient`, {
+    method: 'POST',
+    body: JSON.stringify({ mentor_ids: mentorIds }),
+  })
 }
 
 /** Rebuilds the mentor's long-term memory from their sources, in the background. */

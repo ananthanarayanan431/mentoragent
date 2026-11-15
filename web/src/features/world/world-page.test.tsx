@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { Mentor } from '@/lib/types'
+import type { AmbientChat, ClientMessage, LedgerLine, Mentor, ServerEvent } from '@/lib/types'
+import { AMBIENT_MAX_DELAY_MS } from './ambient'
 import type { WorldBridge } from './world-bridge'
 import { WorldPage } from './world-page'
 
@@ -30,7 +31,16 @@ vi.mock('./game/create-game', () => ({
     if (game.fail) throw new Error('WebGL unavailable')
     game.bridge = options.bridge
     game.started.push(options.mentors)
-    for (const name of ['input', 'labels', 'endTalk', 'paused', 'addMentor'] as const) {
+    for (const name of [
+      'input',
+      'labels',
+      'endTalk',
+      'paused',
+      'addMentor',
+      'bubbles',
+      'visit',
+      'joinTalk',
+    ] as const) {
       options.bridge.commands.on(name, (payload) => game.commands.push({ name, payload }))
     }
     return { destroy: () => (game.destroyed += 1) }
@@ -41,23 +51,53 @@ const api = vi.hoisted(() => ({
   listMentors: vi.fn<() => Promise<Mentor[]>>(),
   getMentorPool: vi.fn<() => Promise<{ remaining: number; total: number }>>(),
   addRandomMentor: vi.fn<() => Promise<Mentor>>(),
+  getGoal: vi.fn<() => Promise<{ goal: string | null }>>(),
+  setGoal: vi.fn<(goal: string) => Promise<{ goal: string | null }>>(),
+  listLedger: vi.fn<() => Promise<LedgerLine[]>>(),
+  deleteLedgerLine: vi.fn<(id: string) => Promise<void>>(),
+  startAmbientChat: vi.fn<(ids: [string, string]) => Promise<AmbientChat>>(),
 }))
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   listMentors: api.listMentors,
   getMentorPool: api.getMentorPool,
   addRandomMentor: api.addRandomMentor,
+  getGoal: api.getGoal,
+  setGoal: api.setGoal,
+  listLedger: api.listLedger,
+  deleteLedgerLine: api.deleteLedgerLine,
+  startAmbientChat: api.startAmbientChat,
 }))
 
-// No real socket in tests; the dialogue only needs the hook to render.
+// No real socket in tests. A request to speak first is answered with silence, as
+// the server does when no other mentor has given advice yet.
 vi.mock('@/features/chat/use-chat-socket', () => ({
-  useChatSocket: () => ({ status: 'open', reconnect: () => {}, send: () => true }),
+  useChatSocket: ({ onEvent }: { onEvent: (event: ServerEvent) => void }) => ({
+    status: 'open',
+    reconnect: () => {},
+    send: (request: ClientMessage) => {
+      if ('opener' in request) {
+        queueMicrotask(() => onEvent({ type: 'silent', conversation_id: null }))
+      }
+      return true
+    },
+  }),
 }))
 
 /** Plays the game's side: runs `run` with the bridge the page gave the game. */
 function fromGame(run: (bridge: WorldBridge) => void) {
   act(() => run(game.bridge!))
 }
+
+/** A ledger line from this mentor (they have advised you). */
+const said = (mentorId: string): LedgerLine => ({
+  id: mentorId,
+  mentor_id: mentorId,
+  mentor_name: mentorId,
+  topic: 't',
+  advice: 'a',
+  created_at: '2026-11-15T10:00:00Z',
+})
 
 async function renderWorld() {
   render(
@@ -87,6 +127,10 @@ beforeEach(() => {
   game.started = []
   game.commands = []
   api.listMentors.mockResolvedValue(MENTORS)
+  api.getGoal.mockResolvedValue({ goal: null })
+  api.setGoal.mockImplementation(async (goal) => ({ goal }))
+  api.listLedger.mockResolvedValue([])
+  api.deleteLedgerLine.mockResolvedValue()
 })
 
 describe('WorldPage', () => {
@@ -103,6 +147,110 @@ describe('WorldPage', () => {
     expect(screen.queryByRole('heading', { name: 'Mentor Square' })).not.toBeInTheDocument()
     expect(lastInput()).toBe(true)
     expect(screen.getByRole('complementary', { name: 'Mentors met' })).toHaveTextContent('0/2')
+  })
+
+  it('shows the saved goal in the quest log', async () => {
+    api.getGoal.mockResolvedValue({ goal: 'Retire by 45' })
+    const user = userEvent.setup()
+    await renderWorld()
+    await user.click(screen.getByRole('button', { name: /enter the square/i }))
+    await user.click(screen.getByRole('button', { name: /mentors met/i }))
+
+    expect(await screen.findByText('Retire by 45')).toBeInTheDocument()
+  })
+
+  it('shows what the mentors have told you in the quest log', async () => {
+    api.listLedger.mockResolvedValue([
+      {
+        id: 'l1',
+        mentor_id: 'ada',
+        mentor_name: 'Ada',
+        topic: 'engines',
+        advice: 'Recommends studying the engine.',
+        created_at: '2026-11-15T10:00:00Z',
+      },
+    ])
+    const user = userEvent.setup()
+    await renderWorld()
+    await user.click(screen.getByRole('button', { name: /enter the square/i }))
+    await user.click(screen.getByRole('button', { name: /mentors met/i }))
+
+    expect(await screen.findByText('Recommends studying the engine.')).toBeInTheDocument()
+  })
+
+  it('floats what each mentor told you over their head', async () => {
+    api.listLedger.mockResolvedValue([
+      {
+        id: 'l1',
+        mentor_id: 'ada',
+        mentor_name: 'Ada',
+        topic: 'engines',
+        advice: 'Recommends studying the engine.',
+        created_at: '2026-11-15T10:00:00Z',
+      },
+    ])
+    await renderWorld()
+
+    await waitFor(() =>
+      expect(game.commands.findLast((command) => command.name === 'bubbles')?.payload).toEqual({
+        texts: { ada: 'Told you about engines' },
+      }),
+    )
+  })
+
+  it('joins two mentors who are chatting when the player walks up to one', async () => {
+    api.listLedger.mockResolvedValue(MENTORS.map((m) => said(m.id)))
+    api.startAmbientChat.mockImplementation(async ([visitorId, hostId]) => ({
+      id: 'amb1',
+      mentor_ids: [visitorId, hostId],
+      about_user: true,
+      lines: [{ mentor_id: visitorId, text: 'About their goal...' }],
+      created_at: '2026-11-15T10:00:00Z',
+    }))
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+      await renderWorld()
+      await user.click(screen.getByRole('button', { name: /enter the square/i }))
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(AMBIENT_MAX_DELAY_MS)
+      })
+      const visit = game.commands.findLast((command) => command.name === 'visit')?.payload as
+        { visitorId: string; hostId: string } | undefined
+      expect(visit).toBeDefined()
+
+      fromGame((bridge) => bridge.events.emit('met', visit!))
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      fromGame((bridge) => bridge.events.emit('talk', { mentorId: visit!.hostId }))
+
+      expect(
+        await screen.findByRole('dialog', { name: /^Conversation with .+ and .+$/ }),
+      ).toHaveTextContent('About their goal...')
+      expect(game.commands).toContainEqual({
+        name: 'joinTalk',
+        payload: { mentorId: visit!.visitorId },
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('stops the player walking while a goal is typed, and saves it', async () => {
+    const user = userEvent.setup()
+    await renderWorld()
+    await user.click(screen.getByRole('button', { name: /enter the square/i }))
+    await user.click(screen.getByRole('button', { name: /mentors met/i }))
+
+    await user.click(await screen.findByRole('button', { name: 'Set your goal' }))
+    expect(lastInput()).toBe(false)
+
+    await user.type(screen.getByRole('textbox', { name: 'Your goal' }), 'Retire by 45{Enter}')
+
+    expect(api.setGoal).toHaveBeenCalledWith('Retire by 45')
+    expect(await screen.findByText('Retire by 45')).toBeInTheDocument()
+    await waitFor(() => expect(lastInput()).toBe(true))
   })
 
   it('opens a conversation when the game asks to talk, and closes it with Escape', async () => {

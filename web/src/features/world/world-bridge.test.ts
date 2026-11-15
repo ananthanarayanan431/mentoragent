@@ -38,4 +38,18 @@ describe('world bridge', () => {
     bridge.events.emit('pause', {})
     expect(listener).not.toHaveBeenCalled()
   })
+
+  it('carries a visit both ways: React sends a mentor over, the game says when they met', () => {
+    const bridge = createWorldBridge()
+    const visit = vi.fn<(payload: { visitorId: string; hostId: string }) => void>()
+    const met = vi.fn<(payload: { visitorId: string; hostId: string }) => void>()
+    bridge.commands.on('visit', visit)
+    bridge.events.on('met', met)
+
+    bridge.commands.emit('visit', { visitorId: 'buffett', hostId: 'munger' })
+    bridge.events.emit('met', { visitorId: 'buffett', hostId: 'munger' })
+
+    expect(visit).toHaveBeenCalledWith({ visitorId: 'buffett', hostId: 'munger' })
+    expect(met).toHaveBeenCalledWith({ visitorId: 'buffett', hostId: 'munger' })
+  })
 })

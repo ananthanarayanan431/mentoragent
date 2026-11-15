@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from mentor_agent.chat.prompt import (
+from mentor_agent.prompts import (
     CONTEXT_SUMMARY_PROMPT,
     EXTEND_SUMMARY_PROMPT,
     MENTOR_CHARACTER_PROMPT,
@@ -56,6 +56,8 @@ class Chains:
             template_format="jinja2",
         )
         self.mentor_response: Chain = mentor_prompt | chat_model.bind_tools(tools)
+        # The same mentor without tools: speaking first needs no lookup.
+        self.mentor_opener: Chain = mentor_prompt | chat_model
         self.summarize_conversation: Chain = _summary_chain(summary_model, SUMMARY_PROMPT)
         self.extend_conversation_summary: Chain = _summary_chain(
             summary_model, EXTEND_SUMMARY_PROMPT

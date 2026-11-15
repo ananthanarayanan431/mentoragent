@@ -8,6 +8,8 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from mentor_agent.prompts import PERSONA_SYSTEM_PROMPT
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
@@ -15,16 +17,6 @@ if TYPE_CHECKING:
 
 #: How much pasted text the model sees; enough to catch someone's voice, cheap to send.
 NOTES_CHAR_BUDGET = 8_000
-
-_SYSTEM_PROMPT = """\
-You write short personas for an app where people chat with AI mentors modelled on \
-real people. Given a person's name and, sometimes, text they wrote, describe:
-- expertise: what they know best, in one line.
-- perspective: the core beliefs or principles they argue from, in one or two sentences.
-- style: how they talk and explain things, in one sentence.
-Stay under 300 characters per field. Use only what the text says or what is widely \
-known about this person. If you do not recognise them and the text says little, keep \
-each field general rather than inventing facts."""
 
 
 class Persona(BaseModel):
@@ -72,7 +64,10 @@ class LlmPersonaWriter:
         try:
             model = self.model_factory().with_structured_output(Persona)
             result = await model.ainvoke(
-                [SystemMessage(content=_SYSTEM_PROMPT), HumanMessage(content=_prompt(name, notes))]
+                [
+                    SystemMessage(content=PERSONA_SYSTEM_PROMPT),
+                    HumanMessage(content=_prompt(name, notes)),
+                ]
             )
             return Persona.model_validate(result)
         except Exception:  # noqa: BLE001 - optional enrichment: a neutral persona still works

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { clearConversation, loadConversation, saveConversation } from './storage'
+import { clearConversation, groupKey, loadConversation, saveConversation } from './storage'
 import { initialChatState } from './chat-state'
 
 const MENTOR = 'ada'
@@ -79,5 +79,29 @@ describe('conversation storage', () => {
     clearConversation(MENTOR)
 
     expect(loadConversation(MENTOR)).toEqual(initialChatState)
+  })
+
+  it('keeps one conversation per pair of mentors, whoever was walked up to', () => {
+    expect(groupKey(['buffett', 'munger'])).toBe(groupKey(['munger', 'buffett']))
+    expect(groupKey(['buffett', 'munger'])).not.toBe('buffett')
+  })
+
+  it('remembers who said what in a group conversation', () => {
+    const key = groupKey(['buffett', 'munger'])
+    saveConversation(key, {
+      conversationId: 'c1',
+      isStreaming: false,
+      messages: [
+        { id: 'u1', role: 'user', content: 'Hi' },
+        { id: 'm1', role: 'mentor', content: 'Index funds.', mentorId: 'buffett' },
+      ],
+    })
+
+    expect(loadConversation(key).messages[1]).toEqual({
+      id: 'm1',
+      role: 'mentor',
+      content: 'Index funds.',
+      mentorId: 'buffett',
+    })
   })
 })

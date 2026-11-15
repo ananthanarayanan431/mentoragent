@@ -1,6 +1,86 @@
 {
   "components": {
     "schemas": {
+      "AmbientChatOut": {
+        "description": "Two mentors chatting about the user's goal.",
+        "properties": {
+          "about_user": {
+            "title": "About User",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/AmbientLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "mentor_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Mentor Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "mentor_ids",
+          "lines",
+          "about_user",
+          "created_at"
+        ],
+        "title": "AmbientChatOut",
+        "type": "object"
+      },
+      "AmbientIn": {
+        "additionalProperties": false,
+        "description": "Two different mentors; the first (the visitor) speaks first.",
+        "properties": {
+          "mentor_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Mentor Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "mentor_ids"
+        ],
+        "title": "AmbientIn",
+        "type": "object"
+      },
+      "AmbientLineOut": {
+        "description": "One thing one mentor said.",
+        "properties": {
+          "mentor_id": {
+            "title": "Mentor Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mentor_id",
+          "text"
+        ],
+        "title": "AmbientLineOut",
+        "type": "object"
+      },
       "ChatRequest": {
         "additionalProperties": false,
         "description": "A user message to a mentor.\n\nOmit ``conversation_id`` to start a new conversation; send back the id\nfrom the response to continue it.",
@@ -60,6 +140,43 @@
         "title": "ChatResponse",
         "type": "object"
       },
+      "GoalIn": {
+        "additionalProperties": false,
+        "description": "The user's goal: one line every mentor reads.",
+        "properties": {
+          "goal": {
+            "minLength": 1,
+            "title": "Goal",
+            "type": "string"
+          }
+        },
+        "required": [
+          "goal"
+        ],
+        "title": "GoalIn",
+        "type": "object"
+      },
+      "GoalOut": {
+        "description": "The user's goal, or ``null`` before one is set.",
+        "properties": {
+          "goal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          }
+        },
+        "required": [
+          "goal"
+        ],
+        "title": "GoalOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -84,6 +201,46 @@
           "status"
         ],
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "LedgerLineOut": {
+        "description": "One piece of advice a mentor gave the user.",
+        "properties": {
+          "advice": {
+            "title": "Advice",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "mentor_id": {
+            "title": "Mentor Id",
+            "type": "string"
+          },
+          "mentor_name": {
+            "title": "Mentor Name",
+            "type": "string"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "mentor_id",
+          "mentor_name",
+          "topic",
+          "advice",
+          "created_at"
+        ],
+        "title": "LedgerLineOut",
         "type": "object"
       },
       "MentorCreate": {
@@ -571,6 +728,53 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/ambient": {
+      "post": {
+        "description": "Two mentors chat about the user's goal (the browser asks while the square is open).\n\n409 when a mentor is not ready or never advised the user; 429 when the last chat\nwas too recent; 502 when the model fails.",
+        "operationId": "start_ambient_chat_api_v1_ambient_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AmbientIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AmbientChatOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Start Ambient Chat",
+        "tags": [
+          "square"
+        ]
+      }
+    },
     "/api/v1/chat": {
       "post": {
         "description": "Send a message to a mentor and get the full reply (409 while their memory builds).",
@@ -666,6 +870,174 @@
         "summary": "Delete Conversation",
         "tags": [
           "chat"
+        ]
+      }
+    },
+    "/api/v1/goal": {
+      "get": {
+        "description": "The goal every mentor knows about.",
+        "operationId": "get_goal_api_v1_goal_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Get Goal",
+        "tags": [
+          "square"
+        ]
+      },
+      "put": {
+        "description": "Set or change the goal.",
+        "operationId": "set_goal_api_v1_goal_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoalIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Set Goal",
+        "tags": [
+          "square"
+        ]
+      }
+    },
+    "/api/v1/ledger": {
+      "get": {
+        "description": "What the mentors have told the user, newest first.",
+        "operationId": "list_ledger_api_v1_ledger_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LedgerLineOut"
+                  },
+                  "title": "Response List Ledger Api V1 Ledger Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "List Ledger",
+        "tags": [
+          "square"
+        ]
+      }
+    },
+    "/api/v1/ledger/{line_id}": {
+      "delete": {
+        "description": "Forget a piece of advice, so no mentor reads it again.",
+        "operationId": "delete_ledger_line_api_v1_ledger__line_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "title": "Line Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Delete Ledger Line",
+        "tags": [
+          "square"
         ]
       }
     },

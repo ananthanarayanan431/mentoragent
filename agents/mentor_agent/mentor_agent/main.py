@@ -1,4 +1,4 @@
-"""Uvicorn entry point: ``uvicorn mentor_agent.main:app`` (or ``mentor-agent serve``)."""
+"""Uvicorn entry point: ``uvicorn mentor_agent.main:app`` (``./run.sh`` adds reload)."""
 
 from __future__ import annotations
 

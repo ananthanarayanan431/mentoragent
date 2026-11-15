@@ -11,6 +11,7 @@ from loguru import logger
 
 from mentor_agent.chat.edges import CONVERSATION_NODE
 from mentor_agent.core.errors import ConversationError
+from mentor_agent.prompts import OPENER_INSTRUCTION
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
     from langchain_core.callbacks import BaseCallbackHandler
     from langchain_core.runnables import RunnableConfig
 
+    from mentor_agent.chat.chains import Chain
     from mentor_agent.chat.graph import MentorGraph
     from mentor_agent.chat.state import MentorState
     from mentor_agent.models.mentor import Mentor
@@ -64,6 +66,8 @@ class ConversationService:
         recursion_limit: Maximum graph steps per turn.
         tracer_factory: Optional ``thread_id -> callback`` factory for tracing
             (e.g. Opik).
+        opener: The mentor chain without tools, for speaking first; ``None``
+            disables openers.
     """
 
     def __init__(
@@ -71,10 +75,12 @@ class ConversationService:
         graph: MentorGraph,
         recursion_limit: int,
         tracer_factory: Callable[[str], BaseCallbackHandler] | None = None,
+        opener: Chain | None = None,
     ) -> None:
         self.graph = graph
         self.recursion_limit = recursion_limit
         self.tracer_factory = tracer_factory
+        self.opener = opener
 
     def _config(self, thread_id: str) -> RunnableConfig:
         callbacks = [self.tracer_factory(thread_id)] if self.tracer_factory else []
@@ -152,6 +158,62 @@ class ConversationService:
         except Exception as exc:
             logger.opt(exception=exc).error("Streaming conversation {} failed", thread_id)
             raise ConversationError from exc
+
+    async def open(
+        self, mentor: Mentor, conversation_id: str, mentor_context: str
+    ) -> AsyncIterator[str]:
+        """Let the mentor speak first, token by token, reacting to ``mentor_context``.
+
+        The mentor sees the conversation so far plus an instruction that is not
+        saved: only their line is added to the history, as if they had said it
+        unprompted.
+
+        Raises:
+            ConversationError: If there is no opener chain, or the model fails.
+        """
+        if self.opener is None:
+            msg = "Openers are not configured"
+            raise ConversationError(msg)
+        thread_id = thread_id_for(mentor.id, conversation_id)
+        config = self._config(thread_id)
+        try:
+            # LangGraph's state values are untyped; the state is a MentorState.
+            snapshot = await self.graph.aget_state(config)  # pyright: ignore[reportUnknownMemberType]
+            values = cast("dict[str, Any]", snapshot.values)
+            history = cast("list[BaseMessage]", values.get("messages", []))
+            persona = self._input(mentor, [], mentor_context)
+            del persona["messages"]
+            parts: list[str] = []
+            async for chunk in self.opener.astream(
+                {
+                    **persona,
+                    "messages": [*history, HumanMessage(content=OPENER_INSTRUCTION.prompt)],
+                    "summary": values.get("summary", ""),
+                },
+                config,
+            ):
+                text = _text(chunk)
+                if text:
+                    parts.append(text)
+                    yield text
+            await self.graph.aupdate_state(  # pyright: ignore[reportUnknownMemberType]
+                config,
+                {**persona, "messages": [AIMessage(content="".join(parts))]},
+                as_node=CONVERSATION_NODE,
+            )
+        except Exception as exc:
+            logger.opt(exception=exc).error("Opener in {} failed", thread_id)
+            raise ConversationError from exc
+
+    async def last_reply(self, mentor_id: str, conversation_id: str) -> str | None:
+        """The mentor's latest reply in a conversation, or ``None`` before they spoke."""
+        config = self._config(thread_id_for(mentor_id, conversation_id))
+        snapshot = await self.graph.aget_state(config)  # pyright: ignore[reportUnknownMemberType]
+        values = cast("dict[str, Any]", snapshot.values)
+        for message in reversed(cast("list[BaseMessage]", values.get("messages", []))):
+            if isinstance(message, AIMessage) and _text(message):
+                return _text(message)
+        return None
 
     async def delete_conversation(self, mentor_id: str, conversation_id: str) -> None:
         """Forget one conversation's history."""

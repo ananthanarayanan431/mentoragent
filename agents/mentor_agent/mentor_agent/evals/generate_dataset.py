@@ -8,9 +8,9 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from loguru import logger
 
 from mentor_agent.chat.llm import build_chat_model
-from mentor_agent.chat.prompt import EVALUATE_DATASET_GENERATION_PROMPT
 from mentor_agent.config import settings
 from mentor_agent.models.evaluation import EvaluationDataset, EvaluationDatasetSample
+from mentor_agent.prompts import EVALUATE_DATASET_GENERATION_PROMPT
 from mentor_agent.rag.extractor import Extractor
 
 if TYPE_CHECKING:

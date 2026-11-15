@@ -12,6 +12,11 @@ export interface MentorConversation {
   reconnect: () => void
   /** Sends `text`. Returns false (and does nothing) when it is blank or a reply is streaming. */
   send: (text: string) => boolean
+  /**
+   * Asks the mentor to speak first (in the square, as the player walks up). Returns
+   * false when it cannot be asked: a reply is streaming, or the socket is closed.
+   */
+  requestOpener: () => boolean
   /** Forgets the conversation here and, best effort, on the server. */
   startNewChat: () => void
 }
@@ -106,6 +111,20 @@ export function useMentorConversation(mentorId: string): MentorConversation {
     [mentorId, socketSend],
   )
 
+  const requestOpener = useCallback((): boolean => {
+    if (!mentorId || stateRef.current.isStreaming) return false
+    const conversationId = stateRef.current.conversationId
+    const request = {
+      mentor_id: mentorId,
+      opener: true as const,
+      ...(conversationId ? { conversation_id: conversationId } : {}),
+    }
+    // No HTTP fallback: without the socket the usual greeting shows instead.
+    if (!socketSend(request)) return false
+    dispatch({ type: 'open', id: newId() })
+    return true
+  }, [mentorId, socketSend])
+
   const startNewChat = useCallback(() => {
     const { conversationId } = stateRef.current
     dispatch({ type: 'reset' })
@@ -116,5 +135,12 @@ export function useMentorConversation(mentorId: string): MentorConversation {
     }
   }, [mentorId])
 
-  return { state, status: socket.status, reconnect: socket.reconnect, send, startNewChat }
+  return {
+    state,
+    status: socket.status,
+    reconnect: socket.reconnect,
+    send,
+    requestOpener,
+    startNewChat,
+  }
 }

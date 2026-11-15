@@ -18,6 +18,10 @@ export interface ChatState {
 export type ChatAction =
   | { type: 'restore'; state: ChatState }
   | { type: 'send'; id: string; content: string }
+  /** The mentor was asked to speak first: a reply may arrive with no message from you. */
+  | { type: 'open'; id: string }
+  /** A message to two mentors: their replies arrive one after the other, tagged. */
+  | { type: 'sendGroup'; id: string; content: string }
   | { type: 'server'; event: ServerEvent }
   | { type: 'failed'; detail: string }
   | { type: 'reset' }
@@ -91,6 +95,25 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         ],
       }
 
+    case 'open':
+      if (state.isStreaming) return state
+      return {
+        ...state,
+        isStreaming: true,
+        messages: [
+          ...state.messages,
+          { id: action.id, role: 'mentor', content: '', streaming: true },
+        ],
+      }
+
+    case 'sendGroup':
+      // No placeholder yet: each speaker's `start` adds their own.
+      return {
+        ...state,
+        isStreaming: true,
+        messages: [...state.messages, { id: action.id, role: 'user', content: action.content }],
+      }
+
     case 'failed':
       return fail(state, action.detail)
 
@@ -101,6 +124,23 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       const event = action.event
       switch (event.type) {
         case 'start':
+          if (event.mentor_id) {
+            return {
+              ...state,
+              conversationId: event.conversation_id,
+              isStreaming: true,
+              messages: [
+                ...state.messages,
+                {
+                  id: newId(),
+                  role: 'mentor',
+                  content: '',
+                  streaming: true,
+                  mentorId: event.mentor_id,
+                },
+              ],
+            }
+          }
           return { ...state, conversationId: event.conversation_id, isStreaming: true }
 
         case 'chunk':
@@ -116,7 +156,8 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           return {
             ...state,
             conversationId: event.conversation_id,
-            isStreaming: false,
+            // In a group turn the next speaker follows; `turn_end` ends it.
+            isStreaming: event.mentor_id !== undefined,
             // Trust `response` over the concatenated chunks: it is the whole
             // reply, so a dropped chunk cannot leave a message with a hole.
             messages: updateStreaming(state.messages, (m) => ({
@@ -128,9 +169,27 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
         case 'error':
           return fail(state, formatDetail(event.detail))
+
+        case 'turn_end':
+          return { ...state, conversationId: event.conversation_id, isStreaming: false }
+
+        case 'silent':
+          return {
+            ...state,
+            conversationId: event.conversation_id ?? state.conversationId,
+            isStreaming: false,
+            messages: state.messages.filter(
+              (m) => !(m.role === 'mentor' && m.streaming && m.content.length === 0),
+            ),
+          }
       }
     }
   }
+}
+
+/** The speaker of a group reply event, when there is one. */
+function speaker(event: Record<string, unknown>): { mentor_id?: string } {
+  return typeof event.mentor_id === 'string' ? { mentor_id: event.mentor_id } : {}
 }
 
 /** Parse a WebSocket payload, returning null when it is not a known event. */
@@ -148,16 +207,31 @@ export function parseServerEvent(data: unknown): ServerEvent | null {
   switch (event.type) {
     case 'start':
       return typeof event.conversation_id === 'string'
-        ? { type: 'start', conversation_id: event.conversation_id }
+        ? { type: 'start', conversation_id: event.conversation_id, ...speaker(event) }
         : null
     case 'chunk':
-      return typeof event.content === 'string' ? { type: 'chunk', content: event.content } : null
+      return typeof event.content === 'string'
+        ? { type: 'chunk', content: event.content, ...speaker(event) }
+        : null
     case 'end':
       return typeof event.conversation_id === 'string' && typeof event.response === 'string'
-        ? { type: 'end', conversation_id: event.conversation_id, response: event.response }
+        ? {
+            type: 'end',
+            conversation_id: event.conversation_id,
+            response: event.response,
+            ...speaker(event),
+          }
+        : null
+    case 'turn_end':
+      return typeof event.conversation_id === 'string'
+        ? { type: 'turn_end', conversation_id: event.conversation_id }
         : null
     case 'error':
       return { type: 'error', detail: event.detail }
+    case 'silent':
+      return typeof event.conversation_id === 'string' || event.conversation_id === null
+        ? { type: 'silent', conversation_id: event.conversation_id }
+        : null
     default:
       return null
   }

@@ -2,19 +2,34 @@ import { UserPlus } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ErrorState, Spinner } from '@/components/state-views'
-import { addRandomMentor, ApiError, getMentorPool, listMentors } from '@/lib/api'
+import { addRandomMentor, ApiError, getGoal, getMentorPool, listMentors, setGoal } from '@/lib/api'
 import { MEMORY_POLL_MS } from '@/lib/config'
 import type { Mentor } from '@/lib/types'
+import { joinableMeeting, type Meeting } from './ambient'
+import { bubbleTexts } from './bubbles'
 import { DialogueBox } from './dialogue-box'
+import { GroupDialogueBox } from './group-dialogue-box'
+import { GoalPanel } from './goal-panel'
+import { LedgerList } from './ledger-list'
 import { useMediaQuery } from '@/lib/use-media-query'
 import { PauseMenu, QuestLog, TitleScreen } from './menus'
 import { levelFor, loadFriendship, recordMessage } from './progress'
+import { useAmbientChats } from './use-ambient-chats'
+import { useLedger } from './use-ledger'
 import { createWorldBridge } from './world-bridge'
 
 type Mode =
   | { kind: 'title' }
   | { kind: 'playing' }
   | { kind: 'paused' }
+  /** Talking with two mentors, joined while they were chatting. */
+  | {
+      kind: 'group'
+      /** The one walked up to (answers first), then the other. */
+      mentorIds: [string, string]
+      ambientId: string | null
+      lines: Meeting['lines']
+    }
   | { kind: 'talking'; mentorId: string }
 
 /**
@@ -75,6 +90,12 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
   const [notice, setNotice] = useState('')
   const [poolLeft, setPoolLeft] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
+  const [goal, setGoalText] = useState<string | null>(null)
+  const [typingGoal, setTypingGoal] = useState(false)
+  const ledger = useLedger()
+  // The latest meeting between two mentors, read when the player asks to talk.
+  const meetingRef = useRef<Meeting | null>(null)
+  const { refreshSoon: refreshLedgerSoon } = ledger
   const labelsRef = useRef(labelsVisible)
   // The game is built once from the first roster; later arrivals go through `addMentor`.
   const firstRoster = useRef(initialMentors)
@@ -184,7 +205,23 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
       bridge.events.on('ready', () => setReady(true)),
       bridge.events.on('failed', () => setGameError('The game could not draw the square.')),
       bridge.events.on('nearby', ({ mentorId }) => setNearbyId(mentorId)),
-      bridge.events.on('talk', ({ mentorId }) => setMode({ kind: 'talking', mentorId })),
+      bridge.events.on('talk', ({ mentorId }) => {
+        // Walking up to two mentors who are chatting (or just were) joins them.
+        const meeting = joinableMeeting(meetingRef.current, mentorId, Date.now())
+        if (!meeting) {
+          setMode({ kind: 'talking', mentorId })
+          return
+        }
+        const other =
+          meeting.mentorIds[0] === mentorId ? meeting.mentorIds[1] : meeting.mentorIds[0]
+        bridge.commands.emit('joinTalk', { mentorId: other })
+        setMode({
+          kind: 'group',
+          mentorIds: [mentorId, other],
+          ambientId: meeting.ambientId,
+          lines: meeting.lines,
+        })
+      }),
       bridge.events.on('pause', () => setMode({ kind: 'paused' })),
     ]
     return () => {
@@ -195,14 +232,31 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
   // --- React -> game ---------------------------------------------------------------
 
   useEffect(() => {
-    bridge.commands.emit('input', { enabled: mode.kind === 'playing' })
-  }, [bridge, mode, ready])
+    bridge.commands.emit('input', { enabled: mode.kind === 'playing' && !typingGoal })
+  }, [bridge, mode, ready, typingGoal])
 
   // The world stands still behind the title screen and the pause menu, but not during a
   // conversation: the other mentors keep strolling while the player talks.
   useEffect(() => {
     bridge.commands.emit('paused', { paused: mode.kind === 'title' || mode.kind === 'paused' })
   }, [bridge, mode, ready])
+
+  // Now and then two mentors meet: about your goal if both advised you, otherwise a
+  // short hello. Only while you walk around the square (never on the title, paused,
+  // or in a dialogue).
+  const meeting = useAmbientChats({
+    bridge,
+    active: ready && mode.kind === 'playing',
+    mentors,
+  })
+  useEffect(() => {
+    meetingRef.current = meeting
+  }, [meeting])
+
+  // What each mentor told you floats over them as the player walks past.
+  useEffect(() => {
+    bridge.commands.emit('bubbles', { texts: bubbleTexts(ledger.lines) })
+  }, [bridge, ledger.lines, ready])
 
   useEffect(() => {
     labelsRef.current = labelsVisible
@@ -211,9 +265,14 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
 
   const closeDialogue = useCallback(() => {
     if (mode.kind === 'talking') bridge.commands.emit('endTalk', { mentorId: mode.mentorId })
+    if (mode.kind === 'group') {
+      for (const mentorId of mode.mentorIds) bridge.commands.emit('endTalk', { mentorId })
+    }
     setMode({ kind: 'playing' })
     containerRef.current?.focus()
-  }, [bridge, mode])
+    // The advice from this conversation is noted just after the reply.
+    refreshLedgerSoon()
+  }, [bridge, mode, refreshLedgerSoon])
 
   const messageSent = useCallback((mentor: Mentor) => {
     const { friendship: next, levelUp } = recordMessage(friendshipRef.current, mentor.id)
@@ -224,7 +283,26 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
     }
   }, [])
 
+  // --- The goal every mentor knows ------------------------------------------------
+
+  useEffect(() => {
+    const controller = new AbortController()
+    getGoal(controller.signal)
+      .then(({ goal: saved }) => setGoalText(saved ?? null))
+      .catch(() => {}) // the goal is optional: without it the panel invites one
+    return () => controller.abort()
+  }, [])
+
+  const saveGoal = useCallback(async (next: string) => {
+    const { goal: saved } = await setGoal(next)
+    setGoalText(saved ?? null)
+  }, [])
+
   const talkingTo = mode.kind === 'talking' ? byId.get(mode.mentorId) : undefined
+  const group =
+    mode.kind === 'group'
+      ? mode.mentorIds.map((id) => byId.get(id)).filter((m): m is Mentor => m !== undefined)
+      : []
   const nearby = nearbyId ? byId.get(nearbyId) : undefined
 
   return (
@@ -257,7 +335,12 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
       )}
 
       <div className="pointer-events-none absolute inset-0">
-        {mode.kind !== 'title' && <QuestLog mentors={mentors} friendship={friendship} />}
+        {mode.kind !== 'title' && (
+          <QuestLog mentors={mentors} friendship={friendship}>
+            <GoalPanel goal={goal} onSave={saveGoal} onEditingChange={setTypingGoal} />
+            <LedgerList lines={ledger.lines} error={ledger.error} onForget={ledger.forget} />
+          </QuestLog>
+        )}
 
         {mode.kind !== 'title' && poolLeft !== null && (
           <button
@@ -309,6 +392,20 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
               level={levelFor(friendship[talkingTo.id] ?? 0)}
               onClose={closeDialogue}
               onMessageSent={() => messageSent(talkingTo)}
+            />
+          </div>
+        )}
+        {mode.kind === 'group' && group.length === 2 && (
+          <div className="absolute inset-x-0 bottom-0 z-20 p-3">
+            <GroupDialogueBox
+              key={mode.mentorIds.join('+')}
+              mentors={[group[0]!, group[1]!]}
+              ambientId={mode.ambientId}
+              ambientLines={mode.lines}
+              onClose={closeDialogue}
+              onMessageSent={() => {
+                for (const mentor of group) messageSent(mentor)
+              }}
             />
           </div>
         )}

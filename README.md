@@ -60,7 +60,6 @@ and Node (see `.nvmrc`) with pnpm 10.
 cp infra/.env.example infra/.env                            # MongoDB credentials
 make -C infra up                                            # MongoDB, waits until healthy
 make -C agents/mentor_agent env                             # then fill in ANTHROPIC_API_KEY, OPENROUTER_API_KEY
-make -C agents/mentor_agent seed                            # first run only: mentors + long-term memory
 agents/mentor_agent/run.sh                                  # API on :8000 (docs at /docs)
 pnpm install && pnpm dev                                    # web app on :5173
 ```
