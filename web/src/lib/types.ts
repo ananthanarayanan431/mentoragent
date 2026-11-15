@@ -8,6 +8,7 @@
 import type {
   ChatRequest,
   ChatResponse,
+  GoalOut,
   MentorCreate,
   MentorOut,
   MentorSources,
@@ -15,7 +16,15 @@ import type {
   PoolOut,
 } from '@mentoragent/mentor-agent-contracts'
 
-export type { ChatRequest, ChatResponse, MentorCreate, MentorSources, MentorUpdate, PoolOut }
+export type {
+  ChatRequest,
+  ChatResponse,
+  GoalOut,
+  MentorCreate,
+  MentorSources,
+  MentorUpdate,
+  PoolOut,
+}
 export type Mentor = MentorOut
 
 /** Events the WebSocket sends, one per turn: start -> chunk* -> end, or error. */

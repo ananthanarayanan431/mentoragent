@@ -1,5 +1,6 @@
 import { Check, List, Play, Tag } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 
 import type { Mentor } from '@/lib/types'
@@ -174,7 +175,14 @@ export function PauseMenu({ labelsVisible, onToggleLabels, onResume }: PauseProp
 }
 
 /** Top-left HUD: who you have met, and how well you know them. */
-export function QuestLog({ mentors, friendship }: { mentors: Mentor[]; friendship: Friendship }) {
+interface QuestLogProps {
+  mentors: Mentor[]
+  friendship: Friendship
+  /** Shown above the list of mentors (the goal). */
+  children?: ReactNode
+}
+
+export function QuestLog({ mentors, friendship, children }: QuestLogProps) {
   const wide = useMediaQuery('(min-width: 640px)')
   const [open, setOpen] = useState(wide)
   const count = mentors.filter((mentor) => hasMet(friendship, mentor.id)).length
@@ -195,7 +203,8 @@ export function QuestLog({ mentors, friendship }: { mentors: Mentor[]; friendshi
         </span>
       </button>
       {open && (
-        <div className="px-3 pb-3">
+        <div className="space-y-3 px-3 pb-3">
+          {children}
           <ul className="space-y-1.5 text-sm">
             {mentors.map((mentor) => {
               const level = levelFor(friendship[mentor.id] ?? 0)

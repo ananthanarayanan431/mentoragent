@@ -4,6 +4,7 @@ import { API_KEY, API_PREFIX, httpUrl } from './config'
 import type {
   ChatRequest,
   ChatResponse,
+  GoalOut,
   Mentor,
   MentorCreate,
   MentorSources,
@@ -142,6 +143,16 @@ export function updateMentor(mentorId: string, changes: MentorUpdate): Promise<M
 /** Removes a mentor and their memory. A pool mentor can be added back later. */
 export function removeMentor(mentorId: string): Promise<void> {
   return request<void>(mentorPath(mentorId), { method: 'DELETE' })
+}
+
+/** The goal every mentor in the square knows about (null before one is set). */
+export function getGoal(signal?: AbortSignal): Promise<GoalOut> {
+  return request<GoalOut>(`${API_PREFIX}/goal`, signal ? { signal } : {})
+}
+
+/** Sets or changes the goal. */
+export function setGoal(goal: string): Promise<GoalOut> {
+  return request<GoalOut>(`${API_PREFIX}/goal`, { method: 'PUT', body: JSON.stringify({ goal }) })
 }
 
 /** Rebuilds the mentor's long-term memory from their sources, in the background. */

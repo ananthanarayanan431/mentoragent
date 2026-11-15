@@ -2,10 +2,11 @@ import { UserPlus } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ErrorState, Spinner } from '@/components/state-views'
-import { addRandomMentor, ApiError, getMentorPool, listMentors } from '@/lib/api'
+import { addRandomMentor, ApiError, getGoal, getMentorPool, listMentors, setGoal } from '@/lib/api'
 import { MEMORY_POLL_MS } from '@/lib/config'
 import type { Mentor } from '@/lib/types'
 import { DialogueBox } from './dialogue-box'
+import { GoalPanel } from './goal-panel'
 import { useMediaQuery } from '@/lib/use-media-query'
 import { PauseMenu, QuestLog, TitleScreen } from './menus'
 import { levelFor, loadFriendship, recordMessage } from './progress'
@@ -75,6 +76,8 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
   const [notice, setNotice] = useState('')
   const [poolLeft, setPoolLeft] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
+  const [goal, setGoalText] = useState<string | null>(null)
+  const [typingGoal, setTypingGoal] = useState(false)
   const labelsRef = useRef(labelsVisible)
   // The game is built once from the first roster; later arrivals go through `addMentor`.
   const firstRoster = useRef(initialMentors)
@@ -195,8 +198,8 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
   // --- React -> game ---------------------------------------------------------------
 
   useEffect(() => {
-    bridge.commands.emit('input', { enabled: mode.kind === 'playing' })
-  }, [bridge, mode, ready])
+    bridge.commands.emit('input', { enabled: mode.kind === 'playing' && !typingGoal })
+  }, [bridge, mode, ready, typingGoal])
 
   // The world stands still behind the title screen and the pause menu, but not during a
   // conversation: the other mentors keep strolling while the player talks.
@@ -222,6 +225,21 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
     if (levelUp) {
       setNotice(`Level ${levelUp.level}: you and ${mentor.name} are now ${levelUp.name}s.`)
     }
+  }, [])
+
+  // --- The goal every mentor knows ------------------------------------------------
+
+  useEffect(() => {
+    const controller = new AbortController()
+    getGoal(controller.signal)
+      .then(({ goal: saved }) => setGoalText(saved ?? null))
+      .catch(() => {}) // the goal is optional: without it the panel invites one
+    return () => controller.abort()
+  }, [])
+
+  const saveGoal = useCallback(async (next: string) => {
+    const { goal: saved } = await setGoal(next)
+    setGoalText(saved ?? null)
   }, [])
 
   const talkingTo = mode.kind === 'talking' ? byId.get(mode.mentorId) : undefined
@@ -257,7 +275,11 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
       )}
 
       <div className="pointer-events-none absolute inset-0">
-        {mode.kind !== 'title' && <QuestLog mentors={mentors} friendship={friendship} />}
+        {mode.kind !== 'title' && (
+          <QuestLog mentors={mentors} friendship={friendship}>
+            <GoalPanel goal={goal} onSave={saveGoal} onEditingChange={setTypingGoal} />
+          </QuestLog>
+        )}
 
         {mode.kind !== 'title' && poolLeft !== null && (
           <button

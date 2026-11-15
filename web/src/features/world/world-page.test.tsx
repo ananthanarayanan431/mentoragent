@@ -41,12 +41,16 @@ const api = vi.hoisted(() => ({
   listMentors: vi.fn<() => Promise<Mentor[]>>(),
   getMentorPool: vi.fn<() => Promise<{ remaining: number; total: number }>>(),
   addRandomMentor: vi.fn<() => Promise<Mentor>>(),
+  getGoal: vi.fn<() => Promise<{ goal: string | null }>>(),
+  setGoal: vi.fn<(goal: string) => Promise<{ goal: string | null }>>(),
 }))
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   listMentors: api.listMentors,
   getMentorPool: api.getMentorPool,
   addRandomMentor: api.addRandomMentor,
+  getGoal: api.getGoal,
+  setGoal: api.setGoal,
 }))
 
 // No real socket in tests; the dialogue only needs the hook to render.
@@ -87,6 +91,8 @@ beforeEach(() => {
   game.started = []
   game.commands = []
   api.listMentors.mockResolvedValue(MENTORS)
+  api.getGoal.mockResolvedValue({ goal: null })
+  api.setGoal.mockImplementation(async (goal) => ({ goal }))
 })
 
 describe('WorldPage', () => {
@@ -103,6 +109,32 @@ describe('WorldPage', () => {
     expect(screen.queryByRole('heading', { name: 'Mentor Square' })).not.toBeInTheDocument()
     expect(lastInput()).toBe(true)
     expect(screen.getByRole('complementary', { name: 'Mentors met' })).toHaveTextContent('0/2')
+  })
+
+  it('shows the saved goal in the quest log', async () => {
+    api.getGoal.mockResolvedValue({ goal: 'Retire by 45' })
+    const user = userEvent.setup()
+    await renderWorld()
+    await user.click(screen.getByRole('button', { name: /enter the square/i }))
+    await user.click(screen.getByRole('button', { name: /mentors met/i }))
+
+    expect(await screen.findByText('Retire by 45')).toBeInTheDocument()
+  })
+
+  it('stops the player walking while a goal is typed, and saves it', async () => {
+    const user = userEvent.setup()
+    await renderWorld()
+    await user.click(screen.getByRole('button', { name: /enter the square/i }))
+    await user.click(screen.getByRole('button', { name: /mentors met/i }))
+
+    await user.click(await screen.findByRole('button', { name: 'Set your goal' }))
+    expect(lastInput()).toBe(false)
+
+    await user.type(screen.getByRole('textbox', { name: 'Your goal' }), 'Retire by 45{Enter}')
+
+    expect(api.setGoal).toHaveBeenCalledWith('Retire by 45')
+    expect(await screen.findByText('Retire by 45')).toBeInTheDocument()
+    expect(lastInput()).toBe(true)
   })
 
   it('opens a conversation when the game asks to talk, and closes it with Escape', async () => {

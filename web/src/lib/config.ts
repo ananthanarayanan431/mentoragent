@@ -23,6 +23,9 @@ export const API_PREFIX = '/api/v1'
 /** The longest message the backend accepts (`AgentSettings.MAX_MESSAGE_CHARS`). */
 export const MAX_MESSAGE_CHARS = 4000
 
+/** The longest goal the backend accepts (`AgentSettings.GOAL_MAX_CHARS`). */
+export const GOAL_MAX_CHARS = 280
+
 /** How often to refresh a mentor while their memory is building. */
 export const MEMORY_POLL_MS = 5000
 
