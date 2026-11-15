@@ -17,6 +17,35 @@ const LINE_MAX_MS = 6000
 
 export type Pair = [visitorId: string, hostId: string]
 
+/** How long after two mentors finish talking you can still join them. */
+export const JOIN_WINDOW_MS = 10_000
+
+/** Two mentors meeting in the square, from the walk to a few seconds after. */
+export interface Meeting {
+  /** The visitor first, then the host. */
+  mentorIds: Pair
+  /** The stored chat, once the server wrote it; joining continues from it. */
+  ambientId: string | null
+  /** What they said, in order (empty until the chat arrives). */
+  lines: { mentorId: string; text: string }[]
+  /** When it ended (ms since epoch); null while it is going on. */
+  endedAt: number | null
+}
+
+/**
+ * The meeting walking up to `mentorId` would join: one they are in, going on or
+ * ended less than `JOIN_WINDOW_MS` ago. Null means an ordinary one-on-one talk.
+ */
+export function joinableMeeting(
+  meeting: Meeting | null,
+  mentorId: string,
+  now: number,
+): Meeting | null {
+  if (!meeting || !meeting.mentorIds.includes(mentorId)) return null
+  if (meeting.endedAt !== null && now - meeting.endedAt >= JOIN_WINDOW_MS) return null
+  return meeting
+}
+
 /** Every two mentors who have both advised you and are not still reading up. */
 export function eligiblePairs(mentors: readonly Mentor[], ledger: readonly LedgerLine[]): Pair[] {
   const advised = new Set(ledger.map((line) => line.mentor_id))

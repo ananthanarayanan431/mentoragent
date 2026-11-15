@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { ClientMessage, LedgerLine, Mentor, ServerEvent } from '@/lib/types'
+import type { AmbientChat, ClientMessage, LedgerLine, Mentor, ServerEvent } from '@/lib/types'
+import { AMBIENT_MAX_DELAY_MS } from './ambient'
 import type { WorldBridge } from './world-bridge'
 import { WorldPage } from './world-page'
 
@@ -30,7 +31,16 @@ vi.mock('./game/create-game', () => ({
     if (game.fail) throw new Error('WebGL unavailable')
     game.bridge = options.bridge
     game.started.push(options.mentors)
-    for (const name of ['input', 'labels', 'endTalk', 'paused', 'addMentor', 'bubbles'] as const) {
+    for (const name of [
+      'input',
+      'labels',
+      'endTalk',
+      'paused',
+      'addMentor',
+      'bubbles',
+      'visit',
+      'joinTalk',
+    ] as const) {
       options.bridge.commands.on(name, (payload) => game.commands.push({ name, payload }))
     }
     return { destroy: () => (game.destroyed += 1) }
@@ -45,6 +55,7 @@ const api = vi.hoisted(() => ({
   setGoal: vi.fn<(goal: string) => Promise<{ goal: string | null }>>(),
   listLedger: vi.fn<() => Promise<LedgerLine[]>>(),
   deleteLedgerLine: vi.fn<(id: string) => Promise<void>>(),
+  startAmbientChat: vi.fn<(ids: [string, string]) => Promise<AmbientChat>>(),
 }))
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
@@ -55,6 +66,7 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   setGoal: api.setGoal,
   listLedger: api.listLedger,
   deleteLedgerLine: api.deleteLedgerLine,
+  startAmbientChat: api.startAmbientChat,
 }))
 
 // No real socket in tests. A request to speak first is answered with silence, as
@@ -76,6 +88,16 @@ vi.mock('@/features/chat/use-chat-socket', () => ({
 function fromGame(run: (bridge: WorldBridge) => void) {
   act(() => run(game.bridge!))
 }
+
+/** A ledger line from this mentor (they have advised you). */
+const said = (mentorId: string): LedgerLine => ({
+  id: mentorId,
+  mentor_id: mentorId,
+  mentor_name: mentorId,
+  topic: 't',
+  advice: 'a',
+  created_at: '2026-11-15T10:00:00Z',
+})
 
 async function renderWorld() {
   render(
@@ -174,6 +196,44 @@ describe('WorldPage', () => {
         texts: { ada: 'Told you about engines' },
       }),
     )
+  })
+
+  it('joins two mentors who are chatting when the player walks up to one', async () => {
+    api.listLedger.mockResolvedValue(MENTORS.map((m) => said(m.id)))
+    api.startAmbientChat.mockImplementation(async ([visitorId, hostId]) => ({
+      id: 'amb1',
+      mentor_ids: [visitorId, hostId],
+      lines: [{ mentor_id: visitorId, text: 'About their goal...' }],
+      created_at: '2026-11-15T10:00:00Z',
+    }))
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+      await renderWorld()
+      await user.click(screen.getByRole('button', { name: /enter the square/i }))
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(AMBIENT_MAX_DELAY_MS)
+      })
+      const visit = game.commands.findLast((command) => command.name === 'visit')?.payload as
+        { visitorId: string; hostId: string } | undefined
+      expect(visit).toBeDefined()
+
+      fromGame((bridge) => bridge.events.emit('met', visit!))
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      fromGame((bridge) => bridge.events.emit('talk', { mentorId: visit!.hostId }))
+
+      expect(
+        await screen.findByRole('dialog', { name: /^Conversation with .+ and .+$/ }),
+      ).toHaveTextContent('About their goal...')
+      expect(game.commands).toContainEqual({
+        name: 'joinTalk',
+        payload: { mentorId: visit!.visitorId },
+      })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('stops the player walking while a goal is typed, and saves it', async () => {

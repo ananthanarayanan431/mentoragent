@@ -480,6 +480,10 @@ export class WorldScene extends Phaser.Scene {
           if (mentor) this.leaveVisit(mentor)
         }
       }),
+      commands.on('joinTalk', ({ mentorId }) => {
+        const mentor = this.mentor(mentorId)
+        if (mentor) mentor.talking = true
+      }),
       commands.on('endTalk', ({ mentorId }) => {
         const mentor = this.mentors.find((m) => m.id === mentorId)
         if (mentor) mentor.talking = false

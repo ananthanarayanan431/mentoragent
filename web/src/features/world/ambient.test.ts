@@ -5,7 +5,10 @@ import {
   AMBIENT_MAX_DELAY_MS,
   AMBIENT_MIN_DELAY_MS,
   eligiblePairs,
+  JOIN_WINDOW_MS,
+  joinableMeeting,
   lineDurationMs,
+  type Meeting,
   nextDelayMs,
   pickPair,
 } from './ambient'
@@ -73,5 +76,29 @@ describe('timing', () => {
   it('leaves a line up long enough to read, but not forever', () => {
     expect(lineDurationMs('Hi.')).toBe(1500 + 3 * 60)
     expect(lineDurationMs('x'.repeat(500))).toBe(6000)
+  })
+})
+
+describe('joinableMeeting', () => {
+  const going: Meeting = {
+    mentorIds: ['buffett', 'munger'],
+    ambientId: 'a1',
+    lines: [],
+    endedAt: null,
+  }
+
+  it('lets you join two mentors who are talking', () => {
+    expect(joinableMeeting(going, 'munger', 1000)).toBe(going)
+  })
+
+  it('still lets you join just after they finish, not long after', () => {
+    const ended = { ...going, endedAt: 1000 }
+    expect(joinableMeeting(ended, 'buffett', 1000 + JOIN_WINDOW_MS - 1)).toBe(ended)
+    expect(joinableMeeting(ended, 'buffett', 1000 + JOIN_WINDOW_MS)).toBeNull()
+  })
+
+  it('is about the two of them only', () => {
+    expect(joinableMeeting(going, 'dalio', 1000)).toBeNull()
+    expect(joinableMeeting(null, 'buffett', 1000)).toBeNull()
   })
 })

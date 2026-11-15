@@ -34,6 +34,8 @@ export interface GameCommands {
   addMentor: { id: string; name: string }
   /** The dialogue with this mentor closed: they go back to wandering. */
   endTalk: { mentorId: string }
+  /** The player joined two mentors: this one (not the one walked up to) stops too. */
+  joinTalk: { mentorId: string }
   /** Speech bubble text per mentor id (what they told you); missing ids show none. */
   bubbles: { texts: Record<string, string> }
   /** Send `visitorId` walking over to `hostId`; answered with `met` or `visitFailed`. */

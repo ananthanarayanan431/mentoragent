@@ -2,18 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 
 import { startAmbientChat } from '@/lib/api'
 import type { LedgerLine, Mentor } from '@/lib/types'
-import { eligiblePairs, lineDurationMs, nextDelayMs, pickPair, type Pair } from './ambient'
+import {
+  eligiblePairs,
+  lineDurationMs,
+  nextDelayMs,
+  pickPair,
+  type Meeting,
+  type Pair,
+} from './ambient'
 import type { WorldBridge } from './world-bridge'
-
-/** Two mentors meeting in the square, from the walk to a few seconds after. */
-export interface Meeting {
-  /** The visitor first, then the host. */
-  mentorIds: Pair
-  /** The stored chat, once the server wrote it; joining continues from it. */
-  ambientId: string | null
-  /** When it ended (ms since epoch); null while it is going on. */
-  endedAt: number | null
-}
 
 interface Options {
   bridge: WorldBridge
@@ -98,14 +95,18 @@ export function useAmbientChats({
         return
       }
       state.lastPair = pair
-      update({ mentorIds: pair, ambientId: null, endedAt: null })
+      update({ mentorIds: pair, ambientId: null, lines: [], endedAt: null })
       bridge.commands.emit('visit', { visitorId: pair[0], hostId: pair[1] })
     }
     const play = async (current: Meeting, generation: number) => {
       try {
         const chat = await startAmbientChat(current.mentorIds)
         if (generation !== state.generation || state.meeting !== current) return
-        const withChat = { ...current, ambientId: chat.id }
+        const withChat = {
+          ...current,
+          ambientId: chat.id,
+          lines: chat.lines.map((line) => ({ mentorId: line.mentor_id, text: line.text })),
+        }
         update(withChat)
         let at = 0
         for (const line of chat.lines) {

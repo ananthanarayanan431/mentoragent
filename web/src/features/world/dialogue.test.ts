@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Message } from '@/lib/types'
-import { currentExchange, nextRevealed } from './dialogue'
+import { currentExchange, groupExchange, nextRevealed } from './dialogue'
 
 const user = (id: string, content = id): Message => ({ id, role: 'user', content })
 const mentor = (id: string, content = id, streaming = false): Message => ({
@@ -51,5 +51,23 @@ describe('nextRevealed', () => {
   it('never passes the end', () => {
     expect(nextRevealed(10, 10)).toBe(10)
     expect(nextRevealed(12, 10)).toBe(10)
+  })
+})
+
+const said = (id: string, mentorId: string): Message => ({
+  id,
+  role: 'mentor',
+  content: id,
+  mentorId,
+})
+
+describe('groupExchange', () => {
+  it('is your newest question and the replies to it, in order', () => {
+    const messages = [user('q1'), said('a1', 'b'), said('a2', 'm'), user('q2'), said('a3', 'b')]
+    expect(groupExchange(messages)).toEqual({ question: messages[3], replies: [messages[4]] })
+  })
+
+  it('has no question before you said anything', () => {
+    expect(groupExchange([])).toEqual({ question: null, replies: [] })
   })
 })

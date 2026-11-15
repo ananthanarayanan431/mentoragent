@@ -33,6 +33,23 @@ export function currentExchange(messages: readonly Message[]): Exchange {
   return { question: before ?? null, reply: messages[replyIndex] ?? null }
 }
 
+/** The exchange on screen in a group conversation: your question and the replies. */
+export interface GroupExchange {
+  question: Message | null
+  /** The mentors' replies to it, in the order they spoke. */
+  replies: Message[]
+}
+
+/** Your newest question and every mentor reply after it. */
+export function groupExchange(messages: readonly Message[]): GroupExchange {
+  const at = messages.findLastIndex((m) => m.role === 'user')
+  if (at === -1) return { question: null, replies: [] }
+  return {
+    question: messages[at]!,
+    replies: messages.slice(at + 1).filter((m) => m.role === 'mentor'),
+  }
+}
+
 /**
  * How many characters to show after one more tick. One character per tick
  * reads like a typewriter; when streamed text has run far ahead, larger steps
