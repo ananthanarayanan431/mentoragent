@@ -6,6 +6,7 @@
  * part of OpenAPI and are declared here, next to the UI-only types.
  */
 import type {
+  AmbientChatOut,
   ChatRequest,
   ChatResponse,
   GoalOut,
@@ -27,6 +28,8 @@ export type {
   PoolOut,
 }
 export type Mentor = MentorOut
+/** Two mentors chatting about your goal (overheard in the square). */
+export type AmbientChat = AmbientChatOut
 /** One piece of advice a mentor gave you, as every mentor reads it. */
 export type LedgerLine = LedgerLineOut
 

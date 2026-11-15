@@ -12,6 +12,7 @@ import { LedgerList } from './ledger-list'
 import { useMediaQuery } from '@/lib/use-media-query'
 import { PauseMenu, QuestLog, TitleScreen } from './menus'
 import { levelFor, loadFriendship, recordMessage } from './progress'
+import { useAmbientChats } from './use-ambient-chats'
 import { useLedger } from './use-ledger'
 import { createWorldBridge } from './world-bridge'
 
@@ -211,6 +212,15 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
   useEffect(() => {
     bridge.commands.emit('paused', { paused: mode.kind === 'title' || mode.kind === 'paused' })
   }, [bridge, mode, ready])
+
+  // Now and then two mentors who both advised you meet and talk about your goal; only
+  // while you walk around the square (never on the title, paused, or in a dialogue).
+  useAmbientChats({
+    bridge,
+    active: ready && mode.kind === 'playing',
+    mentors,
+    ledger: ledger.lines,
+  })
 
   // What each mentor told you floats over them as the player walks past.
   useEffect(() => {
