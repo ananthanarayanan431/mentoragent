@@ -55,12 +55,12 @@ spec is updated to match.
 
 ### Phase 1: Advice ledger and goal (spec step 1)
 
-- [ ] [01 Goal API](01-goal-api.md) (agent, M)
-- [ ] [02 Goal in the quest log](02-goal-in-quest-log.md) (web, S)
-- [ ] [03 Write a ledger line after each exchange](03-ledger-write.md) (agent, M)
-- [ ] [04 Ledger API: list and delete](04-ledger-api.md) (agent, S)
-- [ ] [05 Mentors read the goal and the ledger](05-mentor-context.md) (agent, M)
-- [ ] [06 Ledger in the quest log](06-ledger-in-quest-log.md) (web, S)
+- [x] [01 Goal API](01-goal-api.md) (agent, M)
+- [x] [02 Goal in the quest log](02-goal-in-quest-log.md) (web, S)
+- [x] [03 Write a ledger line after each exchange](03-ledger-write.md) (agent, M)
+- [x] [04 Ledger API: list and delete](04-ledger-api.md) (agent, S)
+- [x] [05 Mentors read the goal and the ledger](05-mentor-context.md) (agent, M)
+- [x] [06 Ledger in the quest log](06-ledger-in-quest-log.md) (web, S)
 
 **Checkpoint A** (spec success criterion 1): both gates pass; after telling
 Buffett your goal and getting advice, Munger's reply to a related question
@@ -69,9 +69,9 @@ the human before Phase 2.
 
 ### Phase 2: Mentors speak first, speech bubbles (spec step 2)
 
-- [ ] [07 Opener on the WebSocket](07-opener-agent.md) (agent, M)
-- [ ] [08 Mentors speak first in the dialogue](08-opener-web.md) (web, M)
-- [ ] [09 Speech bubbles](09-speech-bubbles.md) (web, M)
+- [x] [07 Opener on the WebSocket](07-opener-agent.md) (agent, M)
+- [x] [08 Mentors speak first in the dialogue](08-opener-web.md) (web, M)
+- [x] [09 Speech bubbles](09-speech-bubbles.md) (web, M)
 
 **Checkpoint B** (criterion 2): opening Munger after talking to Buffett starts
 with Munger reacting; reopening with nothing new shows the greeting and calls
@@ -79,9 +79,9 @@ no model; bubbles show over mentors you have talked to.
 
 ### Phase 3: Ambient chats (spec step 3)
 
-- [ ] [10 Ambient chat API](10-ambient-api.md) (agent, M)
-- [ ] [11 Mentors visit each other](11-mentor-visits.md) (game, M)
-- [ ] [12 Ambient chats in the square](12-ambient-chats-web.md) (web, M)
+- [x] [10 Ambient chat API](10-ambient-api.md) (agent, M)
+- [x] [11 Mentors visit each other](11-mentor-visits.md) (game, M)
+- [x] [12 Ambient chats in the square](12-ambient-chats-web.md) (web, M)
 
 **Checkpoint C** (criterion 3): 15 minutes of play with two eligible mentors
 gives at least one chat about your goal, never less than 3 minutes apart, never
@@ -89,13 +89,36 @@ while paused or with the tab closed.
 
 ### Phase 4: Join a conversation (spec step 4)
 
-- [ ] [13 Group turn on the WebSocket](13-group-turn-agent.md) (agent, M)
-- [ ] [14 Group conversation state](14-group-state-web.md) (web, M)
-- [ ] [15 Join a conversation](15-join-conversation-web.md) (web, M)
+- [x] [13 Group turn on the WebSocket](13-group-turn-agent.md) (agent, M)
+- [x] [14 Group conversation state](14-group-state-web.md) (web, M)
+- [x] [15 Join a conversation](15-join-conversation-web.md) (web, M)
 
 **Checkpoint D** (criterion 4 and 5): joining an ambient chat and asking one
 question gets two replies, the second reacting to the first, each under its own
 name plate; both gates pass; the branch is ready for review.
+
+## Outcome
+
+All 15 tasks are done on `feat/living-square`, one commit each (plus a UTC fix
+found in task 04, a prompts refactor from another session, and moving the
+dialogue line into its own module). Both gates pass: 228 agent tests (79%
+coverage, no known vulnerabilities) and 209 web tests plus the build.
+
+Checked against real models on a scratch database (`ls_check`):
+
+- **A:** after Buffett's advice, Munger built on it in his own voice without
+  being told it again.
+- **B:** Dalio opened by reacting to Buffett and Munger; asking again was
+  `silent`; his next reply continued from the opener (MongoDB checkpointer).
+- **C:** a Buffett and Munger chat about the goal; a second request at once was
+  429; a mentor who never advised you was 409.
+- **D:** joining that chat, Buffett answered after Munger and built on him. The
+  second speaker first restated the first almost word for word, so the group
+  rule now forbids restating.
+
+Not checked in a browser (the Chrome extension was not connected): the look of
+the bubbles, mentors walking to each other, and the 15 minutes of play for
+checkpoint C. The flows are covered by component and integration tests.
 
 ## Parallel work
 
