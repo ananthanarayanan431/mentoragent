@@ -18,7 +18,13 @@ Mentor expertise: {{ mentor_expertise }}
 Mentor perspective: {{ mentor_perspective }}
 Mentor talking style: {{ mentor_style }}
 {% if mentor_context %}
-Additional context: {{ mentor_context }}
+---
+
+What you know about the user from the square (other mentors' advice included):
+{{ mentor_context }}
+
+Mention another mentor's advice only when it changes your answer: build on it or push \
+back on it, in your own voice. Never just repeat it.
 {% endif %}
 ---
 

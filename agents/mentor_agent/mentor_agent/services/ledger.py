@@ -8,17 +8,23 @@ from typing import TYPE_CHECKING, Protocol
 from langchain_core.messages import HumanMessage, SystemMessage
 from loguru import logger
 from pydantic import BaseModel, Field
+from pymongo.errors import PyMongoError
 
+from mentor_agent.config import settings
 from mentor_agent.models.ledger import LedgerLine
 from mentor_agent.prompts import LEDGER_SYSTEM_PROMPT
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
     from langchain_core.language_models import BaseChatModel
 
     from mentor_agent.db.client import AsyncMongoRepository
     from mentor_agent.models.mentor_extract import MentorExtract
+    from mentor_agent.models.profile import Profile
+
+#: Lines read from the store per reply: enough to find the newest few from other mentors.
+_LINES_SCANNED = 50
 
 
 class LedgerNote(BaseModel):
@@ -110,3 +116,40 @@ class LlmLedgerWriter:
             logger.debug("Noted advice from {} in the ledger", mentor.id)
         except Exception:  # noqa: BLE001 - a background job: the chat must not notice
             logger.exception("Could not note advice from {} in the ledger", mentor.id)
+
+
+class ProfileReader(Protocol):
+    """Where the user's goal is read from."""
+
+    async def get(self) -> Profile: ...
+
+
+def ledger_context(
+    goal: str | None, lines: Sequence[LedgerLine], mentor_id: str, limit: int | None = None
+) -> str:
+    """The context one mentor reads before replying: the goal, then the newest advice
+    from the other mentors (their own is in their conversation already). Pure.
+
+    Args:
+        goal: The user's goal, if set.
+        lines: Ledger lines, newest first.
+        mentor_id: The mentor about to reply.
+        limit: Lines kept; defaults to ``LEDGER_LINES_IN_CONTEXT``.
+    """
+    keep = settings.agent.LEDGER_LINES_IN_CONTEXT if limit is None else limit
+    others = [line for line in lines if line.mentor_id != mentor_id][:keep]
+    parts = [f"The user's goal: {goal}"] if goal else []
+    parts += [f"{line.mentor_name} advised, on {line.topic}: {line.advice}" for line in others]
+    return "\n".join(parts)
+
+
+async def shared_context(profile: ProfileReader, ledger: AdviceLedger, mentor_id: str) -> str:
+    """Read the goal and the ledger for one mentor; empty if the database fails, so a
+    reply never depends on it."""
+    try:
+        goal = (await profile.get()).goal
+        lines = await ledger.recent(_LINES_SCANNED)
+    except PyMongoError:
+        logger.exception("Could not read the shared context for {}", mentor_id)
+        return ""
+    return ledger_context(goal, lines, mentor_id)

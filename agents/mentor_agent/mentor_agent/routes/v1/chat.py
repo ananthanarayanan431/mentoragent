@@ -18,14 +18,17 @@ from loguru import logger
 from pydantic import ValidationError
 
 from mentor_agent.core.dependencies import (
+    AdviceLedgerDep,
     ConversationServiceDep,
     LedgerWriterDep,
     MentorServiceDep,
+    ProfileServiceDep,
     require_websocket_api_key,
 )
 from mentor_agent.core.errors import MentorAgentError, unpack_validation_error
 from mentor_agent.schemas.common import ConversationId
 from mentor_agent.schemas.v1.chat import ChatRequest, ChatResponse
+from mentor_agent.services.ledger import shared_context
 from mentor_agent.services.mentors import ensure_ready_to_chat
 
 router = APIRouter(tags=["chat"])
@@ -51,13 +54,18 @@ async def chat(
     mentors: MentorServiceDep,
     conversations: ConversationServiceDep,
     ledger_writer: LedgerWriterDep,
+    profile: ProfileServiceDep,
+    ledger: AdviceLedgerDep,
     background: BackgroundTasks,
 ) -> ChatResponse:
     """Send a message to a mentor and get the full reply (409 while their memory builds)."""
     mentor = await mentors.get_mentor(body.mentor_id)
     ensure_ready_to_chat(mentor)
     conversation_id = body.conversation_id or _new_conversation_id()
-    reply = await conversations.respond(mentor.to_mentor(), body.message, conversation_id)
+    context = await shared_context(profile, ledger, mentor.id)
+    reply = await conversations.respond(
+        mentor.to_mentor(), body.message, conversation_id, mentor_context=context
+    )
     background.add_task(ledger_writer.record, mentor, conversation_id, body.message, reply.content)
     return ChatResponse(
         mentor_id=mentor.id, conversation_id=conversation_id, response=reply.content
@@ -80,6 +88,8 @@ async def chat_websocket(
     mentors: MentorServiceDep,
     conversations: ConversationServiceDep,
     ledger_writer: LedgerWriterDep,
+    profile: ProfileServiceDep,
+    ledger: AdviceLedgerDep,
 ) -> None:
     """Stream mentor replies over a WebSocket.
 
@@ -117,8 +127,9 @@ async def chat_websocket(
                 ensure_ready_to_chat(mentor)
                 await websocket.send_json({"type": "start", "conversation_id": conversation_id})
                 parts: list[str] = []
+                context = await shared_context(profile, ledger, mentor.id)
                 async for token in conversations.stream(
-                    mentor.to_mentor(), body.message, conversation_id
+                    mentor.to_mentor(), body.message, conversation_id, mentor_context=context
                 ):
                     parts.append(token)
                     await websocket.send_json({"type": "chunk", "content": token})
