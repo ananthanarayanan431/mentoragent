@@ -7,7 +7,9 @@ const require = createRequire(process.env.PW_DIR + '/')
 const { chromium } = require('playwright')
 const here = path.dirname(new URL(import.meta.url).pathname)
 const out = process.argv[2]
-const list = process.argv[3] ? process.argv[3].split(',').map(Number) : [...Array(600).keys()]
+const list = process.argv[3]
+  ? process.argv[3].split(',').map(Number)
+  : [...Array(Number(process.env.TOTAL ?? 765)).keys()]
 fs.mkdirSync(out, { recursive: true })
 
 const browser = await chromium.launch({ channel: 'chrome' })

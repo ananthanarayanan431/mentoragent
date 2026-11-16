@@ -1,4 +1,4 @@
-"""Soundtrack for the MentorAgents launch video: 120 BPM, A minor, 20 s.
+"""Soundtrack for the MentorAgents launch video: 120 BPM, A minor, 25.5 s.
 
 Every event sits on one grid counted from frame 0 (beat = 0.5 s = 15 frames).
 Run: uv run --with numpy python music.py out.wav
@@ -10,7 +10,7 @@ import wave
 import numpy as np
 
 SR = 48000
-DUR = 20.0
+DUR = 25.5
 BEAT = 0.5
 N = int(SR * DUR)
 L = np.zeros(N)
@@ -84,7 +84,7 @@ def noise(length: float, cutoff: float, d: float, high: bool = False) -> np.ndar
 CHORDS = [(57, [57, 60, 64]), (53, [53, 57, 60]), (48, [55, 60, 64]), (55, [55, 59, 62])]
 
 # Pad: whole bars, gentle, the whole length (quieter in the hook).
-for bar in range(10):
+for bar in range(13):
     root, triad = CHORDS[bar % 4]
     for m in triad:
         sig = tone(hz(m), 2.2, "tri", a=0.25, d=1.6)
@@ -99,7 +99,8 @@ n = int(SR * 1.0)
 r = noise(1.0, 3000, 10.0, high=True) * np.linspace(0, 1, n) ** 2
 add(1.5, r, 0.05)
 
-GROOVE_START, OUTRO = 2.5, 15.5
+GROOVE_START, OUTRO = 2.5, 22.5
+LAST = 24.5
 beats = np.arange(0, DUR / BEAT)
 for b in beats:
     t = b * BEAT
@@ -109,13 +110,13 @@ for b in beats:
             add(t, noise(0.25, 2500, 0.07), 0.20, pan=0.05)  # soft clap
         for off in (0.0, 0.25):
             add(t + off, noise(0.06, 7000, 0.015, high=True), 0.06 if off else 0.04, pan=0.35)
-    elif t >= OUTRO and int(b) % 2 == 1 and t < 19.0:
+    elif t >= OUTRO and int(b) % 2 == 1 and t < LAST:
         add(t, kick(), 0.40)  # half-time outro
 
 # Bass: eighth notes on the root, from the drop through the outro.
 for b8 in range(int(DUR / (BEAT / 2))):
     t = b8 * BEAT / 2
-    if t < GROOVE_START or t >= 19.0:
+    if t < GROOVE_START or t >= LAST:
         continue
     root = CHORDS[int(t // 2.0) % 4][0] - 12
     note = root + (12 if b8 % 4 == 3 else 0)
@@ -124,7 +125,7 @@ for b8 in range(int(DUR / (BEAT / 2))):
 # Lead: an A-minor-pentatonic figure per bar, sixteenth-grid, from the drop.
 FIG = [(0, 0), (0.5, 3), (0.75, 5), (1.0, 7), (1.5, 5), (1.75, 3)]
 PENT = [69, 72, 74, 76, 79, 81, 84, 86]
-for bar in range(1, 8):
+for bar in range(1, 11):
     t0 = bar * 2.0
     shift = [0, -1, 0, 1][bar % 4]
     for off, step in FIG:
@@ -137,24 +138,25 @@ for bar in range(1, 8):
         add(t + 0.375, sig, 0.02, pan=-0.35)  # dotted-eighth echo, shared space
 
 # Effects, all on the grid and in key.
-for t in (2.5, 5.0, 11.0, 13.5):  # cuts
+for t in (2.5, 5.5, 7.5, 12.0, 15.5, 17.5):  # cuts
     add(t, lowpass(tone(hz(81), 0.25, "square", d=0.06), 2500), 0.06, pan=-0.1)
     add(t, tone(hz(88), 0.4, "sine", d=0.12), 0.04)
-for i in range(10):  # typing ticks, 5.25-6.375 s, sixteenths
-    add(5.25 + i * 0.125, noise(0.03, 5000, 0.006, high=True), 0.05, pan=0.2)
-for t, m in [(12.25, 81), (12.5, 84), (12.75, 86), (13.0, 88)]:  # chips land
+for start, count in ((2.625, 7), (7.625, 5), (12.25, 3), (17.625, 7)):  # typing, sixteenths
+    for i in range(count):
+        add(start + i * 0.125, noise(0.03, 5000, 0.006, high=True), 0.05, pan=0.2)
+for t, m in [(6.25, 81), (6.5, 84), (6.75, 86), (7.0, 88)]:  # chips land
     add(t, tone(hz(m), 0.5, "sine", d=0.15), 0.07, pan=0.15)
 for m in (81, 88, 93):  # memory ready chime
-    add(13.0, tone(hz(m), 1.4, "sine", d=0.5), 0.05)
-    add(13.375, tone(hz(m), 1.0, "sine", d=0.4), 0.018)
+    add(7.0, tone(hz(m), 1.4, "sine", d=0.5), 0.05)
+    add(7.375, tone(hz(m), 1.0, "sine", d=0.4), 0.018)
 
-# Outro: a full Am hit at 15.5 s that rings out, then a last A at 19 s.
+# Outro: a full Am hit at 22.5 s that rings out, then a last A at 24.5 s.
 for m in (45, 57, 64, 69, 72, 76):
     add(OUTRO, lowpass(tone(hz(m), 4.0, "tri", a=0.01, d=1.6), 2400), 0.06)
-for t, m in [(16.0, 76), (16.5, 79), (17.0, 81)]:
+for t, m in [(22.75, 76), (23.0, 79), (23.25, 81)]:
     add(t, lowpass(tone(hz(m), 0.6, "square", d=0.2), 2600), 0.05, pan=0.2)
 for m in (57, 69, 76):
-    add(19.0, tone(hz(m), 1.0, "sine", a=0.01, d=0.5), 0.05)
+    add(LAST, tone(hz(m), 1.0, "sine", a=0.01, d=0.5), 0.05)
 
 # Master: gentle fade at the very end, soft clip, normalise.
 fade = np.ones(N)
