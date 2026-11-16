@@ -36,6 +36,8 @@ for file in "${staged[@]}"; do
   # Lockfiles are generated and legitimately large.
   case "$file" in
     */uv.lock | */package-lock.json) size=0 ;;
+    # The launch video is the one binary kept in the repo on purpose.
+    marketing-video/brag.mp4) size=0 ;;
   esac
   if [ "$size" -gt "$max_bytes" ]; then
     fail "$file is $size bytes (max $max_bytes). Keep large files out of git."
