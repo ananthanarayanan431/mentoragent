@@ -21,10 +21,11 @@ function byCategory(presets: readonly Preset[]): [string, Preset[]][] {
 /**
  * Famous mentors whose background is stored with the agent, so no web research is
  * needed. Pick one, read who they are, then create them; they join your mentors,
- * not the square. Shows nothing if the agent offers none.
+ * not the square. Says so if the agent offers none.
  */
 export function PresetPicker({ onCreated }: Props) {
   const [presets, setPresets] = useState<Preset[]>([])
+  const [loaded, setLoaded] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
@@ -34,7 +35,10 @@ export function PresetPicker({ onCreated }: Props) {
     const controller = new AbortController()
     listPresets(controller.signal)
       .then(setPresets)
-      .catch(() => setPresets([])) // an older agent without presets: just the form
+      .catch(() => setPresets([])) // an older agent without presets
+      .finally(() => {
+        if (!controller.signal.aborted) setLoaded(true)
+      })
     return () => controller.abort()
   }, [])
 
@@ -55,7 +59,14 @@ export function PresetPicker({ onCreated }: Props) {
     }
   }
 
-  if (!presets.length) return null
+  if (!loaded) return null
+  if (!presets.length) {
+    return (
+      <p role="status" className="mt-6 text-sm text-muted">
+        No preset mentors are available from the agent right now.
+      </p>
+    )
+  }
 
   return (
     <section

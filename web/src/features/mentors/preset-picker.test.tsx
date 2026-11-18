@@ -100,11 +100,12 @@ describe('PresetPicker', () => {
     expect(screen.getByRole('radio', { name: /Isaac Newton/ })).toBeDisabled()
   })
 
-  it('shows nothing when the agent offers no presets', async () => {
-    const fetchMock = vi.fn<() => Promise<Response>>(() => json({ detail: 'Not Found' }, 404))
-    vi.stubGlobal('fetch', fetchMock)
-    const { container } = render(<PresetPicker onCreated={() => {}} />)
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled())
-    expect(container).toBeEmptyDOMElement()
+  it('says so when the agent offers no presets', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<() => Promise<Response>>(() => json({ detail: 'Not Found' }, 404)),
+    )
+    render(<PresetPicker onCreated={() => {}} />)
+    expect(await screen.findByRole('status')).toHaveTextContent('No preset mentors')
   })
 })

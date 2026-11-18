@@ -122,6 +122,43 @@ describe('MentorsPage', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Ada Lovelace left the square')
   })
 
+  it('opens the preset picker from its own button and lists the created preset', async () => {
+    const newton = { ...mentor, id: 'isaac_newton', name: 'Isaac Newton', memory: 'building' }
+    const preset = {
+      id: 'isaac_newton',
+      name: 'Isaac Newton',
+      expertise: 'Mechanics and optics',
+      perspective: 'Nature runs on exact laws.',
+      style: 'Formal',
+      category: 'Science',
+      added: false,
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<(url: string, init?: RequestInit) => Promise<Response>>((url, init) => {
+        const body =
+          init?.method === 'POST'
+            ? newton
+            : url.endsWith('/mentors/presets')
+              ? [preset]
+              : url.endsWith('/mentors/pool')
+                ? { remaining: 0, total: 1 }
+                : [mentor]
+        return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))
+      }),
+    )
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Add a preset mentor' }))
+    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('radio', { name: /Isaac Newton/ }))
+    await user.click(screen.getByRole('button', { name: 'Create Isaac Newton' }))
+
+    expect(await screen.findByText(/Isaac Newton was created from the presets/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Isaac Newton/ })).toBeInTheDocument()
+  })
+
   it('creates a mentor from the form and lists them', async () => {
     const grace = { ...mentor, id: 'grace_hopper', name: 'Grace Hopper', memory: 'building' }
     vi.stubGlobal(

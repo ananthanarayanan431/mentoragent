@@ -1,4 +1,4 @@
-import { PenLine, UserPlus, Users } from 'lucide-react'
+import { Library, PenLine, UserPlus, Users } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 import { CreateMentorForm } from './create-mentor-form'
@@ -18,6 +18,8 @@ import { API_BASE_URL } from '@/lib/config'
 import type { Mentor } from '@/lib/types'
 
 type Status = 'loading' | 'ready' | 'error'
+/** Which panel opens under the buttons: the create form or the preset picker. */
+type Panel = 'create' | 'preset' | null
 
 export function MentorsPage() {
   const [mentors, setMentors] = useState<Mentor[]>([])
@@ -46,11 +48,12 @@ export function MentorsPage() {
   const [poolLeft, setPoolLeft] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
   const [notice, setNotice] = useState('')
-  const [creating, setCreating] = useState(false)
+  const [panel, setPanel] = useState<Panel>(null)
+  const toggle = (next: Exclude<Panel, null>) => setPanel((open) => (open === next ? null : next))
 
   const created = useCallback((mentor: Mentor, researching: boolean) => {
     setMentors((current) => [...current, mentor])
-    setCreating(false)
+    setPanel(null)
     setNotice(
       researching
         ? `${mentor.name} was created. We are searching the web for more about them and building their memory; this takes a few minutes. Bring them to the square from their card when you are ready.`
@@ -122,12 +125,21 @@ export function MentorsPage() {
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={() => setCreating((open) => !open)}
-            aria-expanded={creating}
+            onClick={() => toggle('create')}
+            aria-expanded={panel === 'create'}
             className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 font-pixel text-sm font-semibold text-on-accent hover:bg-accent-hover"
           >
             <PenLine size={15} aria-hidden="true" />
             Create a mentor
+          </button>
+          <button
+            type="button"
+            onClick={() => toggle('preset')}
+            aria-expanded={panel === 'preset'}
+            className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium hover:bg-raised"
+          >
+            <Library size={15} aria-hidden="true" />
+            Add a preset mentor
           </button>
           {poolLeft !== null && (
             <button
@@ -146,10 +158,15 @@ export function MentorsPage() {
         </div>
       </div>
 
-      {creating && (
+      {panel === 'preset' && (
         <div className="max-w-2xl">
           <PresetPicker onCreated={presetCreated} />
-          <CreateMentorForm onCreated={created} onCancel={() => setCreating(false)} />
+        </div>
+      )}
+
+      {panel === 'create' && (
+        <div className="max-w-2xl">
+          <CreateMentorForm onCreated={created} onCancel={() => setPanel(null)} />
         </div>
       )}
 
