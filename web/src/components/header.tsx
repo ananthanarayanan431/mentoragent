@@ -26,6 +26,9 @@ export function Header({ theme, onThemeChange }: Props) {
             <NavLink to="/mentors" className={navClass}>
               Mentors
             </NavLink>
+            <NavLink to="/settings" className={navClass}>
+              Settings
+            </NavLink>
           </nav>
           <ThemeToggle theme={theme} onChange={onThemeChange} />
         </div>

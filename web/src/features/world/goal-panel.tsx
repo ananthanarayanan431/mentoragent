@@ -10,11 +10,11 @@ interface Props {
   goal: string | null
   /** Saves the goal; rejects with an `ApiError` when it could not be saved. */
   onSave: (goal: string) => Promise<void>
-  /** True while the player is typing, so the world can stop listening to keys. */
-  onEditingChange: (editing: boolean) => void
+  /** True while the player is typing, so a game behind it can stop listening to keys. */
+  onEditingChange?: (editing: boolean) => void
 }
 
-/** "Your goal" at the top of the quest log: the one thing every mentor helps with. */
+/** "Your goal" in settings: the one thing every mentor helps with. */
 export function GoalPanel({ goal, onSave, onEditingChange }: Props) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -23,7 +23,7 @@ export function GoalPanel({ goal, onSave, onEditingChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    onEditingChange(editing)
+    onEditingChange?.(editing)
     if (editing) inputRef.current?.focus()
   }, [editing, onEditingChange])
 

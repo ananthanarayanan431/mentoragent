@@ -4,6 +4,7 @@ import { Header } from '@/components/header'
 import { useTheme } from '@/lib/use-theme'
 import { ChatPage } from '@/features/chat/chat-page'
 import { MentorsPage } from '@/features/mentors/mentors-page'
+import { SettingsPage } from '@/features/settings/settings-page'
 import { WorldPage } from '@/features/world/world-page'
 import { NotFoundPage } from './not-found-page'
 
@@ -21,6 +22,7 @@ export function App() {
             <Route path="/" element={<WorldPage />} />
             <Route path="/mentors" element={<MentorsPage />} />
             <Route path="/chat/:mentorId" element={<ChatPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </div>

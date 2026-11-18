@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -49,10 +49,6 @@ vi.mock('./game/create-game', () => ({
 
 const api = vi.hoisted(() => ({
   listMentors: vi.fn<() => Promise<Mentor[]>>(),
-  getMentorPool: vi.fn<() => Promise<{ remaining: number; total: number }>>(),
-  addRandomMentor: vi.fn<() => Promise<Mentor>>(),
-  getGoal: vi.fn<() => Promise<{ goal: string | null }>>(),
-  setGoal: vi.fn<(goal: string) => Promise<{ goal: string | null }>>(),
   listLedger: vi.fn<() => Promise<LedgerLine[]>>(),
   deleteLedgerLine: vi.fn<(id: string) => Promise<void>>(),
   startAmbientChat: vi.fn<(ids: [string, string]) => Promise<AmbientChat>>(),
@@ -60,10 +56,6 @@ const api = vi.hoisted(() => ({
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   listMentors: api.listMentors,
-  getMentorPool: api.getMentorPool,
-  addRandomMentor: api.addRandomMentor,
-  getGoal: api.getGoal,
-  setGoal: api.setGoal,
   listLedger: api.listLedger,
   deleteLedgerLine: api.deleteLedgerLine,
   startAmbientChat: api.startAmbientChat,
@@ -123,12 +115,9 @@ beforeEach(() => {
   window.localStorage.clear()
   game.bridge = null
   game.fail = false
-  api.getMentorPool.mockResolvedValue({ remaining: 5, total: 12 })
   game.started = []
   game.commands = []
   api.listMentors.mockResolvedValue(MENTORS)
-  api.getGoal.mockResolvedValue({ goal: null })
-  api.setGoal.mockImplementation(async (goal) => ({ goal }))
   api.listLedger.mockResolvedValue([])
   api.deleteLedgerLine.mockResolvedValue()
 })
@@ -146,36 +135,10 @@ describe('WorldPage', () => {
 
     expect(screen.queryByRole('heading', { name: 'Mentor Square' })).not.toBeInTheDocument()
     expect(lastInput()).toBe(true)
-    expect(screen.getByRole('complementary', { name: 'Mentors met' })).toHaveTextContent('0/2')
-  })
-
-  it('shows the saved goal in the quest log', async () => {
-    api.getGoal.mockResolvedValue({ goal: 'Retire by 45' })
-    const user = userEvent.setup()
-    await renderWorld()
-    await user.click(screen.getByRole('button', { name: /enter the square/i }))
-    await user.click(screen.getByRole('button', { name: /mentors met/i }))
-
-    expect(await screen.findByText('Retire by 45')).toBeInTheDocument()
-  })
-
-  it('shows what the mentors have told you in the quest log', async () => {
-    api.listLedger.mockResolvedValue([
-      {
-        id: 'l1',
-        mentor_id: 'ada',
-        mentor_name: 'Ada',
-        topic: 'engines',
-        advice: 'Recommends studying the engine.',
-        created_at: '2026-11-15T10:00:00Z',
-      },
-    ])
-    const user = userEvent.setup()
-    await renderWorld()
-    await user.click(screen.getByRole('button', { name: /enter the square/i }))
-    await user.click(screen.getByRole('button', { name: /mentors met/i }))
-
-    expect(await screen.findByText('Recommends studying the engine.')).toBeInTheDocument()
+    // The square shows only the mentors and the conversation; the goal and progress live in settings.
+    expect(screen.queryByRole('complementary', { name: 'Mentors met' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /set your goal/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /add a mentor/i })).not.toBeInTheDocument()
   })
 
   it('floats what each mentor told you over their head', async () => {
@@ -237,22 +200,6 @@ describe('WorldPage', () => {
     }
   })
 
-  it('stops the player walking while a goal is typed, and saves it', async () => {
-    const user = userEvent.setup()
-    await renderWorld()
-    await user.click(screen.getByRole('button', { name: /enter the square/i }))
-    await user.click(screen.getByRole('button', { name: /mentors met/i }))
-
-    await user.click(await screen.findByRole('button', { name: 'Set your goal' }))
-    expect(lastInput()).toBe(false)
-
-    await user.type(screen.getByRole('textbox', { name: 'Your goal' }), 'Retire by 45{Enter}')
-
-    expect(api.setGoal).toHaveBeenCalledWith('Retire by 45')
-    expect(await screen.findByText('Retire by 45')).toBeInTheDocument()
-    await waitFor(() => expect(lastInput()).toBe(true))
-  })
-
   it('opens a conversation when the game asks to talk, and closes it with Escape', async () => {
     const user = userEvent.setup()
     await renderWorld()
@@ -272,22 +219,6 @@ describe('WorldPage', () => {
     expect(screen.queryByRole('dialog', { name: 'Conversation with Ada' })).not.toBeInTheDocument()
     expect(game.commands).toContainEqual({ name: 'endTalk', payload: { mentorId: 'ada' } })
     expect(lastInput()).toBe(true)
-  })
-
-  it('ticks a mentor off the quest log once the player has said something', async () => {
-    const user = userEvent.setup()
-    await renderWorld()
-    await user.click(screen.getByRole('button', { name: /enter the square/i }))
-    fromGame((bridge) => bridge.events.emit('talk', { mentorId: 'bob' }))
-
-    await user.type(screen.getByRole('textbox', { name: 'Message Bob' }), 'Hello{Enter}')
-
-    const log = screen.getByRole('complementary', { name: 'Mentors met' })
-    expect(log).toHaveTextContent('1/2')
-    // Collapsed by default where matchMedia is unavailable (as on narrow screens).
-    await user.click(screen.getByRole('button', { name: /mentors met/i }))
-    expect(within(log).getByText('Bob').parentElement).toHaveTextContent('(met, level 1')
-    expect(within(log).getByText('Ada').parentElement).toHaveTextContent('(not met yet)')
   })
 
   it('pauses on request, toggles name labels, and resumes', async () => {
@@ -342,43 +273,6 @@ describe('WorldPage', () => {
 
     expect(game.started.at(-1)).toHaveLength(11)
     expect(screen.getByText(/11 mentors are strolling/)).toBeInTheDocument()
-  })
-
-  it('adds a random mentor: the game gets them and the arrival is announced', async () => {
-    const user = userEvent.setup()
-    const graham: Mentor = {
-      id: 'graham',
-      name: 'Benjamin Graham',
-      expertise: 'Value',
-      perspective: '',
-      style: '',
-      memory: 'building',
-    }
-    api.addRandomMentor.mockResolvedValueOnce(graham)
-    await renderWorld()
-    await user.click(screen.getByRole('button', { name: /enter the square/i }))
-
-    await user.click(await screen.findByRole('button', { name: /add a mentor/i }))
-
-    expect(
-      await screen.findByText('Benjamin Graham has arrived in the square!'),
-    ).toBeInTheDocument()
-    expect(game.commands).toContainEqual({
-      name: 'addMentor',
-      payload: { id: 'graham', name: 'Benjamin Graham' },
-    })
-    expect(screen.getByRole('complementary', { name: 'Mentors met' })).toHaveTextContent('0/3')
-    // The new mentor can be talked to straight away, with a note that they are still reading up.
-    fromGame((bridge) => bridge.events.emit('talk', { mentorId: 'graham' }))
-    expect(screen.getByText(/still reading up on their own work/)).toBeInTheDocument()
-  })
-
-  it('disables "Add a mentor" once everyone in the pool is here', async () => {
-    const user = userEvent.setup()
-    api.getMentorPool.mockResolvedValue({ remaining: 0, total: 12 })
-    await renderWorld()
-    await user.click(screen.getByRole('button', { name: /enter the square/i }))
-    expect(await screen.findByRole('button', { name: /everyone is here/i })).toBeDisabled()
   })
 
   it('announces a friendship level-up', async () => {

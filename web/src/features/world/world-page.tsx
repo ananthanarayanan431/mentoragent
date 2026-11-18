@@ -1,18 +1,15 @@
-import { UserPlus } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ErrorState, Spinner } from '@/components/state-views'
-import { addRandomMentor, ApiError, getGoal, getMentorPool, listMentors, setGoal } from '@/lib/api'
+import { ApiError, listMentors } from '@/lib/api'
 import { MEMORY_POLL_MS } from '@/lib/config'
 import type { Mentor } from '@/lib/types'
 import { joinableMeeting, type Meeting } from './ambient'
 import { bubbleTexts } from './bubbles'
 import { DialogueBox } from './dialogue-box'
 import { GroupDialogueBox } from './group-dialogue-box'
-import { GoalPanel } from './goal-panel'
-import { LedgerList } from './ledger-list'
 import { useMediaQuery } from '@/lib/use-media-query'
-import { PauseMenu, QuestLog, TitleScreen } from './menus'
+import { PauseMenu, TitleScreen } from './menus'
 import { levelFor, loadFriendship, recordMessage } from './progress'
 import { useAmbientChats } from './use-ambient-chats'
 import { useLedger } from './use-ledger'
@@ -88,10 +85,6 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
   const [gameError, setGameError] = useState('')
   const [ready, setReady] = useState(false)
   const [notice, setNotice] = useState('')
-  const [poolLeft, setPoolLeft] = useState<number | null>(null)
-  const [adding, setAdding] = useState(false)
-  const [goal, setGoalText] = useState<string | null>(null)
-  const [typingGoal, setTypingGoal] = useState(false)
   const ledger = useLedger()
   // The latest meeting between two mentors, read when the player asks to talk.
   const meetingRef = useRef<Meeting | null>(null)
@@ -160,14 +153,6 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
     [bridge],
   )
 
-  useEffect(() => {
-    const controller = new AbortController()
-    getMentorPool(controller.signal)
-      .then((pool) => setPoolLeft(typeof pool.remaining === 'number' ? pool.remaining : null))
-      .catch(() => setPoolLeft(null)) // no pool endpoint: hide the button
-    return () => controller.abort()
-  }, [mentors.length])
-
   const building = mentors.some((mentor) => mentor.memory === 'building')
   useEffect(() => {
     if (!building) return
@@ -178,19 +163,6 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
     }, MEMORY_POLL_MS)
     return () => window.clearInterval(timer)
   }, [building, mergeMentors])
-
-  const addMentor = useCallback(() => {
-    setAdding(true)
-    addRandomMentor()
-      .then((mentor) => {
-        mergeMentors([mentor])
-        setNotice(`${mentor.name} has arrived in the square!`)
-      })
-      .catch((cause: unknown) => {
-        setNotice(cause instanceof ApiError ? cause.message : 'Nobody could be added right now.')
-      })
-      .finally(() => setAdding(false))
-  }, [mergeMentors])
 
   useEffect(() => {
     if (!notice) return
@@ -232,8 +204,8 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
   // --- React -> game ---------------------------------------------------------------
 
   useEffect(() => {
-    bridge.commands.emit('input', { enabled: mode.kind === 'playing' && !typingGoal })
-  }, [bridge, mode, ready, typingGoal])
+    bridge.commands.emit('input', { enabled: mode.kind === 'playing' })
+  }, [bridge, mode, ready])
 
   // The world stands still behind the title screen and the pause menu, but not during a
   // conversation: the other mentors keep strolling while the player talks.
@@ -283,21 +255,6 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
     }
   }, [])
 
-  // --- The goal every mentor knows ------------------------------------------------
-
-  useEffect(() => {
-    const controller = new AbortController()
-    getGoal(controller.signal)
-      .then(({ goal: saved }) => setGoalText(saved ?? null))
-      .catch(() => {}) // the goal is optional: without it the panel invites one
-    return () => controller.abort()
-  }, [])
-
-  const saveGoal = useCallback(async (next: string) => {
-    const { goal: saved } = await setGoal(next)
-    setGoalText(saved ?? null)
-  }, [])
-
   const talkingTo = mode.kind === 'talking' ? byId.get(mode.mentorId) : undefined
   const group =
     mode.kind === 'group'
@@ -335,25 +292,6 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
       )}
 
       <div className="pointer-events-none absolute inset-0">
-        {mode.kind !== 'title' && (
-          <QuestLog mentors={mentors} friendship={friendship}>
-            <GoalPanel goal={goal} onSave={saveGoal} onEditingChange={setTypingGoal} />
-            <LedgerList lines={ledger.lines} error={ledger.error} onForget={ledger.forget} />
-          </QuestLog>
-        )}
-
-        {mode.kind !== 'title' && poolLeft !== null && (
-          <button
-            type="button"
-            onClick={addMentor}
-            disabled={adding || poolLeft === 0}
-            className="pointer-events-auto absolute right-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-lg border-2 border-ink/70 bg-surface/95 px-3 py-2 font-mono text-xs font-bold uppercase tracking-wide shadow-[0_3px_0_0_rgba(0,0,0,0.25)] hover:bg-raised disabled:opacity-50"
-          >
-            <UserPlus size={14} aria-hidden="true" />
-            {poolLeft === 0 ? 'Everyone is here' : adding ? 'Inviting…' : 'Add a mentor'}
-          </button>
-        )}
-
         <p
           role="status"
           aria-live="polite"

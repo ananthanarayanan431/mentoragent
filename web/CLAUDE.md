@@ -19,8 +19,9 @@
 
 | File                                           | Purpose                                                                 |
 | ---------------------------------------------- | ----------------------------------------------------------------------- |
-| `src/app/app.tsx`                              | Routes: `/` the square, `/mentors` the list, `/chat/:id`                |
+| `src/app/app.tsx`                              | Routes: `/` the square, `/mentors`, `/chat/:id`, `/settings`            |
 | `src/features/world/world-page.tsx`            | Mentor Square: loads Phaser lazily, owns every menu                     |
+| `src/features/settings/settings-page.tsx`      | Goal, mentors met and what they told you (kept off the square)          |
 | `src/features/world/world-bridge.ts`           | Typed events/commands: the only link to the game                        |
 | `src/features/world/game/`                     | The game: map, wandering, appearance, art, Phaser scene                 |
 | `src/features/world/progress.ts`               | Friendship levels per mentor (stored per browser)                       |
