@@ -33,6 +33,38 @@ describe('LedgerList', () => {
     expect(items[0]).toHaveTextContent('Advice number 0.')
   })
 
+  it('shows the rest on request', async () => {
+    const user = userEvent.setup()
+    const lines = Array.from({ length: LEDGER_LINES_SHOWN + 3 }, (_, i) => line(i))
+    render(<LedgerList lines={lines} error="" onForget={vi.fn<(id: string) => void>()} />)
+
+    await user.click(screen.getByRole('button', { name: `Show all ${lines.length}` }))
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(lines.length)
+  })
+
+  it('filters the advice by mentor', async () => {
+    const user = userEvent.setup()
+    const munger = { ...line(9), id: 'm9', mentor_id: 'munger', mentor_name: 'Charlie Munger' }
+    render(
+      <LedgerList
+        lines={[line(1), munger, line(2)]}
+        error=""
+        onForget={vi.fn<(id: string) => void>()}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Charlie Munger 1' }))
+
+    const items = screen.getAllByRole('listitem')
+    expect(items).toHaveLength(1)
+    expect(items[0]).toHaveTextContent('Charlie Munger')
+    expect(screen.getByRole('button', { name: 'Charlie Munger 1' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
   it('forgets a line', async () => {
     const user = userEvent.setup()
     const onForget = vi.fn<(id: string) => void>()

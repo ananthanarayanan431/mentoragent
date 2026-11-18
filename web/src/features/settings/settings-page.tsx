@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { ErrorState, Spinner } from '@/components/state-views'
-import { GoalPanel } from '@/features/world/goal-panel'
-import { LedgerList } from '@/features/world/ledger-list'
 import { loadFriendship } from '@/features/world/progress'
 import { useLedger } from '@/features/world/use-ledger'
 import { ApiError, getGoal, listMentors, setGoal } from '@/lib/api'
 import type { Mentor } from '@/lib/types'
+import { GoalPanel } from './goal-panel'
+import { LedgerList } from './ledger-list'
 import { MentorsMet } from './mentors-met'
+import type { PortraitFor } from './section'
 
 /**
  * Settings: your goal, the mentors you have met and what they told you. Kept off
@@ -20,6 +21,7 @@ export function SettingsPage() {
   const [goal, setGoalText] = useState<string | null>(null)
   const [friendship] = useState(loadFriendship)
   const ledger = useLedger()
+  const portraitFor = usePortraits()
 
   useEffect(() => {
     const controller = new AbortController()
@@ -46,36 +48,57 @@ export function SettingsPage() {
   }, [])
 
   return (
-    <main className="mx-auto w-full max-w-2xl space-y-6 px-4 py-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+    <main className="mx-auto w-full max-w-3xl space-y-10 px-4 py-8 sm:py-12">
+      <header>
+        <h1 className="font-pixel text-3xl font-semibold tracking-wide text-ink">Settings</h1>
         <p className="mt-1 text-sm text-muted">
           Your goal, the mentors you have met and what they told you.
         </p>
-      </div>
+      </header>
 
-      <div className="space-y-5 rounded-xl border border-line bg-surface p-5">
-        <GoalPanel goal={goal} onSave={saveGoal} />
+      <GoalPanel goal={goal} onSave={saveGoal} />
 
-        {error ? (
-          <ErrorState
-            title="Could not load the mentors"
-            description={error}
-            onRetry={() => {
-              setError('')
-              setAttempt((n) => n + 1)
-            }}
-          />
-        ) : mentors ? (
-          <div className="border-b border-line pb-3">
-            <MentorsMet mentors={mentors} friendship={friendship} />
-          </div>
-        ) : (
-          <Spinner label="Loading the mentors" />
-        )}
+      {error ? (
+        <ErrorState
+          title="Could not load the mentors"
+          description={error}
+          onRetry={() => {
+            setError('')
+            setAttempt((n) => n + 1)
+          }}
+        />
+      ) : mentors ? (
+        <MentorsMet mentors={mentors} friendship={friendship} portraitFor={portraitFor} />
+      ) : (
+        <Spinner label="Loading the mentors" />
+      )}
 
-        <LedgerList lines={ledger.lines} error={ledger.error} onForget={ledger.forget} />
-      </div>
+      <LedgerList
+        lines={ledger.lines}
+        error={ledger.error}
+        onForget={ledger.forget}
+        portraitFor={portraitFor}
+      />
     </main>
   )
+}
+
+/**
+ * The mentors' sprite portraits, drawn by the square's art code. Loaded lazily (no
+ * Phaser in it, but it is the game's), so the page shows initials until it lands.
+ */
+function usePortraits(): PortraitFor {
+  const [portraitFor, setPortraitFor] = useState<PortraitFor>(null)
+  useEffect(() => {
+    let live = true
+    import('@/features/world/game/portraits')
+      .then((module) => {
+        if (live) setPortraitFor(() => module.portraitFor)
+      })
+      .catch(() => {}) // initials it is
+    return () => {
+      live = false
+    }
+  }, [])
+  return portraitFor
 }

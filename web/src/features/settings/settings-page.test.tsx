@@ -19,6 +19,7 @@ const api = vi.hoisted(() => ({
   listLedger: vi.fn<() => Promise<LedgerLine[]>>(),
   deleteLedgerLine: vi.fn<(id: string) => Promise<void>>(),
 }))
+vi.mock('@/features/world/game/portraits', () => ({ portraitFor: () => null }))
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   ...api,
