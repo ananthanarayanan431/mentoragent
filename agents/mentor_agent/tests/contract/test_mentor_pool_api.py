@@ -10,6 +10,7 @@ from langchain_core.messages import AIMessage
 from mentor_agent.config import settings
 from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.server import create_app
+from mentor_agent.services.presets import PresetMentor
 from tests.fakes import (
     InMemoryMentorService,
     RecordingEnricher,
@@ -25,6 +26,26 @@ if TYPE_CHECKING:
 POOL = [
     MentorExtract(id=f"pool_{i}", name=f"Pool {i}", expertise="e", perspective="p", style="s")
     for i in range(3)
+]
+PRESETS = [
+    PresetMentor(
+        id="newton",
+        name="Newton",
+        expertise="e",
+        perspective="p",
+        style="s",
+        category="Science",
+        notes=["Background."],
+    ),
+    PresetMentor(
+        id="tendulkar",
+        name="Tendulkar",
+        expertise="e",
+        perspective="p",
+        style="s",
+        category="Cricket",
+        notes=["Background."],
+    ),
 ]
 
 
@@ -42,6 +63,7 @@ class Square:
             app.state.conversations = service
             app.state.mentors = self.mentors
             app.state.pool = POOL
+            app.state.presets = PRESETS
             app.state.memory = self.memory
             app.state.enricher = self.enricher
             yield
@@ -234,3 +256,26 @@ def test_bad_input_is_rejected(square: Square) -> None:
     assert square.client.post(URL, json=insecure).status_code == 422
     assert square.client.post(URL, json={"name": "X", "unknown": 1}).status_code == 422
     assert square.enricher.calls == []
+
+
+def test_presets_are_listed_and_added_once(square: Square) -> None:
+    listed = square.client.get("/api/v1/mentors/presets").json()
+    assert [(p["id"], p["category"], p["added"]) for p in listed] == [
+        ("newton", "Science", False),
+        ("tendulkar", "Cricket", False),
+    ]
+
+    response = square.client.post("/api/v1/mentors/presets/newton")
+    assert response.status_code == 201
+    body = response.json()
+    assert body["name"] == "Newton"
+    assert body["memory"] == "building"
+    # Built from the stored notes, after the response; no web research.
+    assert square.memory.requested == ["newton"]
+    assert square.enricher.calls == []
+    assert square.client.get("/api/v1/mentors/presets").json()[0]["added"] is True
+
+    again = square.client.post("/api/v1/mentors/presets/newton")
+    assert again.status_code == 409
+    missing = square.client.post("/api/v1/mentors/presets/nobody")
+    assert missing.status_code == 404

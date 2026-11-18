@@ -38,6 +38,7 @@ from mentor_agent.services.memory import MentorMemoryBuilder
 from mentor_agent.services.mentors import MentorService
 from mentor_agent.services.persona import LlmPersonaWriter
 from mentor_agent.services.pool import load_pool
+from mentor_agent.services.presets import PresetMentor, load_presets
 from mentor_agent.services.profile import ProfileService
 from mentor_agent.services.research import ClaudeResearcher
 
@@ -89,6 +90,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         LlmAmbientWriter(build_summary_model),
     )
     app.state.pool = await run_in_threadpool(_load_pool)
+    app.state.presets = await run_in_threadpool(_load_presets)
     app.state.memory = MentorMemoryBuilder(app.state.mentors, _rebuild_one, delete_mentor_memory)
     app.state.enricher = MentorEnricher(
         app.state.mentors,
@@ -119,6 +121,16 @@ def _load_pool() -> list[MentorExtract]:
         return load_pool(path)
     except FileNotFoundError:
         logger.warning("No mentor pool at {}; adding mentors is disabled", path)
+        return []
+
+
+def _load_presets() -> list[PresetMentor]:
+    """The preset mentors; a missing file only means none are offered."""
+    path = settings.paths.MENTOR_PRESETS_FILE_PATH
+    try:
+        return load_presets(path)
+    except FileNotFoundError:
+        logger.warning("No mentor presets at {}; none are offered", path)
         return []
 
 

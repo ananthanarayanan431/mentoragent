@@ -67,6 +67,12 @@ class PoolExhaustedError(ConflictError):
     default_message = "Every mentor in the pool is already in the square."
 
 
+class PresetAlreadyAddedError(ConflictError):
+    """The preset mentor is already in the square."""
+
+    default_message = "This preset mentor is already in the square."
+
+
 class MemoryBuildInProgressError(ConflictError):
     """A memory build for this mentor is already running."""
 
@@ -105,6 +111,12 @@ class LedgerLineNotFoundError(NotFoundError):
     """No ledger line has the given id."""
 
     default_message = "No such advice in the ledger."
+
+
+class PresetNotFoundError(NotFoundError):
+    """No preset mentor has this id."""
+
+    default_message = "No preset mentor has this id."
 
 
 class MentorNotFoundError(NotFoundError):

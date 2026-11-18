@@ -8,6 +8,7 @@ from mentor_agent.core.dependencies import (
     EnricherDep,
     MemoryBuilderDep,
     MentorPoolDep,
+    MentorPresetsDep,
     MentorServiceDep,
     require_api_key_in_production,
 )
@@ -17,6 +18,7 @@ from mentor_agent.schemas.v1.mentors import (
     MentorSources,
     MentorUpdate,
     PoolOut,
+    PresetOut,
 )
 from mentor_agent.services.enrich import PERSONA_FIELDS, PersonaField
 from mentor_agent.services.persona import fallback_persona
@@ -86,6 +88,38 @@ async def add_random_mentor(
     409 when every pool mentor is already here.
     """
     mentor = await mentors.add_from_pool(pool, _rng)
+    background.add_task(memory.rebuild, mentor.id)
+    return MentorOut.from_extract(mentor)
+
+
+@router.get("/presets")
+async def mentor_presets(mentors: MentorServiceDep, presets: MentorPresetsDep) -> list[PresetOut]:
+    """Famous mentors offered by name, with background notes stored ahead of time."""
+    here = await mentors.ids()
+    return [
+        PresetOut(
+            id=p.id, name=p.name, expertise=p.expertise, category=p.category, added=p.id in here
+        )
+        for p in presets
+    ]
+
+
+@router.post(
+    "/presets/{preset_id}",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_key_in_production)],
+)
+async def add_preset_mentor(
+    preset_id: str,
+    mentors: MentorServiceDep,
+    presets: MentorPresetsDep,
+    memory: MemoryBuilderDep,
+    background: BackgroundTasks,
+) -> MentorOut:
+    """Add a preset mentor and build their memory in the background from their stored
+    notes and Wikipedia; no web research. 404 for an unknown preset, 409 if already here.
+    """
+    mentor = await mentors.add_preset(presets, preset_id)
     background.add_task(memory.rebuild, mentor.id)
     return MentorOut.from_extract(mentor)
 

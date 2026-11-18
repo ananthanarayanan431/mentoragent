@@ -18,6 +18,7 @@ from mentor_agent.services.enrich import Enricher
 from mentor_agent.services.ledger import AdviceLedger, LedgerWriter
 from mentor_agent.services.memory import MemoryBuilder
 from mentor_agent.services.mentors import MentorService
+from mentor_agent.services.presets import PresetMentor
 from mentor_agent.services.profile import ProfileService
 
 API_KEY_HEADER = "X-API-Key"
@@ -75,6 +76,11 @@ def get_mentor_pool(connection: HTTPConnection) -> list[MentorExtract]:
     return pool
 
 
+def get_mentor_presets(connection: HTTPConnection) -> list[PresetMentor]:
+    presets: list[PresetMentor] = connection.app.state.presets
+    return presets
+
+
 def get_enricher(connection: HTTPConnection) -> Enricher:
     enricher: Enricher = connection.app.state.enricher
     return enricher
@@ -112,6 +118,7 @@ AdviceLedgerDep = Annotated[AdviceLedger, Depends(get_ledger)]
 LedgerWriterDep = Annotated[LedgerWriter, Depends(get_ledger_writer)]
 ProfileServiceDep = Annotated[ProfileService, Depends(get_profile_service)]
 MentorPoolDep = Annotated[list[MentorExtract], Depends(get_mentor_pool)]
+MentorPresetsDep = Annotated[list[PresetMentor], Depends(get_mentor_presets)]
 EnricherDep = Annotated[Enricher, Depends(get_enricher)]
 
 

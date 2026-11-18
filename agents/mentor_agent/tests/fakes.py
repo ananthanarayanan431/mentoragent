@@ -29,6 +29,7 @@ from mentor_agent.services.conversation import ConversationService
 from mentor_agent.services.custom import new_mentor_id
 from mentor_agent.services.persona import Persona
 from mentor_agent.services.pool import pick_new_mentor
+from mentor_agent.services.presets import take_preset
 
 if TYPE_CHECKING:
     import random
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
     from mentor_agent.models.ambient import AmbientChat
     from mentor_agent.models.ledger import LedgerLine
     from mentor_agent.models.mentor_extract import MemoryStatus
+    from mentor_agent.services.presets import PresetMentor
     from mentor_agent.services.research import ResearchFindings
 
 
@@ -191,6 +193,11 @@ class InMemoryMentorService:
         self, pool: Sequence[MentorExtract], rng: random.Random
     ) -> MentorExtract:
         mentor = pick_new_mentor(pool, set(self.mentors), rng)
+        self.mentors[mentor.id] = mentor
+        return mentor
+
+    async def add_preset(self, presets: Sequence[PresetMentor], preset_id: str) -> MentorExtract:
+        mentor = take_preset(presets, preset_id, set(self.mentors))
         self.mentors[mentor.id] = mentor
         return mentor
 

@@ -659,6 +659,42 @@
         "title": "PoolOut",
         "type": "object"
       },
+      "PresetOut": {
+        "description": "A preset mentor the \"Create a mentor\" panel offers by name.",
+        "properties": {
+          "added": {
+            "description": "Already in the square",
+            "title": "Added",
+            "type": "boolean"
+          },
+          "category": {
+            "description": "Group shown in the picker, e.g. Science or Cricket",
+            "title": "Category",
+            "type": "string"
+          },
+          "expertise": {
+            "title": "Expertise",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "expertise",
+          "category",
+          "added"
+        ],
+        "title": "PresetOut",
+        "type": "object"
+      },
       "ResetMemoryResponse": {
         "description": "Collections dropped by a memory reset.",
         "properties": {
@@ -1139,6 +1175,85 @@
           }
         ],
         "summary": "Mentor Pool",
+        "tags": [
+          "mentors"
+        ]
+      }
+    },
+    "/api/v1/mentors/presets": {
+      "get": {
+        "description": "Famous mentors offered by name, with background notes stored ahead of time.",
+        "operationId": "mentor_presets_api_v1_mentors_presets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PresetOut"
+                  },
+                  "title": "Response Mentor Presets Api V1 Mentors Presets Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Mentor Presets",
+        "tags": [
+          "mentors"
+        ]
+      }
+    },
+    "/api/v1/mentors/presets/{preset_id}": {
+      "post": {
+        "description": "Add a preset mentor and build their memory in the background from their stored\nnotes and Wikipedia; no web research. 404 for an unknown preset, 409 if already here.",
+        "operationId": "add_preset_mentor_api_v1_mentors_presets__preset_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preset_id",
+            "required": true,
+            "schema": {
+              "title": "Preset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MentorOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Add Preset Mentor",
         "tags": [
           "mentors"
         ]

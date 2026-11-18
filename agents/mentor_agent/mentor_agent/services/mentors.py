@@ -10,6 +10,7 @@ from mentor_agent.core.errors import (
 from mentor_agent.models.mentor_extract import MentorExtract
 from mentor_agent.services.custom import new_mentor_id
 from mentor_agent.services.pool import pick_new_mentor
+from mentor_agent.services.presets import take_preset
 
 if TYPE_CHECKING:
     import random
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
 
     from mentor_agent.db.client import AsyncMongoRepository
     from mentor_agent.models.mentor_extract import MemoryStatus
+    from mentor_agent.services.presets import PresetMentor
 
 
 def ensure_ready_to_chat(mentor: MentorExtract) -> None:
@@ -72,6 +74,16 @@ class MentorService:
             PoolExhaustedError: If every pool mentor is already here.
         """
         mentor = pick_new_mentor(pool, await self.repository.ids(), rng)
+        return await self.repository.insert_one(mentor)
+
+    async def add_preset(self, presets: Sequence[PresetMentor], preset_id: str) -> MentorExtract:
+        """Add a preset mentor, with memory marked building.
+
+        Raises:
+            PresetNotFoundError: If no preset has this id.
+            PresetAlreadyAddedError: If they are already here.
+        """
+        mentor = take_preset(presets, preset_id, await self.repository.ids())
         return await self.repository.insert_one(mentor)
 
     async def add_custom(self, fields: Mapping[str, Any]) -> MentorExtract:

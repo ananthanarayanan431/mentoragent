@@ -18,6 +18,8 @@ class PathSettings(BaseSettings):
         EXTRACTION_METADATA_FILE_PATH: JSON file listing mentors and their sources.
         EVALUATION_DATASET_FILE_PATH: Where the generated evaluation dataset is written.
         MENTOR_POOL_FILE_PATH: Mentors the API can add at random ("Add a mentor").
+        MENTOR_PRESETS_FILE_PATH: Preset mentors, with their background notes, that
+            the "Create a mentor" panel offers by name.
     """
 
     model_config = settings_config()
@@ -25,6 +27,7 @@ class PathSettings(BaseSettings):
     EXTRACTION_METADATA_FILE_PATH: Path = Path("data/extraction_metadata.json")
     EVALUATION_DATASET_FILE_PATH: Path = Path("data/evaluation_dataset.json")
     MENTOR_POOL_FILE_PATH: Path = Path("data/mentor_pool.json")
+    MENTOR_PRESETS_FILE_PATH: Path = Path("data/mentor_presets.json")
 
     @field_validator("*")
     @classmethod

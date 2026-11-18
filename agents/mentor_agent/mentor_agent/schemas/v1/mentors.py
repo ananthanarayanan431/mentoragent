@@ -101,6 +101,16 @@ class MentorCreate(BaseModel):
     )
 
 
+class PresetOut(BaseModel):
+    """A preset mentor the "Create a mentor" panel offers by name."""
+
+    id: str
+    name: str
+    expertise: str
+    category: str = Field(description="Group shown in the picker, e.g. Science or Cricket")
+    added: bool = Field(description="Already in the square")
+
+
 class PoolOut(BaseModel):
     """How many pool mentors can still be added."""
 

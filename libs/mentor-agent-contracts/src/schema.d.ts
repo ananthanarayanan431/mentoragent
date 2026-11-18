@@ -178,6 +178,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mentors/presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mentor Presets
+         * @description Famous mentors offered by name, with background notes stored ahead of time.
+         */
+        get: operations["mentor_presets_api_v1_mentors_presets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentors/presets/{preset_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Preset Mentor
+         * @description Add a preset mentor and build their memory in the background from their stored
+         *     notes and Wikipedia; no web research. 404 for an unknown preset, 409 if already here.
+         */
+        post: operations["add_preset_mentor_api_v1_mentors_presets__preset_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mentors/random": {
         parameters: {
             query?: never;
@@ -572,6 +613,28 @@ export interface components {
             total: number;
         };
         /**
+         * PresetOut
+         * @description A preset mentor the "Create a mentor" panel offers by name.
+         */
+        PresetOut: {
+            /**
+             * Added
+             * @description Already in the square
+             */
+            added: boolean;
+            /**
+             * Category
+             * @description Group shown in the picker, e.g. Science or Cricket
+             */
+            category: string;
+            /** Expertise */
+            expertise: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /**
          * ResetMemoryResponse
          * @description Collections dropped by a memory reset.
          */
@@ -879,6 +942,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PoolOut"];
+                };
+            };
+        };
+    };
+    mentor_presets_api_v1_mentors_presets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresetOut"][];
+                };
+            };
+        };
+    };
+    add_preset_mentor_api_v1_mentors_presets__preset_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
