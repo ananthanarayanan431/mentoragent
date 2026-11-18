@@ -113,6 +113,18 @@ class LedgerLineNotFoundError(NotFoundError):
     default_message = "No such advice in the ledger."
 
 
+class SquareNotFoundError(NotFoundError):
+    """No square has the given id."""
+
+    default_message = "No such square."
+
+
+class LastSquareError(ConflictError):
+    """The only square left cannot be deleted."""
+
+    default_message = "This is your only square; make another before deleting it."
+
+
 class PresetNotFoundError(NotFoundError):
     """No preset mentor has this id."""
 

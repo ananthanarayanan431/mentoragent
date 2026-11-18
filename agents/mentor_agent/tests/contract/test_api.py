@@ -17,7 +17,7 @@ from tests.fakes import (
     InMemoryAdviceLedger,
     InMemoryAmbientStore,
     InMemoryMentorService,
-    InMemoryProfileService,
+    InMemorySquareService,
     RecordingLedgerWriter,
     build_fake_conversation_service,
     tool_call,
@@ -42,7 +42,7 @@ def _client(
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         app.state.conversations = service
         app.state.mentors = InMemoryMentorService([mentor_extract])
-        app.state.profile = InMemoryProfileService()
+        app.state.squares = InMemorySquareService()
         app.state.ledger = InMemoryAdviceLedger()
         app.state.ledger_writer = ledger_writer or RecordingLedgerWriter()
         app.state.ambient_store = InMemoryAmbientStore()

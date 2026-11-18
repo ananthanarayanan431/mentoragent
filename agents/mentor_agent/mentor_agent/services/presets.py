@@ -25,10 +25,10 @@ class PresetMentor(MentorExtract):
     category: str = Field(description="Group shown in the picker, e.g. Science or Cricket")
 
     def to_extract(self) -> MentorExtract:
-        """The mentor as stored: no category, memory building, and outside the square
+        """The mentor as stored: no category, and memory building. They join no square
         until you bring them in."""
         fields = self.model_dump(exclude={"category"})
-        return MentorExtract.model_validate({**fields, "memory": "building", "in_square": False})
+        return MentorExtract.model_validate({**fields, "memory": "building"})
 
 
 _PRESET_LIST = TypeAdapter(list[PresetMentor])
@@ -46,7 +46,7 @@ def take_preset(
 
     Raises:
         PresetNotFoundError: If no preset has this id.
-        PresetAlreadyAddedError: If they are already in the square.
+        PresetAlreadyAddedError: If they are already one of your mentors.
     """
     preset = next((p for p in presets if p.id == preset_id), None)
     if preset is None:

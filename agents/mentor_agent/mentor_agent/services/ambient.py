@@ -29,7 +29,8 @@ if TYPE_CHECKING:
     from mentor_agent.db.client import AsyncMongoRepository
     from mentor_agent.models.ledger import LedgerLine
     from mentor_agent.models.mentor_extract import MentorExtract
-    from mentor_agent.services.ledger import AdviceLedger, ProfileReader
+    from mentor_agent.services.ledger import AdviceLedger
+    from mentor_agent.services.squares import SquareReader
 
 #: Ledger lines read to check eligibility and to remind the mentors what they said.
 _LINES_SCANNED = 50
@@ -55,9 +56,11 @@ class AmbientStore(Protocol):
 
     async def add(self, chat: AmbientChat) -> None: ...
 
-    async def newest_time(self) -> datetime | None: ...
+    async def newest_time(self, square_id: str) -> datetime | None: ...
 
-    async def get(self, chat_id: str) -> AmbientChat | None: ...
+    async def get(self, square_id: str, chat_id: str) -> AmbientChat | None: ...
+
+    async def delete_square(self, square_id: str) -> int: ...
 
 
 class AmbientWriter(Protocol):
@@ -113,7 +116,7 @@ class AmbientChats:
     Args:
         mentors: The catalogue (raises ``MentorNotFoundError`` for unknown ids).
         ledger: The advice ledger.
-        profile: The user's profile (their goal).
+        squares: The squares (each has its own goal).
         store: Where chats are kept.
         writer: Writes the lines.
         clock: The current time; injected so tests control it.
@@ -123,23 +126,24 @@ class AmbientChats:
         self,
         mentors: MentorReader,
         ledger: AdviceLedger,
-        profile: ProfileReader,
+        squares: SquareReader,
         store: AmbientStore,
         writer: AmbientWriter,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.mentors = mentors
         self.ledger = ledger
-        self.profile = profile
+        self.squares = squares
         self.store = store
         self.writer = writer
         self.clock = clock
 
-    async def start(self, a_id: str, b_id: str) -> AmbientChat:
-        """Write and store a chat between ``a_id`` (who speaks first) and ``b_id``.
+    async def start(self, square_id: str, a_id: str, b_id: str) -> AmbientChat:
+        """Write and store a chat in a square between ``a_id`` (who speaks first) and
+        ``b_id``.
 
-        Both talk about the user's goal when both have advised them; otherwise they
-        have a simple chat between themselves.
+        Both talk about the square's goal when both have advised the user there;
+        otherwise they have a simple chat between themselves.
 
         Raises:
             MentorNotFoundError: If a mentor does not exist.
@@ -149,14 +153,15 @@ class AmbientChats:
         """
         a = await self.mentors.get_mentor(a_id)
         b = await self.mentors.get_mentor(b_id)
-        lines = await self.ledger.recent(_LINES_SCANNED)
+        lines = await self.ledger.recent(square_id, _LINES_SCANNED)
         check_eligible(a, b)
         interval = settings.agent.AMBIENT_MIN_INTERVAL_SECONDS
-        if too_soon(await self.store.newest_time(), self.clock(), interval):
+        if too_soon(await self.store.newest_time(square_id), self.clock(), interval):
             raise AmbientTooSoonError
-        goal = (await self.profile.get()).goal
+        goal = (await self.squares.get(square_id)).goal
         about_user = chat_about_user(a, b, lines)
         chat = AmbientChat(
+            square_id=square_id,
             mentor_ids=[a.id, b.id],
             lines=await self.writer.write(a, b, goal, lines, about_user=about_user),
             about_user=about_user,
@@ -175,12 +180,17 @@ class MongoAmbientStore:
     async def add(self, chat: AmbientChat) -> None:
         await self.repository.insert_one(chat)
 
-    async def newest_time(self) -> datetime | None:
-        newest = await self.repository.fetch_documents({}, limit=1, sort=[("created_at", -1)])
+    async def newest_time(self, square_id: str) -> datetime | None:
+        newest = await self.repository.fetch_documents(
+            {"square_id": square_id}, limit=1, sort=[("created_at", -1)]
+        )
         return newest[0].created_at if newest else None
 
-    async def get(self, chat_id: str) -> AmbientChat | None:
-        return await self.repository.fetch_one({"id": chat_id})
+    async def get(self, square_id: str, chat_id: str) -> AmbientChat | None:
+        return await self.repository.fetch_one({"square_id": square_id, "id": chat_id})
+
+    async def delete_square(self, square_id: str) -> int:
+        return await self.repository.delete_many({"square_id": square_id})
 
 
 def _persona(label: str, mentor: MentorExtract, lines: Sequence[LedgerLine] | None) -> str:

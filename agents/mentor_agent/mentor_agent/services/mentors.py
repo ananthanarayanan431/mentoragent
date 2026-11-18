@@ -62,13 +62,13 @@ class MentorService:
         return mentor
 
     async def ids(self) -> set[str]:
-        """Ids of every mentor in the square."""
+        """Ids of every mentor."""
         return await self.repository.ids()
 
     async def add_from_pool(
         self, pool: Sequence[MentorExtract], rng: random.Random
     ) -> MentorExtract:
-        """Add a random pool mentor who is not in the square yet.
+        """Add a random pool mentor who is not one of your mentors yet.
 
         Raises:
             PoolExhaustedError: If every pool mentor is already here.
@@ -77,7 +77,7 @@ class MentorService:
         return await self.repository.insert_one(mentor)
 
     async def add_preset(self, presets: Sequence[PresetMentor], preset_id: str) -> MentorExtract:
-        """Add a preset mentor, with memory marked building, outside the square.
+        """Add a preset mentor, with memory marked building, in no square yet.
 
         Raises:
             PresetNotFoundError: If no preset has this id.
@@ -87,16 +87,14 @@ class MentorService:
         return await self.repository.insert_one(mentor)
 
     async def add_custom(self, fields: Mapping[str, Any]) -> MentorExtract:
-        """Add a mentor described by the user, with an id made from their name,
-        memory marked building, and outside the square until you bring them in.
+        """Add a mentor described by the user, with an id made from their name and
+        memory marked building. They join no square until you bring them in.
 
         Args:
             fields: Every ``MentorExtract`` field except ``id`` and ``memory``.
         """
         mentor_id = new_mentor_id(str(fields["name"]), await self.repository.ids())
-        mentor = MentorExtract.model_validate(
-            {**fields, "id": mentor_id, "memory": "building", "in_square": False}
-        )
+        mentor = MentorExtract.model_validate({**fields, "id": mentor_id, "memory": "building"})
         return await self.repository.insert_one(mentor)
 
     async def update_mentor(self, mentor_id: str, changes: Mapping[str, Any]) -> MentorExtract:
@@ -130,7 +128,7 @@ class MentorService:
         return mentor
 
     async def remove_mentor(self, mentor_id: str) -> None:
-        """Take a mentor out of the square; pool mentors can be added back later.
+        """Delete a mentor; pool mentors can be added back later.
 
         Atomic: a mentor whose memory is building is not removed, so a build never
         writes chunks or a status for a mentor who is gone.

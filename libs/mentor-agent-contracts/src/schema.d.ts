@@ -12,10 +12,11 @@ export interface paths {
         put?: never;
         /**
          * Start Ambient Chat
-         * @description Two mentors chat about the user's goal (the browser asks while the square is open).
+         * @description Two of the square's mentors chat about its goal (the browser asks while the square
+         *     is open).
          *
-         *     409 when a mentor is not ready or never advised the user; 429 when the last chat
-         *     was too recent; 502 when the model fails.
+         *     409 when a mentor is not ready; 429 when the last chat in this square was too
+         *     recent; 502 when the model fails.
          */
         post: operations["start_ambient_chat_api_v1_ambient_post"];
         delete?: never;
@@ -35,7 +36,9 @@ export interface paths {
         put?: never;
         /**
          * Chat
-         * @description Send a message to a mentor and get the full reply (409 while their memory builds).
+         * @description Send a message to a mentor in the current square and get the full reply (409
+         *     while their memory builds). The conversation and what the mentor reads stay in
+         *     that square.
          */
         post: operations["chat_api_v1_chat_post"];
         delete?: never;
@@ -56,7 +59,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Conversation
-         * @description Forget a conversation's history.
+         * @description Forget a conversation's history in the current square.
          */
         delete: operations["delete_conversation_api_v1_conversations__mentor_id___conversation_id__delete"];
         options?: never;
@@ -73,12 +76,12 @@ export interface paths {
         };
         /**
          * Get Goal
-         * @description The goal every mentor knows about.
+         * @description The goal every mentor in the square knows about.
          */
         get: operations["get_goal_api_v1_goal_get"];
         /**
          * Set Goal
-         * @description Set or change the goal.
+         * @description Set or change the square's goal.
          */
         put: operations["set_goal_api_v1_goal_put"];
         post?: never;
@@ -97,7 +100,7 @@ export interface paths {
         };
         /**
          * List Ledger
-         * @description What the mentors have told the user, newest first.
+         * @description What the square's mentors have told the user, newest first.
          */
         get: operations["list_ledger_api_v1_ledger_get"];
         put?: never;
@@ -120,7 +123,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Ledger Line
-         * @description Forget a piece of advice, so no mentor reads it again.
+         * @description Forget a piece of advice, so no mentor in the square reads it again.
          */
         delete: operations["delete_ledger_line_api_v1_ledger__line_id__delete"];
         options?: never;
@@ -137,7 +140,7 @@ export interface paths {
         };
         /**
          * List Mentors
-         * @description List every available mentor.
+         * @description List every mentor; ``in_square`` says who walks around the current square.
          */
         get: operations["list_mentors_api_v1_mentors_get"];
         put?: never;
@@ -149,7 +152,7 @@ export interface paths {
          *     field left out. In the background the mentor is researched on the web (unless
          *     ``research`` is false), the persona and sources are completed, and the memory
          *     is built; poll the mentor until its memory is ``ready``. Chat is refused (409)
-         *     until then. The mentor starts outside the square: bring them in with
+         *     until then. The mentor starts outside every square: bring them in with
          *     ``PUT /mentors/{id}/square``.
          */
         post: operations["create_mentor_api_v1_mentors_post"];
@@ -211,7 +214,7 @@ export interface paths {
         /**
          * Add Preset Mentor
          * @description Create a preset mentor and build their memory in the background from their stored
-         *     notes and Wikipedia; no web research. They start outside the square: bring them in
+         *     notes and Wikipedia; no web research. They start outside every square: bring them in
          *     with ``PUT /mentors/{id}/square``. 404 for an unknown preset, 409 if already created.
          */
         post: operations["add_preset_mentor_api_v1_mentors_presets__preset_id__post"];
@@ -232,7 +235,8 @@ export interface paths {
         put?: never;
         /**
          * Add Random Mentor
-         * @description Add a random mentor from the pool, and build their memory in the background.
+         * @description Add a random mentor from the pool to the current square, and build their memory
+         *     in the background.
          *
          *     The mentor can be talked to once their memory status leaves ``building``.
          *     409 when every pool mentor is already here.
@@ -260,7 +264,8 @@ export interface paths {
         post?: never;
         /**
          * Remove Mentor
-         * @description Remove a mentor and their long-term memory. Pool mentors can be added again.
+         * @description Remove a mentor from every square, with their long-term memory. Pool mentors can
+         *     be added again.
          *
          *     409 while their memory is being built.
          */
@@ -324,13 +329,14 @@ export interface paths {
         get?: never;
         /**
          * Bring Into Square
-         * @description Bring a mentor into Mentor Square.
+         * @description Bring a mentor into the current square.
          */
         put: operations["bring_into_square_api_v1_mentors__mentor_id__square_put"];
         post?: never;
         /**
          * Send Out Of Square
-         * @description Send a mentor out of Mentor Square. They stay in your mentors, with their memory.
+         * @description Send a mentor out of the current square. They stay in your mentors, with their
+         *     memory, and what they said in this square is kept for when they come back.
          */
         delete: operations["send_out_of_square_api_v1_mentors__mentor_id__square_delete"];
         options?: never;
@@ -358,6 +364,59 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/squares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Squares
+         * @description Every square, oldest first.
+         */
+        get: operations["list_squares_api_v1_squares_get"];
+        put?: never;
+        /**
+         * Create Square
+         * @description Make a new, empty square. Bring mentors in with ``PUT /mentors/{id}/square``.
+         */
+        post: operations["create_square_api_v1_squares_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/squares/{square_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Square
+         * @description One square (404 if there is none with this id).
+         */
+        get: operations["get_square_api_v1_squares__square_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Square
+         * @description Delete a square with its goal, advice and ambient chats. The mentors stay in your
+         *     mentors and in their other squares. 409 for your only square.
+         */
+        delete: operations["delete_square_api_v1_squares__square_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Square
+         * @description Rename a square or change its goal.
+         */
+        patch: operations["update_square_api_v1_squares__square_id__patch"];
         trace?: never;
     };
     "/health": {
@@ -470,7 +529,7 @@ export interface components {
         };
         /**
          * GoalIn
-         * @description The user's goal: one line every mentor reads.
+         * @description The square's goal: one line every mentor in it reads.
          */
         GoalIn: {
             /** Goal */
@@ -478,7 +537,7 @@ export interface components {
         };
         /**
          * GoalOut
-         * @description The user's goal, or ``null`` before one is set.
+         * @description The square's goal, or ``null`` before one is set.
          */
         GoalOut: {
             /** Goal */
@@ -570,7 +629,7 @@ export interface components {
             image_url?: string | null;
             /**
              * In Square
-             * @description Walking around Mentor Square
+             * @description Walking around the current square
              */
             in_square: boolean;
             /**
@@ -650,7 +709,7 @@ export interface components {
         PresetOut: {
             /**
              * Added
-             * @description Already created (in your mentors, in the square or not)
+             * @description Already created (in your mentors, in a square or not)
              */
             added: boolean;
             /**
@@ -677,6 +736,45 @@ export interface components {
             /** Dropped Collections */
             dropped_collections?: string[];
         };
+        /**
+         * SquareIn
+         * @description A new square: a name, and optionally its goal.
+         */
+        SquareIn: {
+            /** Goal */
+            goal?: string | null;
+            /** Name */
+            name: string;
+        };
+        /**
+         * SquareOut
+         * @description A square: its name, goal and the mentors walking around it.
+         */
+        SquareOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Goal */
+            goal: string | null;
+            /** Id */
+            id: string;
+            /** Mentor Ids */
+            mentor_ids: string[];
+            /** Name */
+            name: string;
+        };
+        /**
+         * SquareUpdate
+         * @description Changes to a square; omitted fields stay as they are.
+         */
+        SquareUpdate: {
+            /** Goal */
+            goal?: string | null;
+            /** Name */
+            name?: string | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -702,7 +800,10 @@ export interface operations {
     start_ambient_chat_api_v1_ambient_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The square this request is about; the first square if left out. */
+                "x-square-id"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -735,7 +836,10 @@ export interface operations {
     chat_api_v1_chat_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The square this request is about; the first square if left out. */
+                "x-square-id"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -768,7 +872,10 @@ export interface operations {
     delete_conversation_api_v1_conversations__mentor_id___conversation_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The square this request is about; the first square if left out. */
+                "x-square-id"?: string | null;
+            };
             path: {
                 mentor_id: string;
                 conversation_id: string;
@@ -798,7 +905,10 @@ export interface operations {
     get_goal_api_v1_goal_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The square this request is about; the first square if left out. */
+                "x-square-id"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -813,12 +923,24 @@ export interface operations {
                     "application/json": components["schemas"]["GoalOut"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     set_goal_api_v1_goal_put: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The square this request is about; the first square if left out. */
+                "x-square-id"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -853,7 +975,10 @@ export interface operations {
             query?: {
                 limit?: number;
             };
-            header?: never;
+            header?: {
+                /** @description The square this request is about; the first square if left out. */
+                "x-square-id"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -882,7 +1007,10 @@ export interface operations {
     delete_ledger_line_api_v1_ledger__line_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The square this request is about; the first square if left out. */
+                "x-square-id"?: string | null;
+            };
             path: {
                 line_id: string;
             };
@@ -911,7 +1039,10 @@ export interface operations {
     list_mentors_api_v1_mentors_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The square this request is about; the first square if left out. */
+                "x-square-id"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -926,12 +1057,24 @@ export interface operations {
                     "application/json": components["schemas"]["MentorOut"][];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     create_mentor_api_v1_mentors_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The square this request is about; the first square if left out. */
+                "x-square-id"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1004,7 +1147,10 @@ export interface operations {
     add_preset_mentor_api_v1_mentors_presets__preset_id__post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The square this request is about; the first square if left out. */
+                "x-square-id"?: string | null;
+            };
             path: {
                 preset_id: string;
             };
@@ -1035,7 +1181,10 @@ export interface operations {
     add_random_mentor_api_v1_mentors_random_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The square this request is about; the first square if left out. */
+                "x-square-id"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1050,12 +1199,24 @@ export interface operations {
                     "application/json": components["schemas"]["MentorOut"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     get_mentor_api_v1_mentors__mentor_id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The square this request is about; the first square if left out. */
+                "x-square-id"?: string | null;
+            };
             path: {
                 mentor_id: string;
             };
@@ -1115,7 +1276,10 @@ export interface operations {
     update_mentor_api_v1_mentors__mentor_id__patch: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The square this request is about; the first square if left out. */
+                "x-square-id"?: string | null;
+            };
             path: {
                 mentor_id: string;
             };
@@ -1150,7 +1314,10 @@ export interface operations {
     rebuild_mentor_memory_api_v1_mentors__mentor_id__memory_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The square this request is about; the first square if left out. */
+                "x-square-id"?: string | null;
+            };
             path: {
                 mentor_id: string;
             };
@@ -1212,7 +1379,10 @@ export interface operations {
     bring_into_square_api_v1_mentors__mentor_id__square_put: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The square this request is about; the first square if left out. */
+                "x-square-id"?: string | null;
+            };
             path: {
                 mentor_id: string;
             };
@@ -1243,7 +1413,10 @@ export interface operations {
     send_out_of_square_api_v1_mentors__mentor_id__square_delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The square this request is about; the first square if left out. */
+                "x-square-id"?: string | null;
+            };
             path: {
                 mentor_id: string;
             };
@@ -1287,6 +1460,154 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResetMemoryResponse"];
+                };
+            };
+        };
+    };
+    list_squares_api_v1_squares_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SquareOut"][];
+                };
+            };
+        };
+    };
+    create_square_api_v1_squares_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SquareIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SquareOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_square_api_v1_squares__square_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                square_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SquareOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_square_api_v1_squares__square_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                square_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_square_api_v1_squares__square_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                square_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SquareUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SquareOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

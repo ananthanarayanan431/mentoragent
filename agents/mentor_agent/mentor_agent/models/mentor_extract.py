@@ -49,11 +49,6 @@ class MentorExtract(BaseModel):
         default_factory=list,
         description="Text pasted in by hand (LinkedIn posts, newsletters, transcripts)",
     )
-    in_square: bool = Field(
-        default=True,
-        description="Walking around Mentor Square. New custom and preset mentors start "
-        "outside it until you bring them in; mentors stored before this existed are in it",
-    )
     memory: MemoryStatus | None = Field(
         default=None, description="Long-term memory build status, when built through the API"
     )

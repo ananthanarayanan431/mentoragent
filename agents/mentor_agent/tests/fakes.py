@@ -19,12 +19,14 @@ from mentor_agent.chat.nodes import Nodes
 from mentor_agent.chat.tools import build_retrieve_context_tool
 from mentor_agent.core.errors import (
     ConversationError,
+    LastSquareError,
     MemoryBuildInProgressError,
     MentorNotFoundError,
+    SquareNotFoundError,
 )
 from mentor_agent.models.ambient import AmbientLine
 from mentor_agent.models.mentor_extract import MentorExtract
-from mentor_agent.models.profile import Profile
+from mentor_agent.models.square import DEFAULT_SQUARE_ID, DEFAULT_SQUARE_NAME, Square
 from mentor_agent.services.conversation import ConversationService
 from mentor_agent.services.custom import new_mentor_id
 from mentor_agent.services.persona import Persona
@@ -43,6 +45,7 @@ if TYPE_CHECKING:
     from mentor_agent.models.mentor_extract import MemoryStatus
     from mentor_agent.services.presets import PresetMentor
     from mentor_agent.services.research import ResearchFindings
+    from mentor_agent.services.squares import SquareContents
 
 
 class ScriptedChatModel(BaseChatModel):
@@ -203,9 +206,7 @@ class InMemoryMentorService:
 
     async def add_custom(self, fields: Mapping[str, Any]) -> MentorExtract:
         mentor_id = new_mentor_id(str(fields["name"]), set(self.mentors))
-        mentor = MentorExtract.model_validate(
-            {**fields, "id": mentor_id, "memory": "building", "in_square": False}
-        )
+        mentor = MentorExtract.model_validate({**fields, "id": mentor_id, "memory": "building"})
         self.mentors[mentor.id] = mentor
         return mentor
 
@@ -230,22 +231,65 @@ class InMemoryMentorService:
         await self.update_mentor(mentor_id, {"memory": status})
 
 
-class InMemoryProfileService:
-    """The user's profile, kept in memory."""
+def default_square(**changes: Any) -> Square:
+    """The first square, with ``changes`` applied (``goal``, ``mentor_ids``, ...)."""
+    return Square(id=DEFAULT_SQUARE_ID, name=DEFAULT_SQUARE_NAME, **changes)
 
-    def __init__(self, profile: Profile | None = None) -> None:
-        self.profile = profile or Profile()
 
-    async def get(self) -> Profile:
-        return self.profile
+class InMemorySquareService:
+    """Squares kept in a dict; starts with the first square (or the ones given)."""
 
-    async def set_goal(self, goal: str) -> Profile:
-        self.profile = self.profile.model_copy(update={"goal": goal})
-        return self.profile
+    def __init__(self, *squares: Square) -> None:
+        self.squares = {s.id: s for s in (squares or (default_square(),))}
 
-    async def mark_heard(self, mentor_id: str, at: datetime) -> None:
-        heard = {**self.profile.heard_until, mentor_id: at}
-        self.profile = self.profile.model_copy(update={"heard_until": heard})
+    async def list_squares(self) -> list[Square]:
+        return sorted(self.squares.values(), key=lambda s: s.created_at)
+
+    async def get(self, square_id: str) -> Square:
+        try:
+            return self.squares[square_id]
+        except KeyError:
+            raise SquareNotFoundError from None
+
+    async def create(self, name: str, goal: str | None = None) -> Square:
+        square = Square(name=name, goal=goal)
+        self.squares[square.id] = square
+        return square
+
+    async def update(self, square_id: str, changes: dict[str, Any]) -> Square:
+        square = (await self.get(square_id)).model_copy(update=changes)
+        self.squares[square_id] = square
+        return square
+
+    async def set_goal(self, square_id: str, goal: str) -> Square:
+        return await self.update(square_id, {"goal": goal})
+
+    async def delete(self, square_id: str, contents: Collection[SquareContents]) -> None:
+        await self.get(square_id)
+        if len(self.squares) <= 1:
+            raise LastSquareError
+        del self.squares[square_id]
+        for store in contents:
+            await store.delete_square(square_id)
+
+    async def add_mentor(self, square_id: str, mentor_id: str) -> Square:
+        square = await self.get(square_id)
+        if mentor_id in square.mentor_ids:
+            return square
+        return await self.update(square_id, {"mentor_ids": [*square.mentor_ids, mentor_id]})
+
+    async def remove_mentor(self, square_id: str, mentor_id: str) -> Square:
+        square = await self.get(square_id)
+        kept = [m for m in square.mentor_ids if m != mentor_id]
+        return await self.update(square_id, {"mentor_ids": kept})
+
+    async def forget_mentor(self, mentor_id: str) -> None:
+        for square_id in list(self.squares):
+            await self.remove_mentor(square_id, mentor_id)
+
+    async def mark_heard(self, square_id: str, mentor_id: str, at: datetime) -> None:
+        square = await self.get(square_id)
+        await self.update(square_id, {"heard_until": {**square.heard_until, mentor_id: at}})
 
 
 class InMemoryAdviceLedger:
@@ -257,13 +301,21 @@ class InMemoryAdviceLedger:
     async def add(self, line: LedgerLine) -> None:
         self.lines.append(line)
 
-    async def recent(self, limit: int) -> list[LedgerLine]:
-        return sorted(self.lines, key=lambda line: line.created_at, reverse=True)[:limit]
+    async def recent(self, square_id: str, limit: int) -> list[LedgerLine]:
+        mine = [line for line in self.lines if line.square_id == square_id]
+        return sorted(mine, key=lambda line: line.created_at, reverse=True)[:limit]
 
-    async def delete(self, line_id: str) -> bool:
+    async def delete(self, square_id: str, line_id: str) -> bool:
         before = len(self.lines)
-        self.lines = [line for line in self.lines if line.id != line_id]
+        self.lines = [
+            line for line in self.lines if not (line.square_id == square_id and line.id == line_id)
+        ]
         return len(self.lines) < before
+
+    async def delete_square(self, square_id: str) -> int:
+        before = len(self.lines)
+        self.lines = [line for line in self.lines if line.square_id != square_id]
+        return before - len(self.lines)
 
 
 class InMemoryAmbientStore:
@@ -275,11 +327,18 @@ class InMemoryAmbientStore:
     async def add(self, chat: AmbientChat) -> None:
         self.chats.append(chat)
 
-    async def newest_time(self) -> datetime | None:
-        return max((chat.created_at for chat in self.chats), default=None)
+    async def newest_time(self, square_id: str) -> datetime | None:
+        return max(
+            (chat.created_at for chat in self.chats if chat.square_id == square_id), default=None
+        )
 
-    async def get(self, chat_id: str) -> AmbientChat | None:
-        return next((chat for chat in self.chats if chat.id == chat_id), None)
+    async def get(self, square_id: str, chat_id: str) -> AmbientChat | None:
+        return next((c for c in self.chats if c.square_id == square_id and c.id == chat_id), None)
+
+    async def delete_square(self, square_id: str) -> int:
+        before = len(self.chats)
+        self.chats = [chat for chat in self.chats if chat.square_id != square_id]
+        return before - len(self.chats)
 
 
 class ScriptedAmbientWriter:
@@ -313,10 +372,17 @@ class RecordingLedgerWriter:
 
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, str, str]] = []
+        self.squares: list[str] = []
 
     async def record(
-        self, mentor: MentorExtract, conversation_id: str, question: str, reply: str
+        self,
+        square_id: str,
+        mentor: MentorExtract,
+        conversation_id: str,
+        question: str,
+        reply: str,
     ) -> None:
+        self.squares.append(square_id)
         self.calls.append((mentor.id, conversation_id, question, reply))
 
 

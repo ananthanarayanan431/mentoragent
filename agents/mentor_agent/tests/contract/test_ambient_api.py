@@ -18,7 +18,7 @@ from tests.fakes import (
     InMemoryAdviceLedger,
     InMemoryAmbientStore,
     InMemoryMentorService,
-    InMemoryProfileService,
+    InMemorySquareService,
     ScriptedAmbientWriter,
 )
 
@@ -53,10 +53,11 @@ class _Square:
     def __init__(self, mentors: list[MentorExtract], lines: list[LedgerLine]) -> None:
         self.store = InMemoryAmbientStore()
         self.writer = ScriptedAmbientWriter()
+        self.squares = InMemorySquareService()
         self.ambient = AmbientChats(
             InMemoryMentorService(mentors),  # pyright: ignore[reportArgumentType]
             InMemoryAdviceLedger(lines),
-            InMemoryProfileService(),
+            self.squares,
             self.store,
             self.writer,
             clock=lambda: NOW,
@@ -65,6 +66,7 @@ class _Square:
         @asynccontextmanager
         async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
             app.state.ambient = self.ambient
+            app.state.squares = self.squares
             yield
 
         self.app = create_app(lifespan)

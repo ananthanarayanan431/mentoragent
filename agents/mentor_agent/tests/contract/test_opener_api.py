@@ -14,7 +14,7 @@ from tests.fakes import (
     InMemoryAdviceLedger,
     InMemoryAmbientStore,
     InMemoryMentorService,
-    InMemoryProfileService,
+    InMemorySquareService,
     RecordingLedgerWriter,
     build_fake_conversation_service,
 )
@@ -42,14 +42,14 @@ class _Setup:
         service, self.model, _ = build_fake_conversation_service(
             [AIMessage(content=OPENER), AIMessage(content="A real answer.")]
         )
-        self.profile = InMemoryProfileService()
+        self.squares = InMemorySquareService()
         self.writer = RecordingLedgerWriter()
 
         @asynccontextmanager
         async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
             app.state.conversations = service
             app.state.mentors = InMemoryMentorService([mentor])
-            app.state.profile = self.profile
+            app.state.squares = self.squares
             app.state.ledger = InMemoryAdviceLedger(lines)
             app.state.ledger_writer = self.writer
             app.state.ambient_store = InMemoryAmbientStore()
@@ -77,7 +77,7 @@ def test_a_mentor_opens_with_what_they_heard(mentor_extract: MentorExtract) -> N
         "conversation_id": events[0]["conversation_id"],
         "response": OPENER,
     }
-    assert "ada" in setup.profile.profile.heard_until
+    assert "ada" in setup.squares.squares["main"].heard_until
     assert setup.writer.calls == []  # an opener is not advice given in answer to you
 
 

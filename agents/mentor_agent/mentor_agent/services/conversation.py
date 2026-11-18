@@ -11,6 +11,7 @@ from loguru import logger
 
 from mentor_agent.chat.edges import CONVERSATION_NODE
 from mentor_agent.core.errors import ConversationError
+from mentor_agent.models.square import DEFAULT_SQUARE_ID
 from mentor_agent.prompts import OPENER_INSTRUCTION
 
 if TYPE_CHECKING:
@@ -56,6 +57,13 @@ def to_langchain_messages(messages: MessagesInput) -> list[BaseMessage]:
 def thread_id_for(mentor_id: str, conversation_id: str) -> str:
     """Checkpointer thread id: one thread per (mentor, conversation) pair."""
     return f"{mentor_id}:{conversation_id}"
+
+
+def in_square(square_id: str, conversation_id: str) -> str:
+    """The conversation id the checkpointer sees for a conversation in a square, so the
+    same id in two squares never shares a history. The first square keeps plain ids:
+    its conversations are the ones from before squares existed. Pure."""
+    return conversation_id if square_id == DEFAULT_SQUARE_ID else f"{square_id}.{conversation_id}"
 
 
 class ConversationService:

@@ -1,5 +1,5 @@
 """The advice ledger: one short line per piece of advice a mentor gives the user,
-shared with every mentor in the square."""
+shared with every mentor in the same square (and with no other square)."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
     from mentor_agent.db.client import AsyncMongoRepository
     from mentor_agent.models.mentor_extract import MentorExtract
-    from mentor_agent.models.profile import Profile
+    from mentor_agent.services.squares import SquareReader
 
 #: Lines read from the store per reply: enough to find the newest few from other mentors.
 _LINES_SCANNED = 50
@@ -40,16 +40,23 @@ class AdviceLedger(Protocol):
 
     async def add(self, line: LedgerLine) -> None: ...
 
-    async def recent(self, limit: int) -> list[LedgerLine]: ...
+    async def recent(self, square_id: str, limit: int) -> list[LedgerLine]: ...
 
-    async def delete(self, line_id: str) -> bool: ...
+    async def delete(self, square_id: str, line_id: str) -> bool: ...
+
+    async def delete_square(self, square_id: str) -> int: ...
 
 
 class LedgerWriter(Protocol):
     """Notes one exchange in the ledger; never raises."""
 
     async def record(
-        self, mentor: MentorExtract, conversation_id: str, question: str, reply: str
+        self,
+        square_id: str,
+        mentor: MentorExtract,
+        conversation_id: str,
+        question: str,
+        reply: str,
     ) -> None: ...
 
 
@@ -66,12 +73,17 @@ class MongoAdviceLedger:
     async def add(self, line: LedgerLine) -> None:
         await self.repository.insert_one(line)
 
-    async def recent(self, limit: int) -> list[LedgerLine]:
-        """The newest ``limit`` lines, newest first."""
-        return await self.repository.fetch_documents({}, limit=limit, sort=[("created_at", -1)])
+    async def recent(self, square_id: str, limit: int) -> list[LedgerLine]:
+        """The square's newest ``limit`` lines, newest first."""
+        return await self.repository.fetch_documents(
+            {"square_id": square_id}, limit=limit, sort=[("created_at", -1)]
+        )
 
-    async def delete(self, line_id: str) -> bool:
-        return await self.repository.delete_one({"id": line_id})
+    async def delete(self, square_id: str, line_id: str) -> bool:
+        return await self.repository.delete_one({"square_id": square_id, "id": line_id})
+
+    async def delete_square(self, square_id: str) -> int:
+        return await self.repository.delete_many({"square_id": square_id})
 
 
 def _exchange(mentor: MentorExtract, question: str, reply: str) -> str:
@@ -92,7 +104,12 @@ class LlmLedgerWriter:
         self.ledger = ledger
 
     async def record(
-        self, mentor: MentorExtract, conversation_id: str, question: str, reply: str
+        self,
+        square_id: str,
+        mentor: MentorExtract,
+        conversation_id: str,
+        question: str,
+        reply: str,
     ) -> None:
         try:
             model = self.model_factory().with_structured_output(LedgerNote)
@@ -107,6 +124,7 @@ class LlmLedgerWriter:
                 return
             await self.ledger.add(
                 LedgerLine(
+                    square_id=square_id,
                     mentor_id=mentor.id,
                     mentor_name=mentor.name,
                     conversation_id=conversation_id,
@@ -117,12 +135,6 @@ class LlmLedgerWriter:
             logger.debug("Noted advice from {} in the ledger", mentor.id)
         except Exception:  # noqa: BLE001 - a background job: the chat must not notice
             logger.exception("Could not note advice from {} in the ledger", mentor.id)
-
-
-class ProfileReader(Protocol):
-    """Where the user's goal is read from."""
-
-    async def get(self) -> Profile: ...
 
 
 def ledger_context(
@@ -156,12 +168,14 @@ def should_open(mentor_id: str, lines: Sequence[LedgerLine], heard_until: dateti
     return not seen or max(others) > max(seen)
 
 
-async def shared_context(profile: ProfileReader, ledger: AdviceLedger, mentor_id: str) -> str:
-    """Read the goal and the ledger for one mentor; empty if the database fails, so a
-    reply never depends on it."""
+async def shared_context(
+    squares: SquareReader, ledger: AdviceLedger, square_id: str, mentor_id: str
+) -> str:
+    """Read the square's goal and ledger for one mentor; empty if the database fails,
+    so a reply never depends on it."""
     try:
-        goal = (await profile.get()).goal
-        lines = await ledger.recent(_LINES_SCANNED)
+        goal = (await squares.get(square_id)).goal
+        lines = await ledger.recent(square_id, _LINES_SCANNED)
     except PyMongoError:
         logger.exception("Could not read the shared context for {}", mentor_id)
         return ""

@@ -1,34 +1,87 @@
-"""Request and response bodies for the square's shared state."""
+"""Request and response bodies for squares and what is shared inside one."""
 
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
 
 from mentor_agent.config import settings
 from mentor_agent.schemas.common import MentorId
 
+if TYPE_CHECKING:
+    from mentor_agent.models.square import Square
+
+GoalText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+SquareName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
+
+
+def _limit_goal(v: str | None) -> str | None:
+    if v is not None and len(v) > settings.agent.GOAL_MAX_CHARS:
+        msg = f"must be at most {settings.agent.GOAL_MAX_CHARS} characters"
+        raise ValueError(msg)
+    return v
+
 
 class GoalIn(BaseModel):
-    """The user's goal: one line every mentor reads."""
+    """The square's goal: one line every mentor in it reads."""
 
     model_config = ConfigDict(extra="forbid")
 
-    goal: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+    goal: GoalText
 
     @field_validator("goal")
     @classmethod
     def limit_length(cls, v: str) -> str:
-        if len(v) > settings.agent.GOAL_MAX_CHARS:
-            msg = f"must be at most {settings.agent.GOAL_MAX_CHARS} characters"
-            raise ValueError(msg)
+        _limit_goal(v)
         return v
 
 
+class SquareIn(BaseModel):
+    """A new square: a name, and optionally its goal."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: SquareName
+    goal: GoalText | None = None
+
+    @field_validator("goal")
+    @classmethod
+    def limit_length(cls, v: str | None) -> str | None:
+        return _limit_goal(v)
+
+
+class SquareUpdate(BaseModel):
+    """Changes to a square; omitted fields stay as they are."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: SquareName | None = None
+    goal: GoalText | None = None
+
+    @field_validator("goal")
+    @classmethod
+    def limit_length(cls, v: str | None) -> str | None:
+        return _limit_goal(v)
+
+
+class SquareOut(BaseModel):
+    """A square: its name, goal and the mentors walking around it."""
+
+    id: str
+    name: str
+    goal: str | None
+    mentor_ids: list[str]
+    created_at: datetime
+
+    @classmethod
+    def from_square(cls, square: Square) -> SquareOut:
+        return cls.model_validate(square.model_dump(include=set(cls.model_fields)))
+
+
 class GoalOut(BaseModel):
-    """The user's goal, or ``null`` before one is set."""
+    """The square's goal, or ``null`` before one is set."""
 
     goal: str | None
 

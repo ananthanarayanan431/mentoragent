@@ -142,7 +142,7 @@
       },
       "GoalIn": {
         "additionalProperties": false,
-        "description": "The user's goal: one line every mentor reads.",
+        "description": "The square's goal: one line every mentor in it reads.",
         "properties": {
           "goal": {
             "minLength": 1,
@@ -157,7 +157,7 @@
         "type": "object"
       },
       "GoalOut": {
-        "description": "The user's goal, or ``null`` before one is set.",
+        "description": "The square's goal, or ``null`` before one is set.",
         "properties": {
           "goal": {
             "anyOf": [
@@ -399,7 +399,7 @@
             "title": "Image Url"
           },
           "in_square": {
-            "description": "Walking around Mentor Square",
+            "description": "Walking around the current square",
             "title": "In Square",
             "type": "boolean"
           },
@@ -669,7 +669,7 @@
         "description": "A preset mentor the \"Create a mentor\" panel offers by name.",
         "properties": {
           "added": {
-            "description": "Already created (in your mentors, in the square or not)",
+            "description": "Already created (in your mentors, in a square or not)",
             "title": "Added",
             "type": "boolean"
           },
@@ -723,6 +723,113 @@
           }
         },
         "title": "ResetMemoryResponse",
+        "type": "object"
+      },
+      "SquareIn": {
+        "additionalProperties": false,
+        "description": "A new square: a name, and optionally its goal.",
+        "properties": {
+          "goal": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "SquareIn",
+        "type": "object"
+      },
+      "SquareOut": {
+        "description": "A square: its name, goal and the mentors walking around it.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "mentor_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Mentor Ids",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "goal",
+          "mentor_ids",
+          "created_at"
+        ],
+        "title": "SquareOut",
+        "type": "object"
+      },
+      "SquareUpdate": {
+        "additionalProperties": false,
+        "description": "Changes to a square; omitted fields stay as they are.",
+        "properties": {
+          "goal": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "SquareUpdate",
         "type": "object"
       },
       "ValidationError": {
@@ -782,8 +889,29 @@
   "paths": {
     "/api/v1/ambient": {
       "post": {
-        "description": "Two mentors chat about the user's goal (the browser asks while the square is open).\n\n409 when a mentor is not ready or never advised the user; 429 when the last chat\nwas too recent; 502 when the model fails.",
+        "description": "Two of the square's mentors chat about its goal (the browser asks while the square\nis open).\n\n409 when a mentor is not ready; 429 when the last chat in this square was too\nrecent; 502 when the model fails.",
         "operationId": "start_ambient_chat_api_v1_ambient_post",
+        "parameters": [
+          {
+            "description": "The square this request is about; the first square if left out.",
+            "in": "header",
+            "name": "x-square-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The square this request is about; the first square if left out.",
+              "title": "X-Square-Id"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -829,8 +957,29 @@
     },
     "/api/v1/chat": {
       "post": {
-        "description": "Send a message to a mentor and get the full reply (409 while their memory builds).",
+        "description": "Send a message to a mentor in the current square and get the full reply (409\nwhile their memory builds). The conversation and what the mentor reads stay in\nthat square.",
         "operationId": "chat_api_v1_chat_post",
+        "parameters": [
+          {
+            "description": "The square this request is about; the first square if left out.",
+            "in": "header",
+            "name": "x-square-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The square this request is about; the first square if left out.",
+              "title": "X-Square-Id"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -876,7 +1025,7 @@
     },
     "/api/v1/conversations/{mentor_id}/{conversation_id}": {
       "delete": {
-        "description": "Forget a conversation's history.",
+        "description": "Forget a conversation's history in the current square.",
         "operationId": "delete_conversation_api_v1_conversations__mentor_id___conversation_id__delete",
         "parameters": [
           {
@@ -896,6 +1045,25 @@
               "pattern": "^[A-Za-z0-9_-]{1,64}$",
               "title": "Conversation Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "The square this request is about; the first square if left out.",
+            "in": "header",
+            "name": "x-square-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The square this request is about; the first square if left out.",
+              "title": "X-Square-Id"
             }
           }
         ],
@@ -927,8 +1095,29 @@
     },
     "/api/v1/goal": {
       "get": {
-        "description": "The goal every mentor knows about.",
+        "description": "The goal every mentor in the square knows about.",
         "operationId": "get_goal_api_v1_goal_get",
+        "parameters": [
+          {
+            "description": "The square this request is about; the first square if left out.",
+            "in": "header",
+            "name": "x-square-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The square this request is about; the first square if left out.",
+              "title": "X-Square-Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -939,6 +1128,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "security": [
@@ -952,8 +1151,29 @@
         ]
       },
       "put": {
-        "description": "Set or change the goal.",
+        "description": "Set or change the square's goal.",
         "operationId": "set_goal_api_v1_goal_put",
+        "parameters": [
+          {
+            "description": "The square this request is about; the first square if left out.",
+            "in": "header",
+            "name": "x-square-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The square this request is about; the first square if left out.",
+              "title": "X-Square-Id"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -999,7 +1219,7 @@
     },
     "/api/v1/ledger": {
       "get": {
-        "description": "What the mentors have told the user, newest first.",
+        "description": "What the square's mentors have told the user, newest first.",
         "operationId": "list_ledger_api_v1_ledger_get",
         "parameters": [
           {
@@ -1012,6 +1232,25 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "description": "The square this request is about; the first square if left out.",
+            "in": "header",
+            "name": "x-square-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The square this request is about; the first square if left out.",
+              "title": "X-Square-Id"
             }
           }
         ],
@@ -1054,7 +1293,7 @@
     },
     "/api/v1/ledger/{line_id}": {
       "delete": {
-        "description": "Forget a piece of advice, so no mentor reads it again.",
+        "description": "Forget a piece of advice, so no mentor in the square reads it again.",
         "operationId": "delete_ledger_line_api_v1_ledger__line_id__delete",
         "parameters": [
           {
@@ -1064,6 +1303,25 @@
             "schema": {
               "title": "Line Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "The square this request is about; the first square if left out.",
+            "in": "header",
+            "name": "x-square-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The square this request is about; the first square if left out.",
+              "title": "X-Square-Id"
             }
           }
         ],
@@ -1095,8 +1353,29 @@
     },
     "/api/v1/mentors": {
       "get": {
-        "description": "List every available mentor.",
+        "description": "List every mentor; ``in_square`` says who walks around the current square.",
         "operationId": "list_mentors_api_v1_mentors_get",
+        "parameters": [
+          {
+            "description": "The square this request is about; the first square if left out.",
+            "in": "header",
+            "name": "x-square-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The square this request is about; the first square if left out.",
+              "title": "X-Square-Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1111,6 +1390,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "security": [
@@ -1124,8 +1413,29 @@
         ]
       },
       "post": {
-        "description": "Add a mentor you describe: a name plus videos, web pages, PDFs or pasted text.\n\nReturns at once, with memory ``building`` and a placeholder for any persona\nfield left out. In the background the mentor is researched on the web (unless\n``research`` is false), the persona and sources are completed, and the memory\nis built; poll the mentor until its memory is ``ready``. Chat is refused (409)\nuntil then. The mentor starts outside the square: bring them in with\n``PUT /mentors/{id}/square``.",
+        "description": "Add a mentor you describe: a name plus videos, web pages, PDFs or pasted text.\n\nReturns at once, with memory ``building`` and a placeholder for any persona\nfield left out. In the background the mentor is researched on the web (unless\n``research`` is false), the persona and sources are completed, and the memory\nis built; poll the mentor until its memory is ``ready``. Chat is refused (409)\nuntil then. The mentor starts outside every square: bring them in with\n``PUT /mentors/{id}/square``.",
         "operationId": "create_mentor_api_v1_mentors_post",
+        "parameters": [
+          {
+            "description": "The square this request is about; the first square if left out.",
+            "in": "header",
+            "name": "x-square-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The square this request is about; the first square if left out.",
+              "title": "X-Square-Id"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1229,7 +1539,7 @@
     },
     "/api/v1/mentors/presets/{preset_id}": {
       "post": {
-        "description": "Create a preset mentor and build their memory in the background from their stored\nnotes and Wikipedia; no web research. They start outside the square: bring them in\nwith ``PUT /mentors/{id}/square``. 404 for an unknown preset, 409 if already created.",
+        "description": "Create a preset mentor and build their memory in the background from their stored\nnotes and Wikipedia; no web research. They start outside every square: bring them in\nwith ``PUT /mentors/{id}/square``. 404 for an unknown preset, 409 if already created.",
         "operationId": "add_preset_mentor_api_v1_mentors_presets__preset_id__post",
         "parameters": [
           {
@@ -1239,6 +1549,25 @@
             "schema": {
               "title": "Preset Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "The square this request is about; the first square if left out.",
+            "in": "header",
+            "name": "x-square-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The square this request is about; the first square if left out.",
+              "title": "X-Square-Id"
             }
           }
         ],
@@ -1277,8 +1606,29 @@
     },
     "/api/v1/mentors/random": {
       "post": {
-        "description": "Add a random mentor from the pool, and build their memory in the background.\n\nThe mentor can be talked to once their memory status leaves ``building``.\n409 when every pool mentor is already here.",
+        "description": "Add a random mentor from the pool to the current square, and build their memory\nin the background.\n\nThe mentor can be talked to once their memory status leaves ``building``.\n409 when every pool mentor is already here.",
         "operationId": "add_random_mentor_api_v1_mentors_random_post",
+        "parameters": [
+          {
+            "description": "The square this request is about; the first square if left out.",
+            "in": "header",
+            "name": "x-square-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The square this request is about; the first square if left out.",
+              "title": "X-Square-Id"
+            }
+          }
+        ],
         "responses": {
           "201": {
             "content": {
@@ -1289,6 +1639,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "security": [
@@ -1304,7 +1664,7 @@
     },
     "/api/v1/mentors/{mentor_id}": {
       "delete": {
-        "description": "Remove a mentor and their long-term memory. Pool mentors can be added again.\n\n409 while their memory is being built.",
+        "description": "Remove a mentor from every square, with their long-term memory. Pool mentors can\nbe added again.\n\n409 while their memory is being built.",
         "operationId": "remove_mentor_api_v1_mentors__mentor_id__delete",
         "parameters": [
           {
@@ -1354,6 +1714,25 @@
               "title": "Mentor Id",
               "type": "string"
             }
+          },
+          {
+            "description": "The square this request is about; the first square if left out.",
+            "in": "header",
+            "name": "x-square-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The square this request is about; the first square if left out.",
+              "title": "X-Square-Id"
+            }
           }
         ],
         "responses": {
@@ -1399,6 +1778,25 @@
             "schema": {
               "title": "Mentor Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "The square this request is about; the first square if left out.",
+            "in": "header",
+            "name": "x-square-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The square this request is about; the first square if left out.",
+              "title": "X-Square-Id"
             }
           }
         ],
@@ -1457,6 +1855,25 @@
             "schema": {
               "title": "Mentor Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "The square this request is about; the first square if left out.",
+            "in": "header",
+            "name": "x-square-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The square this request is about; the first square if left out.",
+              "title": "X-Square-Id"
             }
           }
         ],
@@ -1543,7 +1960,7 @@
     },
     "/api/v1/mentors/{mentor_id}/square": {
       "delete": {
-        "description": "Send a mentor out of Mentor Square. They stay in your mentors, with their memory.",
+        "description": "Send a mentor out of the current square. They stay in your mentors, with their\nmemory, and what they said in this square is kept for when they come back.",
         "operationId": "send_out_of_square_api_v1_mentors__mentor_id__square_delete",
         "parameters": [
           {
@@ -1553,6 +1970,25 @@
             "schema": {
               "title": "Mentor Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "The square this request is about; the first square if left out.",
+            "in": "header",
+            "name": "x-square-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The square this request is about; the first square if left out.",
+              "title": "X-Square-Id"
             }
           }
         ],
@@ -1589,7 +2025,7 @@
         ]
       },
       "put": {
-        "description": "Bring a mentor into Mentor Square.",
+        "description": "Bring a mentor into the current square.",
         "operationId": "bring_into_square_api_v1_mentors__mentor_id__square_put",
         "parameters": [
           {
@@ -1599,6 +2035,25 @@
             "schema": {
               "title": "Mentor Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "The square this request is about; the first square if left out.",
+            "in": "header",
+            "name": "x-square-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The square this request is about; the first square if left out.",
+              "title": "X-Square-Id"
             }
           }
         ],
@@ -1659,6 +2114,225 @@
         "summary": "Reset Memory",
         "tags": [
           "admin"
+        ]
+      }
+    },
+    "/api/v1/squares": {
+      "get": {
+        "description": "Every square, oldest first.",
+        "operationId": "list_squares_api_v1_squares_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SquareOut"
+                  },
+                  "title": "Response List Squares Api V1 Squares Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "List Squares",
+        "tags": [
+          "square"
+        ]
+      },
+      "post": {
+        "description": "Make a new, empty square. Bring mentors in with ``PUT /mentors/{id}/square``.",
+        "operationId": "create_square_api_v1_squares_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SquareIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SquareOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Create Square",
+        "tags": [
+          "square"
+        ]
+      }
+    },
+    "/api/v1/squares/{square_id}": {
+      "delete": {
+        "description": "Delete a square with its goal, advice and ambient chats. The mentors stay in your\nmentors and in their other squares. 409 for your only square.",
+        "operationId": "delete_square_api_v1_squares__square_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "square_id",
+            "required": true,
+            "schema": {
+              "title": "Square Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Delete Square",
+        "tags": [
+          "square"
+        ]
+      },
+      "get": {
+        "description": "One square (404 if there is none with this id).",
+        "operationId": "get_square_api_v1_squares__square_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "square_id",
+            "required": true,
+            "schema": {
+              "title": "Square Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SquareOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Get Square",
+        "tags": [
+          "square"
+        ]
+      },
+      "patch": {
+        "description": "Rename a square or change its goal.",
+        "operationId": "update_square_api_v1_squares__square_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "square_id",
+            "required": true,
+            "schema": {
+              "title": "Square Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SquareUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SquareOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Update Square",
+        "tags": [
+          "square"
         ]
       }
     },

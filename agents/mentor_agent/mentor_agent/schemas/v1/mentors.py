@@ -28,15 +28,16 @@ class MentorOut(BaseModel):
     perspective: str
     style: str
     image_url: str | None = None
-    in_square: bool = Field(description="Walking around Mentor Square")
+    in_square: bool = Field(description="Walking around the current square")
     memory: Literal["building", "ready", "failed"] | None = Field(
         default=None,
         description="Memory build status for mentors added or rebuilt through the API.",
     )
 
     @classmethod
-    def from_extract(cls, mentor: MentorExtract) -> MentorOut:
-        return cls.model_validate(mentor.model_dump(include=set(cls.model_fields)))
+    def from_extract(cls, mentor: MentorExtract, *, in_square: bool) -> MentorOut:
+        fields = mentor.model_dump(include=set(cls.model_fields))
+        return cls.model_validate({**fields, "in_square": in_square})
 
 
 class MentorSources(BaseModel):
@@ -111,7 +112,7 @@ class PresetOut(BaseModel):
     perspective: str
     style: str
     category: str = Field(description="Group shown in the picker, e.g. Science or Cricket")
-    added: bool = Field(description="Already created (in your mentors, in the square or not)")
+    added: bool = Field(description="Already created (in your mentors, in a square or not)")
 
 
 class PoolOut(BaseModel):

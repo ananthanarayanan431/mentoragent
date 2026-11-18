@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
+from mentor_agent.models.square import DEFAULT_SQUARE_ID
 from mentor_agent.models.times import UtcDatetime
 
 
@@ -22,6 +23,7 @@ class AmbientChat(BaseModel):
 
     Attributes:
         id: Unique id (hex); joining the chat continues from it.
+        square_id: The square it happened in.
         mentor_ids: The visitor first, then the host.
         lines: What they said, in order.
         about_user: True when both had advised the user and talked about their goal;
@@ -30,6 +32,7 @@ class AmbientChat(BaseModel):
     """
 
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
+    square_id: str = DEFAULT_SQUARE_ID
     mentor_ids: list[str]
     lines: list[AmbientLine]
     about_user: bool = True

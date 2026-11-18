@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
+from mentor_agent.models.square import DEFAULT_SQUARE_ID
 from mentor_agent.models.times import UtcDatetime
 
 
@@ -15,6 +16,7 @@ class LedgerLine(BaseModel):
 
     Attributes:
         id: Unique id (hex), used to delete the line.
+        square_id: The square the advice was given in; only that square's mentors read it.
         mentor_id: Who gave the advice.
         mentor_name: Their name, so readers need no lookup.
         conversation_id: The conversation it came from.
@@ -24,6 +26,7 @@ class LedgerLine(BaseModel):
     """
 
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
+    square_id: str = DEFAULT_SQUARE_ID
     mentor_id: str
     mentor_name: str
     conversation_id: str

@@ -241,10 +241,41 @@ class AsyncMongoRepository[T: BaseModel]:
         result = await self.collection.update_many(query, {"$set": dict(changes)})
         return result.modified_count
 
+    async def add_to_set(self, query: Mapping[str, Any], field: str, value: Any) -> T | None:
+        """Add ``value`` to the array ``field`` of the first matching document, unless it
+        is there already; returns the document after, or ``None`` when nothing matched."""
+        document = await self.collection.find_one_and_update(
+            query, {"$addToSet": {field: value}}, return_document=ReturnDocument.AFTER
+        )
+        return None if document is None else _to_model(self.model, document)
+
+    async def pull(self, query: Mapping[str, Any], field: str, value: Any) -> T | None:
+        """Remove ``value`` from the array ``field`` of the first matching document;
+        returns the document after, or ``None`` when nothing matched."""
+        document = await self.collection.find_one_and_update(
+            query, {"$pull": {field: value}}, return_document=ReturnDocument.AFTER
+        )
+        return None if document is None else _to_model(self.model, document)
+
+    async def pull_everywhere(self, field: str, value: Any) -> int:
+        """Remove ``value`` from the array ``field`` of every document; returns how many
+        documents changed."""
+        result = await self.collection.update_many({field: value}, {"$pull": {field: value}})
+        return result.modified_count
+
     async def delete_one(self, query: Mapping[str, Any]) -> bool:
         """Delete the first document matching ``query``; ``True`` if one was deleted."""
         result = await self.collection.delete_one(query)
         return result.deleted_count > 0
+
+    async def delete_many(self, query: Mapping[str, Any]) -> int:
+        """Delete every document matching ``query``; returns how many were deleted."""
+        result = await self.collection.delete_many(query)
+        return result.deleted_count
+
+    async def count(self, query: Mapping[str, Any]) -> int:
+        """How many documents match ``query``."""
+        return await self.collection.count_documents(query)
 
     async def ids(self) -> set[str]:
         """The ``id`` of every document."""

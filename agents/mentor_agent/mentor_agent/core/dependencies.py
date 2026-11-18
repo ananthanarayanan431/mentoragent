@@ -5,13 +5,15 @@ from __future__ import annotations
 import secrets
 from typing import Annotated
 
-from fastapi import Depends, Security, WebSocketException, status
+from fastapi import Depends, Header, Query, Security, WebSocketException, status
 from fastapi.security import APIKeyHeader
 from starlette.requests import HTTPConnection
 
 from mentor_agent.config import settings
-from mentor_agent.core.errors import PermissionDeniedError
+from mentor_agent.core.errors import PermissionDeniedError, SquareNotFoundError
 from mentor_agent.models.mentor_extract import MentorExtract
+from mentor_agent.models.square import DEFAULT_SQUARE_ID, Square
+from mentor_agent.schemas.common import SquareId
 from mentor_agent.services.ambient import AmbientChats, AmbientStore
 from mentor_agent.services.conversation import ConversationService
 from mentor_agent.services.enrich import Enricher
@@ -19,7 +21,7 @@ from mentor_agent.services.ledger import AdviceLedger, LedgerWriter
 from mentor_agent.services.memory import MemoryBuilder
 from mentor_agent.services.mentors import MentorService
 from mentor_agent.services.presets import PresetMentor
-from mentor_agent.services.profile import ProfileService
+from mentor_agent.services.squares import SquareService
 
 API_KEY_HEADER = "X-API-Key"
 _api_key_header = APIKeyHeader(name=API_KEY_HEADER, auto_error=False)
@@ -86,8 +88,8 @@ def get_enricher(connection: HTTPConnection) -> Enricher:
     return enricher
 
 
-def get_profile_service(connection: HTTPConnection) -> ProfileService:
-    service: ProfileService = connection.app.state.profile
+def get_square_service(connection: HTTPConnection) -> SquareService:
+    service: SquareService = connection.app.state.squares
     return service
 
 
@@ -116,7 +118,7 @@ AmbientStoreDep = Annotated[AmbientStore, Depends(get_ambient_store)]
 AmbientChatsDep = Annotated[AmbientChats, Depends(get_ambient_chats)]
 AdviceLedgerDep = Annotated[AdviceLedger, Depends(get_ledger)]
 LedgerWriterDep = Annotated[LedgerWriter, Depends(get_ledger_writer)]
-ProfileServiceDep = Annotated[ProfileService, Depends(get_profile_service)]
+SquareServiceDep = Annotated[SquareService, Depends(get_square_service)]
 MentorPoolDep = Annotated[list[MentorExtract], Depends(get_mentor_pool)]
 MentorPresetsDep = Annotated[list[PresetMentor], Depends(get_mentor_presets)]
 EnricherDep = Annotated[Enricher, Depends(get_enricher)]
@@ -129,3 +131,43 @@ async def require_api_key_in_production() -> None:
     if settings.app.is_production and settings.app.API_KEY is None:
         msg = "This action requires API_KEY to be configured in production"
         raise PermissionDeniedError(msg)
+
+
+async def get_current_square(
+    squares: SquareServiceDep,
+    x_square_id: Annotated[
+        SquareId | None,
+        Header(description="The square this request is about; the first square if left out."),
+    ] = None,
+) -> Square:
+    """The square an HTTP request is about, from the ``X-Square-Id`` header.
+
+    Raises:
+        SquareNotFoundError: If no square has this id.
+    """
+    return await squares.get(x_square_id or DEFAULT_SQUARE_ID)
+
+
+async def get_websocket_square(
+    squares: SquareServiceDep,
+    square_id: Annotated[
+        SquareId | None,
+        Query(description="The square this socket is about; the first square if left out."),
+    ] = None,
+) -> Square:
+    """The square a chat socket is about, from the ``square_id`` query parameter
+    (browsers cannot set headers on a WebSocket).
+
+    Raises:
+        WebSocketException: Closing the socket (policy violation) if no square has this id.
+    """
+    try:
+        return await squares.get(square_id or DEFAULT_SQUARE_ID)
+    except SquareNotFoundError:
+        raise WebSocketException(
+            code=status.WS_1008_POLICY_VIOLATION, reason="No such square"
+        ) from None
+
+
+CurrentSquareDep = Annotated[Square, Depends(get_current_square)]
+WebSocketSquareDep = Annotated[Square, Depends(get_websocket_square)]

@@ -28,7 +28,8 @@ from mentor_agent.integrations.factory import IntegrationFactory
 from mentor_agent.models.ambient import AmbientChat
 from mentor_agent.models.ledger import LedgerLine
 from mentor_agent.models.mentor_extract import MentorExtract
-from mentor_agent.models.profile import Profile
+from mentor_agent.models.profile import PROFILE_KEY, Profile
+from mentor_agent.models.square import DEFAULT_SQUARE_ID, Square
 from mentor_agent.routes import health, v1
 from mentor_agent.services.ambient import AmbientChats, LlmAmbientWriter, MongoAmbientStore
 from mentor_agent.services.enrich import MentorEnricher
@@ -39,8 +40,8 @@ from mentor_agent.services.mentors import MentorService
 from mentor_agent.services.persona import LlmPersonaWriter
 from mentor_agent.services.pool import load_pool
 from mentor_agent.services.presets import PresetMentor, load_presets
-from mentor_agent.services.profile import ProfileService
 from mentor_agent.services.research import ClaudeResearcher
+from mentor_agent.services.squares import SquareService, first_square
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable
@@ -72,20 +73,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     interrupted = await app.state.mentors.fail_interrupted_builds()
     if interrupted:
         logger.warning("Marked {} interrupted memory build(s) as failed", interrupted)
-    app.state.profile = ProfileService(
-        AsyncMongoRepository(Profile, settings.mongo.PROFILE_COLLECTION)
-    )
+    square_repository = AsyncMongoRepository(Square, settings.mongo.SQUARES_COLLECTION)
+    await square_repository.collection.create_index("id", unique=True)
+    app.state.squares = SquareService(square_repository)
     ledger_repository = AsyncMongoRepository(LedgerLine, settings.mongo.LEDGER_COLLECTION)
-    await ledger_repository.collection.create_index("created_at")
+    await ledger_repository.collection.create_index([("square_id", 1), ("created_at", -1)])
     app.state.ledger = MongoAdviceLedger(ledger_repository)
     app.state.ledger_writer = LlmLedgerWriter(build_summary_model, app.state.ledger)
-    app.state.ambient_store = MongoAmbientStore(
-        AsyncMongoRepository(AmbientChat, settings.mongo.AMBIENT_COLLECTION)
+    ambient_repository = AsyncMongoRepository(AmbientChat, settings.mongo.AMBIENT_COLLECTION)
+    await ambient_repository.collection.create_index([("square_id", 1), ("created_at", -1)])
+    app.state.ambient_store = MongoAmbientStore(ambient_repository)
+    await _move_into_first_square(
+        app.state.squares, app.state.mentors, ledger_repository, ambient_repository
     )
     app.state.ambient = AmbientChats(
         app.state.mentors,
         app.state.ledger,
-        app.state.profile,
+        app.state.squares,
         app.state.ambient_store,
         LlmAmbientWriter(build_summary_model),
     )
@@ -112,6 +116,39 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         executor.shutdown(wait=False, cancel_futures=True)
         logger.info("Shutdown complete")
         await logger.complete()
+
+
+async def _move_into_first_square(
+    squares: SquareService,
+    mentors: MentorService,
+    ledger: AsyncMongoRepository[LedgerLine],
+    ambient: AsyncMongoRepository[AmbientChat],
+) -> None:
+    """Once, on the first start with squares: make the first square from the old goal
+    and the mentors who were in the one square then. Every time: give advice and
+    ambient chats stored without a square to the first square. Both are no-ops after.
+    """
+    profile = await AsyncMongoRepository(Profile, settings.mongo.PROFILE_COLLECTION).fetch_one(
+        {"key": PROFILE_KEY}
+    )
+    raw_mentors = [
+        doc async for doc in mentors.repository.collection.find({}, {"id": 1, "in_square": 1})
+    ]
+    seed = first_square(
+        profile.goal if profile else None,
+        profile.updated_at if profile else None,
+        dict(profile.heard_until) if profile else {},
+        raw_mentors,
+    )
+    if await squares.ensure_default(seed):
+        logger.info("Made the first square with {} mentor(s)", len(seed.mentor_ids))
+    unscoped = {"square_id": {"$exists": False}}
+    for repository in (ledger, ambient):
+        moved = await repository.update_many(unscoped, {"square_id": DEFAULT_SQUARE_ID})
+        if moved:
+            logger.info(
+                "Moved {} {} document(s) into the first square", moved, repository.collection.name
+            )
 
 
 def _load_pool() -> list[MentorExtract]:

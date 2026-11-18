@@ -13,6 +13,7 @@ from mentor_agent.server import create_app
 from mentor_agent.services.presets import PresetMentor
 from tests.fakes import (
     InMemoryMentorService,
+    InMemorySquareService,
     RecordingEnricher,
     RecordingMemoryBuilder,
     build_fake_conversation_service,
@@ -56,6 +57,7 @@ class Square:
         self.mentors = InMemoryMentorService([mentor_extract])
         self.memory = RecordingMemoryBuilder()
         self.enricher = RecordingEnricher()
+        self.squares = InMemorySquareService()
         service, _, _ = build_fake_conversation_service([AIMessage(content="hi")])
 
         @asynccontextmanager
@@ -66,6 +68,7 @@ class Square:
             app.state.presets = PRESETS
             app.state.memory = self.memory
             app.state.enricher = self.enricher
+            app.state.squares = self.squares
             yield
 
         self.client = TestClient(create_app(lifespan))
@@ -307,3 +310,29 @@ def test_pool_mentors_join_the_square_and_custom_ones_wait(square: Square) -> No
     assert square.client.post("/api/v1/mentors/random").json()["in_square"] is True
     custom = square.client.post("/api/v1/mentors", json={"name": "Grace Hopper"})
     assert custom.json()["in_square"] is False
+
+
+def test_one_mentor_can_be_in_one_square_and_not_another(square: Square) -> None:
+    other = square.client.post("/api/v1/squares", json={"name": "Cricket"}).json()["id"]
+    square.client.post("/api/v1/mentors/presets/tendulkar")
+
+    square.client.put("/api/v1/mentors/tendulkar/square", headers={"X-Square-Id": other})
+
+    seen_here = square.client.get("/api/v1/mentors/tendulkar").json()["in_square"]
+    seen_there = square.client.get(
+        "/api/v1/mentors/tendulkar", headers={"X-Square-Id": other}
+    ).json()["in_square"]
+    assert (seen_here, seen_there) == (False, True)
+
+
+def test_a_removed_mentor_leaves_every_square(square: Square) -> None:
+    other = square.client.post("/api/v1/squares", json={"name": "Cricket"}).json()["id"]
+    added = square.client.post("/api/v1/mentors/random").json()["id"]
+    square.client.put(f"/api/v1/mentors/{added}/square", headers={"X-Square-Id": other})
+    square.mentors.mentors[added] = square.mentors.mentors[added].model_copy(
+        update={"memory": "ready"}
+    )
+
+    square.client.delete(f"/api/v1/mentors/{added}")
+
+    assert all(added not in s.mentor_ids for s in square.squares.squares.values())

@@ -18,6 +18,6 @@ def test_a_stored_ledger_time_is_read_as_utc() -> None:
 
 
 def test_stored_profile_times_are_read_as_utc() -> None:
-    profile = Profile(updated_at=NAIVE, heard_until={"m": NAIVE})
+    profile = Profile(updated_at=NAIVE, heard_until={"m": NAIVE})  # read once, to migrate
     assert profile.updated_at == NAIVE.replace(tzinfo=UTC)
     assert profile.heard_until["m"] == NAIVE.replace(tzinfo=UTC)

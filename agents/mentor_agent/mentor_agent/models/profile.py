@@ -1,4 +1,5 @@
-"""The one user's profile in the square: their goal, and what each mentor has heard."""
+"""The profile from before squares existed: the one goal, and what each mentor had heard.
+Read once at start-up to seed the first square; nothing writes it any more."""
 
 from __future__ import annotations
 

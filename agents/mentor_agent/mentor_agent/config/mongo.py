@@ -21,7 +21,9 @@ class MongoSettings(BaseSettings):
         STATE_CHECKPOINT_COLLECTION: Collection for LangGraph state checkpoints.
         STATE_WRITES_COLLECTION: Collection for LangGraph state writes.
         LONG_TERM_MEMORY_COLLECTION: Collection for long term memory.
-        PROFILE_COLLECTION: Collection holding the user's profile (their goal).
+        PROFILE_COLLECTION: Collection that held the goal before squares existed; read
+            once, to seed the first square.
+        SQUARES_COLLECTION: Collection holding the squares (name, goal, mentors).
         LEDGER_COLLECTION: Collection holding the advice ledger.
         AMBIENT_COLLECTION: Collection holding the mentors' ambient chats.
         CONVERSATION_TTL_SECONDS: Expire conversation checkpoints this long
@@ -40,6 +42,7 @@ class MongoSettings(BaseSettings):
     STATE_WRITES_COLLECTION: str = "mentor_state_writes"
     LONG_TERM_MEMORY_COLLECTION: str = "mentor_long_term_memory"
     PROFILE_COLLECTION: str = "profile"
+    SQUARES_COLLECTION: str = "squares"
     LEDGER_COLLECTION: str = "advice_ledger"
     AMBIENT_COLLECTION: str = "ambient_chats"
     CONVERSATION_TTL_SECONDS: OptionalInt = Field(default=None, gt=0)
