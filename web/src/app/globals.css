@@ -178,6 +178,14 @@
       2px 0 0 0 var(--ui-accent),
       inset 0 2px 0 0 rgb(0 0 0 / 0.12);
   }
+  /* Pixelify Sans draws its fi and ff ligatures as odd glyphs ("first" reads
+     "Arst"); spell every letter out. */
+  .font-pixel {
+    font-variant-ligatures: none;
+    font-feature-settings:
+      'liga' 0,
+      'clig' 0;
+  }
   .pixelated {
     image-rendering: pixelated;
   }
