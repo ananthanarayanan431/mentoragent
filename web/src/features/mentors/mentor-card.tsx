@@ -1,4 +1,12 @@
-import { ArrowRight, LogIn, LogOut, MoreHorizontal, Trash2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowRight,
+  Loader2,
+  LogIn,
+  LogOut,
+  MoreHorizontal,
+  Trash2,
+} from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router'
 
@@ -15,13 +23,17 @@ interface Props {
 }
 
 export function MentorCard({ mentor, onRemove, onSetInSquare }: Props) {
+  const preparing = mentor.memory === 'building'
   return (
     <div className="group relative flex flex-col rounded-2xl border border-line bg-surface transition-all hover:-translate-y-0.5 hover:border-line-strong hover:shadow-lg hover:shadow-black/5">
       <Link to={`/chat/${encodeURIComponent(mentor.id)}`} className="flex flex-1 flex-col p-5">
         <div className={`flex items-center gap-3 ${onRemove ? 'pr-8' : ''}`}>
           <Avatar name={mentor.name} src={mentor.image_url} size={48} />
           <div className="min-w-0">
-            <h2 className="truncate font-semibold">{mentor.name}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="truncate font-semibold">{mentor.name}</h2>
+              <MemoryBadge memory={mentor.memory} />
+            </div>
             <p className="truncate text-sm text-muted">{mentor.expertise}</p>
           </div>
         </div>
@@ -30,20 +42,57 @@ export function MentorCard({ mentor, onRemove, onSetInSquare }: Props) {
           {mentor.perspective}
         </p>
 
-        <span className="mt-4 inline-flex items-center gap-1.5 font-pixel text-sm text-accent">
-          Start a conversation
-          <ArrowRight
-            size={15}
-            aria-hidden="true"
-            className="transition-transform group-hover:translate-x-0.5"
-          />
-        </span>
+        {preparing ? (
+          <span className="mt-4 inline-flex items-center gap-1.5 font-pixel text-sm text-muted">
+            <Loader2 size={14} aria-hidden="true" className="animate-spin" />
+            Preparing their memory…
+          </span>
+        ) : (
+          <span className="mt-4 inline-flex items-center gap-1.5 font-pixel text-sm text-accent">
+            Start a conversation
+            <ArrowRight
+              size={15}
+              aria-hidden="true"
+              className="transition-transform group-hover:translate-x-0.5"
+            />
+          </span>
+        )}
       </Link>
 
       {onSetInSquare && <SquareToggle mentor={mentor} onSetInSquare={onSetInSquare} />}
       {onRemove && <CardMenu mentor={mentor} onRemove={onRemove} />}
     </div>
   )
+}
+
+/**
+ * A tag next to the name while the mentor's memory is being built (they cannot
+ * talk yet) or when building it failed; nothing once they are ready.
+ */
+function MemoryBadge({ memory }: { memory: Mentor['memory'] }) {
+  if (memory === 'building') {
+    return (
+      <span
+        title="Reading up on their sources; you can talk to them once this is done."
+        className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 font-pixel text-[11px] text-accent"
+      >
+        <Loader2 size={11} aria-hidden="true" className="animate-spin" />
+        Preparing
+      </span>
+    )
+  }
+  if (memory === 'failed') {
+    return (
+      <span
+        title="Their memory could not be built. Rebuild it from their chat page."
+        className="inline-flex shrink-0 items-center gap-1 rounded-full bg-danger-soft px-2 py-0.5 font-pixel text-[11px] text-danger"
+      >
+        <AlertTriangle size={11} aria-hidden="true" />
+        Memory failed
+      </span>
+    )
+  }
+  return null
 }
 
 /** Whether the mentor walks around the square, and the button that changes it. */

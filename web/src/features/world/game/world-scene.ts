@@ -79,6 +79,14 @@ const GREETING_GAP_MS = 250
 const TALK_REACH = TILE * 1.8
 /** How close the player must be to see what a mentor told them. */
 const BUBBLE_REACH = TILE * 5
+/** The tag over a mentor whose memory is still being built; its dots cycle. */
+const PREPARING_TEXT = 'preparing'
+const PREPARING_DOT_MS = 400
+
+function preparingText(now: number): string {
+  return `${PREPARING_TEXT}${'.'.repeat(1 + (Math.floor(now / PREPARING_DOT_MS) % 3))}`
+}
+
 /** Feet sit this far below the sprite's centre. */
 const FEET_OFFSET = CHARACTER_H / 2 - 6
 
@@ -92,6 +100,8 @@ interface MentorActor extends Actor {
   id: string
   name: string
   label: Phaser.GameObjects.Text
+  /** "preparing..." over their head while their memory is being built. */
+  tag: Phaser.GameObjects.Text
   /** What they told you, shown over their head as the player walks past. */
   bubble: Phaser.GameObjects.Text
   /** The thought cloud painted behind the bubble text. */
@@ -137,6 +147,8 @@ export class WorldScene extends Phaser.Scene {
   private places: Point[] = []
   private blockers: Phaser.Tilemaps.TilemapLayer[] = []
   private labelsVisible: boolean
+  /** Mentors whose memory is still being built (see the `preparing` command). */
+  private preparing = new Set<string>()
   private keys!: MoveKeys
   private prompt!: Phaser.GameObjects.Text
   private nearby: MentorActor | null = null
@@ -346,12 +358,24 @@ export class WorldScene extends Phaser.Scene {
       .setResolution(2)
       .setVisible(false)
     const cloud = this.add.graphics().setVisible(false)
+    const tag = this.add
+      .text(home.x, home.y, PREPARING_TEXT, {
+        fontFamily: '"Pixelify Sans", ui-monospace, Menlo, monospace',
+        fontSize: '10px',
+        color: '#fffbeb',
+        backgroundColor: '#b45309',
+        padding: { x: 4, y: 2 },
+      })
+      .setOrigin(0.5, 1)
+      .setResolution(2)
+      .setVisible(this.preparing.has(mentor.id))
 
     const added: MentorActor = {
       ...actor,
       id: mentor.id,
       name: mentor.name,
       label,
+      tag,
       bubble,
       cloud,
       bubbleText: '',
@@ -489,6 +513,9 @@ export class WorldScene extends Phaser.Scene {
       }),
       commands.on('addMentor', (mentor) => this.spawnMentor(mentor, true)),
       commands.on('removeMentor', ({ id }) => this.despawnMentor(id)),
+      commands.on('preparing', ({ mentorIds }) => {
+        this.preparing = new Set(mentorIds)
+      }),
       commands.on('bubbles', ({ texts }) => {
         for (const mentor of this.mentors) mentor.bubbleText = texts[mentor.id] ?? ''
       }),
@@ -528,6 +555,7 @@ export class WorldScene extends Phaser.Scene {
         actor.sprite.setVelocity(0, 0)
         this.animate(actor, { x: 0, y: 0 })
       }
+      for (const mentor of this.mentors) this.placeOverhead(mentor)
       return
     }
     this.updatePlayer(delta)
@@ -603,6 +631,7 @@ export class WorldScene extends Phaser.Scene {
     }
     sprite.destroy()
     mentor.label.destroy()
+    mentor.tag.destroy()
     mentor.bubble.destroy()
     mentor.cloud.destroy()
     this.mentors = this.mentors.filter((other) => other !== mentor)
@@ -752,9 +781,24 @@ export class WorldScene extends Phaser.Scene {
       sprite.setVelocity(step.velocity.x, step.velocity.y)
       this.animate(mentor, step.velocity)
     }
-    mentor.label.setPosition(sprite.x, sprite.y - CHARACTER_H / 2 + 2).setDepth(100_000)
+    this.placeOverhead(mentor)
+  }
+
+  /** Keeps the name label, the "preparing" tag and the speech cloud over a mentor. */
+  private placeOverhead(mentor: MentorActor): void {
+    const sprite = mentor.sprite
+    const labelY = sprite.y - CHARACTER_H / 2 + 2
+    mentor.label.setPosition(sprite.x, labelY).setDepth(100_000)
+    // The "preparing" tag sits on top of the name label, the cloud above both.
+    const preparing = this.preparing.has(mentor.id)
+    mentor.tag.setVisible(preparing)
+    if (preparing) {
+      const text = preparingText(this.time.now)
+      if (mentor.tag.text !== text) mentor.tag.setText(text)
+      mentor.tag.setPosition(sprite.x, labelY - 17).setDepth(100_000)
+    }
     // Above the name label (or where it would be), with room for the cloud's trail.
-    const bubbleY = sprite.y - CHARACTER_H / 2 - 16 - CLOUD_TRAIL_DROP
+    const bubbleY = sprite.y - CHARACTER_H / 2 - 16 - CLOUD_TRAIL_DROP - (preparing ? 16 : 0)
     mentor.cloud.setPosition(sprite.x, bubbleY).setDepth(100_001)
     mentor.bubble.setPosition(sprite.x, bubbleY).setDepth(100_002)
   }

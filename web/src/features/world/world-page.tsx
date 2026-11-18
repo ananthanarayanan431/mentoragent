@@ -257,6 +257,17 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
     meetingRef.current = meeting
   }, [meeting])
 
+  // A mentor still reading up wears a "preparing" tag in the square until ready.
+  const preparingIds = mentors
+    .filter((mentor) => mentor.memory === 'building')
+    .map((mentor) => mentor.id)
+    .join(',')
+  useEffect(() => {
+    bridge.commands.emit('preparing', {
+      mentorIds: preparingIds ? preparingIds.split(',') : [],
+    })
+  }, [bridge, preparingIds, ready])
+
   // What each mentor told you floats over them as the player walks past.
   useEffect(() => {
     bridge.commands.emit('bubbles', { texts: bubbleTexts(ledger.lines) })

@@ -14,7 +14,7 @@ import {
   removeMentor,
   setInSquare,
 } from '@/lib/api'
-import { API_BASE_URL } from '@/lib/config'
+import { API_BASE_URL, MEMORY_POLL_MS } from '@/lib/config'
 import type { Mentor } from '@/lib/types'
 
 type Status = 'loading' | 'ready' | 'error'
@@ -44,6 +44,19 @@ export function MentorsPage() {
 
     return () => controller.abort()
   }, [attempt])
+
+  // While any memory is being built, check back now and then, so the "Preparing"
+  // tags clear by themselves once the mentors are ready.
+  const building = mentors.some((mentor) => mentor.memory === 'building')
+  useEffect(() => {
+    if (!building) return
+    const timer = window.setInterval(() => {
+      listMentors()
+        .then(setMentors)
+        .catch(() => {}) // a missed check is retried on the next tick
+    }, MEMORY_POLL_MS)
+    return () => window.clearInterval(timer)
+  }, [building])
 
   const [poolLeft, setPoolLeft] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)

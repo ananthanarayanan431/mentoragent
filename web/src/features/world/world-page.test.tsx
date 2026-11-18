@@ -40,6 +40,7 @@ vi.mock('./game/create-game', () => ({
       'addMentor',
       'removeMentor',
       'bubbles',
+      'preparing',
       'visit',
       'joinTalk',
     ] as const) {
@@ -400,6 +401,10 @@ describe('WorldPage', () => {
       const building = { ...MENTORS[0]!, memory: 'building' as const }
       api.listMentors.mockResolvedValueOnce([building, MENTORS[1]!])
       await renderWorld()
+      // From outside: the square tags them as preparing before anyone walks up.
+      expect(game.commands.findLast((command) => command.name === 'preparing')?.payload).toEqual({
+        mentorIds: ['ada'],
+      })
       fromGame((bridge) => bridge.events.emit('talk', { mentorId: 'ada' }))
       expect(screen.getByText(/still reading up on their own work/)).toBeInTheDocument()
 
@@ -407,6 +412,9 @@ describe('WorldPage', () => {
       await act(() => vi.advanceTimersByTimeAsync(5000))
 
       expect(screen.queryByText(/still reading up on their own work/)).not.toBeInTheDocument()
+      expect(game.commands.findLast((command) => command.name === 'preparing')?.payload).toEqual({
+        mentorIds: [],
+      })
       const calls = api.listMentors.mock.calls.length
       await act(() => vi.advanceTimersByTimeAsync(15000))
       expect(api.listMentors.mock.calls.length).toBe(calls) // nothing building: no more polls

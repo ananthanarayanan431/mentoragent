@@ -40,6 +40,8 @@ export interface GameCommands {
   endTalk: { mentorId: string }
   /** The player joined two mentors: this one (not the one walked up to) stops too. */
   joinTalk: { mentorId: string }
+  /** Mentors whose memory is still being prepared: they wear a "preparing" tag. */
+  preparing: { mentorIds: string[] }
   /** Speech bubble text per mentor id (what they told you); missing ids show none. */
   bubbles: { texts: Record<string, string> }
   /** Send `visitorId` walking over to `hostId`; answered with `met` or `visitFailed`. */

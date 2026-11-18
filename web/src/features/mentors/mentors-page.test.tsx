@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -56,6 +56,27 @@ describe('MentorsPage', () => {
     const link = await screen.findByRole('link', { name: /Ada Lovelace/ })
     expect(link).toHaveAttribute('href', '/chat/ada')
     expect(screen.getByText('Computing')).toBeInTheDocument()
+  })
+
+  it('tags a mentor whose memory is being prepared, until it is ready', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      mockFetch([{ ...mentor, memory: 'building' }])
+      renderPage()
+
+      const link = await screen.findByRole('link', { name: /Ada Lovelace/ })
+      expect(within(link).getByText('Preparing')).toBeInTheDocument()
+      expect(within(link).getByText('Preparing their memory…')).toBeInTheDocument()
+      expect(within(link).queryByText('Start a conversation')).not.toBeInTheDocument()
+
+      mockFetch([{ ...mentor, memory: 'ready' }])
+      await act(() => vi.advanceTimersByTimeAsync(5000))
+
+      expect(within(link).queryByText('Preparing')).not.toBeInTheDocument()
+      expect(within(link).getByText('Start a conversation')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('explains an empty database instead of showing a blank page', async () => {
