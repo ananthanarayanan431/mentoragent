@@ -143,3 +143,16 @@ describe('deleteConversation', () => {
     })
   })
 })
+
+describe('the square a request is about', () => {
+  it('goes on every request as X-Square-Id', async () => {
+    window.localStorage.setItem('mentoragent:square', 'cricket')
+    const fetchMock = mockFetch(json([]))
+
+    await listMentors()
+
+    const init = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(new Headers(init[1].headers).get('X-Square-Id')).toBe('cricket')
+    window.localStorage.clear()
+  })
+})

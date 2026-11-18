@@ -17,6 +17,9 @@ import type {
   MentorUpdate,
   PoolOut,
   PresetOut,
+  SquareIn,
+  SquareOut,
+  SquareUpdate,
 } from '@mentoragent/mentor-agent-contracts'
 
 export type {
@@ -27,8 +30,12 @@ export type {
   MentorSources,
   MentorUpdate,
   PoolOut,
+  SquareIn,
+  SquareUpdate,
 }
 export type Preset = PresetOut
+/** A group of mentors with its own goal; what is said in one square stays there. */
+export type Square = SquareOut
 export type Mentor = MentorOut
 /** Two mentors chatting about your goal (overheard in the square). */
 export type AmbientChat = AmbientChatOut

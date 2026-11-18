@@ -7,6 +7,8 @@
  */
 
 /** API base with any trailing slash removed, or '' for the current origin. */
+import { currentSquareId } from './square'
+
 export const API_BASE_URL: string = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')
 
 /**
@@ -35,7 +37,7 @@ export function httpUrl(path: string): string {
 }
 
 /**
- * WebSocket URL for `path`, upgrading the scheme to match the page: a page on
+ * WebSocket URL for `path` in the current square, upgrading the scheme to match the page: a page on
  * https must use wss, or the browser blocks the connection as mixed content.
  */
 export function wsUrl(path: string): string {
@@ -43,5 +45,6 @@ export function wsUrl(path: string): string {
   const url = new URL(`${base}${path}`, window.location.href)
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
   if (API_KEY) url.searchParams.set('api_key', API_KEY)
+  url.searchParams.set('square_id', currentSquareId())
   return url.toString()
 }

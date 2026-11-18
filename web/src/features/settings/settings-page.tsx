@@ -8,11 +8,13 @@ import type { Mentor } from '@/lib/types'
 import { GoalPanel } from './goal-panel'
 import { LedgerList } from './ledger-list'
 import { MentorsMet } from './mentors-met'
+import { SquarePanel } from './square-panel'
 import type { PortraitFor } from './section'
 
 /**
- * Settings: your goal, the mentors you have met and what they told you. Kept off
- * the square so the square shows only the mentors and your conversation.
+ * Settings for the square you are in: its name, your goal there, the mentors you have
+ * met in it and what they told you. Kept off the square so the square shows only the
+ * mentors and your conversation.
  */
 export function SettingsPage() {
   const [mentors, setMentors] = useState<Mentor[] | null>(null)
@@ -52,7 +54,8 @@ export function SettingsPage() {
       <header>
         <h1 className="font-pixel text-3xl font-semibold tracking-wide text-ink">Settings</h1>
         <p className="mt-1 text-sm text-muted">
-          Your goal, the mentors you have met and what they told you.
+          For this square: your goal, the mentors you have met and what they told you. Each square
+          keeps its own.
         </p>
       </header>
 
@@ -79,6 +82,8 @@ export function SettingsPage() {
         onForget={ledger.forget}
         portraitFor={portraitFor}
       />
+
+      <SquarePanel />
     </main>
   )
 }

@@ -1,5 +1,5 @@
 /**
- * Per-mentor conversation persistence in localStorage, so a reload resumes
+ * Per-mentor (and per-square) conversation persistence in localStorage, so a reload resumes
  * where the user left off.
  *
  * Every access is wrapped: localStorage throws in private windows and when a
@@ -8,14 +8,16 @@
 
 import type { ChatState } from './chat-state'
 import { initialChatState } from './chat-state'
+import { squareKey } from '@/lib/square'
 import type { Message, Role } from '@/lib/types'
 
 const PREFIX = 'mentoragent:conversation:'
 /** Keeps a long chat from outgrowing the ~5MB localStorage budget. */
 const MAX_STORED_MESSAGES = 100
 
+/** Conversations are kept per square: the same mentor in two squares has two. */
 function key(mentorId: string): string {
-  return `${PREFIX}${mentorId}`
+  return squareKey(`${PREFIX}${mentorId}`)
 }
 
 /**

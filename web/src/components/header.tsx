@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Link, NavLink } from 'react-router'
 
 import { ThemeToggle } from './theme-toggle'
@@ -6,9 +7,11 @@ import type { Theme } from '@/lib/use-theme'
 interface Props {
   theme: Theme
   onThemeChange: (theme: Theme) => void
+  /** Picks the mentor square the app is in (a feature, so passed in). */
+  squareSwitcher?: ReactNode
 }
 
-export function Header({ theme, onThemeChange }: Props) {
+export function Header({ theme, onThemeChange, squareSwitcher }: Props) {
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-canvas/85 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
@@ -22,6 +25,7 @@ export function Header({ theme, onThemeChange }: Props) {
           </span>
         </Link>
         <div className="flex items-center gap-1 sm:gap-3">
+          {squareSwitcher}
           <nav aria-label="Views" className="flex items-center gap-1 font-pixel text-base">
             <NavLink to="/" end className={navClass}>
               Square

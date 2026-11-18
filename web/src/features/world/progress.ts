@@ -1,12 +1,15 @@
 /**
  * Friendship with each mentor: it grows with every message the player sends them,
- * and levels up at a few thresholds. Stored per browser; every storage access is
+ * and levels up at a few thresholds. Stored per browser and per square; every storage access is
  * wrapped, so without storage progress lasts for the visit.
  */
 
-const KEY = 'mentoragent:world:friendship'
+import { squareKey } from '@/lib/square'
+
+/** Friendship is kept per square: meeting a mentor in one square is not meeting them in another. */
+const key = () => squareKey('mentoragent:world:friendship')
 /** The first version only stored which mentors were met; read it once to migrate. */
-const LEGACY_MET_KEY = 'mentoragent:world:met'
+const legacyMetKey = () => squareKey('mentoragent:world:met')
 
 /** Messages needed for each level; level 0 is "not met yet". */
 export const LEVEL_THRESHOLDS = [1, 3, 6, 10, 16] as const
@@ -60,13 +63,13 @@ function isCounts(value: unknown): value is Record<string, number> {
 
 export function loadFriendship(): Friendship {
   try {
-    const raw = window.localStorage.getItem(KEY)
+    const raw = window.localStorage.getItem(key())
     if (raw) {
       const parsed: unknown = JSON.parse(raw)
       return isCounts(parsed) ? parsed : {}
     }
     // Migrate: a mentor already met starts at level 1.
-    const legacy: unknown = JSON.parse(window.localStorage.getItem(LEGACY_MET_KEY) ?? '[]')
+    const legacy: unknown = JSON.parse(window.localStorage.getItem(legacyMetKey()) ?? '[]')
     if (!Array.isArray(legacy)) return {}
     return Object.fromEntries(
       legacy.filter((id): id is string => typeof id === 'string').map((id) => [id, 1]),
@@ -78,7 +81,7 @@ export function loadFriendship(): Friendship {
 
 function save(friendship: Friendship): void {
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(friendship))
+    window.localStorage.setItem(key(), JSON.stringify(friendship))
   } catch {
     // Storage blocked or full: keep the progress in memory only.
   }
@@ -101,8 +104,8 @@ export function recordMessage(friendship: Friendship, mentorId: string): Message
 
 export function resetFriendship(): Friendship {
   try {
-    window.localStorage.removeItem(KEY)
-    window.localStorage.removeItem(LEGACY_MET_KEY)
+    window.localStorage.removeItem(key())
+    window.localStorage.removeItem(legacyMetKey())
   } catch {
     // Nothing stored that we could clear.
   }

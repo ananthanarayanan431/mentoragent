@@ -105,3 +105,16 @@ describe('conversation storage', () => {
     })
   })
 })
+
+describe('conversations in different squares', () => {
+  it('are kept apart: the same mentor has one conversation per square', () => {
+    const state = { ...initialChatState, conversationId: 'c1' }
+    saveConversation(MENTOR, { ...state, messages: [{ id: 'u1', role: 'user', content: 'Hi' }] })
+
+    window.localStorage.setItem('mentoragent:square', 'cricket')
+    expect(loadConversation(MENTOR).messages).toEqual([])
+
+    window.localStorage.setItem('mentoragent:square', 'main')
+    expect(loadConversation(MENTOR).messages).toHaveLength(1)
+  })
+})

@@ -1,6 +1,7 @@
 /** Typed client for the MentorAgents API. */
 
 import { API_KEY, API_PREFIX, httpUrl } from './config'
+import { currentSquareId } from './square'
 import type {
   AmbientChat,
   ChatRequest,
@@ -13,6 +14,9 @@ import type {
   MentorUpdate,
   PoolOut,
   Preset,
+  Square,
+  SquareIn,
+  SquareUpdate,
 } from './types'
 
 /** An API call that failed, carrying a message fit to show the user. */
@@ -66,6 +70,8 @@ const STATUS_FALLBACKS: Record<number, string> = {
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   if (API_KEY) headers.set('X-API-Key', API_KEY)
+  // Every request is about the square the user is in.
+  if (!headers.has('X-Square-Id')) headers.set('X-Square-Id', currentSquareId())
   if (init.body !== undefined) headers.set('Content-Type', 'application/json')
 
   let response: Response
@@ -121,12 +127,13 @@ export function getMentorPool(signal?: AbortSignal): Promise<PoolOut> {
   return request<PoolOut>(`${API_PREFIX}/mentors/pool`, signal ? { signal } : {})
 }
 
-/** Adds a random mentor from the pool; their memory builds in the background. */
+/** Adds a random mentor from the pool to the current square; their memory builds in the
+ * background. */
 export function addRandomMentor(): Promise<Mentor> {
   return request<Mentor>(`${API_PREFIX}/mentors/random`, { method: 'POST' })
 }
 
-/** Brings a mentor into Mentor Square, or sends them out (they keep their memory). */
+/** Brings a mentor into the current square, or sends them out (they keep their memory). */
 export function setInSquare(mentorId: string, inSquare: boolean): Promise<Mentor> {
   return request<Mentor>(mentorPath(mentorId, '/square'), {
     method: inSquare ? 'PUT' : 'DELETE',
@@ -169,7 +176,7 @@ export function removeMentor(mentorId: string): Promise<void> {
   return request<void>(mentorPath(mentorId), { method: 'DELETE' })
 }
 
-/** The goal every mentor in the square knows about (null before one is set). */
+/** The goal every mentor in the current square knows about (null before one is set). */
 export function getGoal(signal?: AbortSignal): Promise<GoalOut> {
   return request<GoalOut>(`${API_PREFIX}/goal`, signal ? { signal } : {})
 }
@@ -179,7 +186,7 @@ export function setGoal(goal: string): Promise<GoalOut> {
   return request<GoalOut>(`${API_PREFIX}/goal`, { method: 'PUT', body: JSON.stringify({ goal }) })
 }
 
-/** What the mentors have told you, newest first. */
+/** What the current square's mentors have told you, newest first. */
 export function listLedger(signal?: AbortSignal): Promise<LedgerLine[]> {
   return request<LedgerLine[]>(`${API_PREFIX}/ledger?limit=50`, signal ? { signal } : {})
 }
@@ -203,4 +210,31 @@ export function startAmbientChat(mentorIds: [string, string]): Promise<AmbientCh
 /** Rebuilds the mentor's long-term memory from their sources, in the background. */
 export function rebuildMentorMemory(mentorId: string): Promise<Mentor> {
   return request<Mentor>(mentorPath(mentorId, '/memory'), { method: 'POST' })
+}
+
+/** Every square, oldest first. */
+export function listSquares(signal?: AbortSignal): Promise<Square[]> {
+  return request<Square[]>(`${API_PREFIX}/squares`, signal ? { signal } : {})
+}
+
+/** Makes a new, empty square. */
+export function createSquare(body: SquareIn): Promise<Square> {
+  return request<Square>(`${API_PREFIX}/squares`, { method: 'POST', body: JSON.stringify(body) })
+}
+
+function squarePath(squareId: string): string {
+  return `${API_PREFIX}/squares/${encodeURIComponent(squareId)}`
+}
+
+/** Renames a square (or changes its goal). */
+export function updateSquare(squareId: string, changes: SquareUpdate): Promise<Square> {
+  return request<Square>(squarePath(squareId), {
+    method: 'PATCH',
+    body: JSON.stringify(changes),
+  })
+}
+
+/** Deletes a square with what was said in it; the mentors stay. 409 for the only one. */
+export function deleteSquare(squareId: string): Promise<void> {
+  return request<void>(squarePath(squareId), { method: 'DELETE' })
 }

@@ -4,7 +4,8 @@ import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { recordMessage } from '@/features/world/progress'
-import type { LedgerLine, Mentor } from '@/lib/types'
+import { SquareProvider } from '@/features/squares/square-provider'
+import type { LedgerLine, Mentor, Square } from '@/lib/types'
 import { SettingsPage } from './settings-page'
 
 const MENTORS: Mentor[] = [
@@ -18,7 +19,14 @@ const api = vi.hoisted(() => ({
   setGoal: vi.fn<(goal: string) => Promise<{ goal: string | null }>>(),
   listLedger: vi.fn<() => Promise<LedgerLine[]>>(),
   deleteLedgerLine: vi.fn<(id: string) => Promise<void>>(),
+  listSquares: vi.fn<() => Promise<Square[]>>(),
+  updateSquare: vi.fn<(id: string, changes: { name?: string }) => Promise<Square>>(),
+  deleteSquare: vi.fn<(id: string) => Promise<void>>(),
 }))
+
+function square(id: string, name: string): Square {
+  return { id, name, goal: null, mentor_ids: [], created_at: '2026-11-18T00:00:00Z' }
+}
 vi.mock('@/features/world/game/portraits', () => ({ portraitFor: () => null }))
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
@@ -28,7 +36,9 @@ vi.mock('@/lib/api', async (importOriginal) => ({
 function renderSettings() {
   render(
     <MemoryRouter>
-      <SettingsPage />
+      <SquareProvider>
+        <SettingsPage />
+      </SquareProvider>
     </MemoryRouter>,
   )
 }
@@ -40,6 +50,9 @@ beforeEach(() => {
   api.setGoal.mockImplementation(async (goal) => ({ goal }))
   api.listLedger.mockResolvedValue([])
   api.deleteLedgerLine.mockResolvedValue()
+  api.listSquares.mockResolvedValue([square('main', 'My square')])
+  api.updateSquare.mockImplementation(async (id, { name }) => square(id, name ?? ''))
+  api.deleteSquare.mockResolvedValue()
 })
 
 describe('SettingsPage', () => {
@@ -99,5 +112,38 @@ describe('SettingsPage', () => {
 
     await user.click(await screen.findByRole('button', { name: /try again/i }))
     expect(await screen.findByRole('region', { name: /mentors met/i })).toBeInTheDocument()
+  })
+
+  it('renames the square you are in', async () => {
+    const user = userEvent.setup()
+    renderSettings()
+
+    const name = await screen.findByRole('textbox', { name: 'Name' })
+    await user.clear(name)
+    await user.type(name, 'Investing')
+    await user.click(screen.getByRole('button', { name: 'Rename' }))
+
+    expect(api.updateSquare).toHaveBeenCalledWith('main', { name: 'Investing' })
+    expect(await screen.findByText('Renamed.')).toBeInTheDocument()
+  })
+
+  it('will not delete your only square', async () => {
+    renderSettings()
+    expect(await screen.findByText(/your only square/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Delete this square/ })).not.toBeInTheDocument()
+  })
+
+  it('deletes a square only after you confirm, then moves you to another', async () => {
+    window.localStorage.setItem('mentoragent:square', 'cricket')
+    api.listSquares.mockResolvedValue([square('main', 'My square'), square('cricket', 'Cricket')])
+    const user = userEvent.setup()
+    renderSettings()
+
+    await user.click(await screen.findByRole('button', { name: /Delete this square/ }))
+    expect(api.deleteSquare).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Delete square' }))
+
+    expect(api.deleteSquare).toHaveBeenCalledWith('cricket')
+    expect(window.localStorage.getItem('mentoragent:square')).toBe('main')
   })
 })
