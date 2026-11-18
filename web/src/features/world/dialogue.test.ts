@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Message } from '@/lib/types'
-import { currentExchange, groupExchange, nextRevealed } from './dialogue'
+import { currentExchange, groupExchange, nextRevealed, splitPages } from './dialogue'
 
 const user = (id: string, content = id): Message => ({ id, role: 'user', content })
 const mentor = (id: string, content = id, streaming = false): Message => ({
@@ -69,5 +69,33 @@ describe('groupExchange', () => {
 
   it('has no question before you said anything', () => {
     expect(groupExchange([])).toEqual({ question: null, replies: [] })
+  })
+})
+
+const words = (s: string) => s.split(/\s+/).filter(Boolean)
+
+describe('splitPages', () => {
+  it('keeps a short reply on one page', () => {
+    expect(splitPages('Hello there.')).toEqual(['Hello there.'])
+  })
+
+  it('always returns a page, even for nothing yet', () => {
+    expect(splitPages('')).toEqual([''])
+  })
+
+  it('packs whole paragraphs onto a page while they fit', () => {
+    const text = ['a'.repeat(10), 'b'.repeat(10), 'c'.repeat(10)].join('\n\n')
+    expect(splitPages(text, 30)).toEqual([`${'a'.repeat(10)}\n\n${'b'.repeat(10)}`, 'c'.repeat(10)])
+  })
+
+  it('breaks a long paragraph between sentences', () => {
+    const text = 'One two three. Four five six. Seven eight nine.'
+    const pages = splitPages(text, 20)
+    expect(pages).toEqual(['One two three.', 'Four five six.', 'Seven eight nine.'])
+  })
+
+  it('loses no words', () => {
+    const text = 'First para here.\n\nSecond one is longer. It has two sentences!\n\nThird?'
+    expect(splitPages(text, 25).flatMap(words)).toEqual(words(text))
   })
 })

@@ -60,3 +60,48 @@ export function nextRevealed(revealed: number, length: number): number {
   const step = Math.max(1, Math.ceil((length - revealed) / CATCH_UP_STEPS))
   return Math.min(length, revealed + step)
 }
+
+/** Roughly how much of a reply fits on one page of the dialogue box. */
+export const PAGE_CHARS = 360
+
+/**
+ * Splits a reply into pages, like an RPG text box: whole paragraphs where they
+ * fit, a long paragraph broken between sentences. Pages only ever grow at the end
+ * as a streamed reply arrives, except that a paragraph still being written may move
+ * to the next page once it no longer fits. Always at least one page.
+ */
+export function splitPages(text: string, limit = PAGE_CHARS): string[] {
+  const pieces = text
+    .split(/\n{2,}/)
+    .flatMap((paragraph) => (paragraph.length > limit ? sentences(paragraph, limit) : [paragraph]))
+    .filter((piece) => piece.trim().length > 0)
+  const pages: string[] = []
+  let page = ''
+  for (const piece of pieces) {
+    if (page && page.length + 2 + piece.length > limit) {
+      pages.push(page)
+      page = piece
+    } else {
+      page = page ? `${page}\n\n${piece}` : piece
+    }
+  }
+  pages.push(page)
+  return pages
+}
+
+/** A long paragraph as runs of whole sentences, each within `limit` where possible. */
+function sentences(paragraph: string, limit: number): string[] {
+  const parts = paragraph.match(/[^.!?]+(?:[.!?]+["”’)]*\s*|$)/g) ?? [paragraph]
+  const runs: string[] = []
+  let run = ''
+  for (const part of parts) {
+    if (run && run.length + part.length > limit) {
+      runs.push(run.trimEnd())
+      run = part
+    } else {
+      run += part
+    }
+  }
+  if (run.trim()) runs.push(run.trimEnd())
+  return runs
+}

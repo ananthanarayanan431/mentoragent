@@ -1,20 +1,23 @@
-import { AlertCircle, RotateCcw, ScrollText, SendHorizontal, X } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 
-import { Avatar } from '@/components/avatar'
-import { MessageBubble } from '@/features/chat/message-bubble'
 import { useGroupConversation } from '@/features/chat/use-group-conversation'
 import { MAX_MESSAGE_CHARS } from '@/lib/config'
 import { useMediaQuery } from '@/lib/use-media-query'
 import type { Mentor } from '@/lib/types'
 import { groupExchange } from './dialogue'
+import { FRAME_BUTTON, KeyHints, NamePlate, PlayerLine, Portrait, ScriptLog } from './rpg'
 import { SpokenLine } from './spoken-line'
 import { useTypewriter } from './use-typewriter'
+
+const NO_PORTRAITS: (string | null)[] = []
 
 interface Props {
   /** The mentor you walked up to (answers first), then the other. */
   mentors: [Mentor, Mentor]
+  /** Their sprite portraits, in the same order, once the game has drawn them. */
+  portraits?: (string | null)[]
   /** The chat you joined, so both mentors remember it. */
   ambientId: string | null
   /** What they were saying when you joined. */
@@ -30,6 +33,7 @@ interface Props {
  */
 export function GroupDialogueBox({
   mentors,
+  portraits = NO_PORTRAITS,
   ambientId,
   ambientLines,
   onClose,
@@ -105,104 +109,113 @@ export function GroupDialogueBox({
     }
   }
 
+  const speakerIndex = speaker === second.name && question ? 1 : 0
+  const speakerMentor = mentors[speakerIndex]
+
   return (
     <section
       role="dialog"
       aria-modal="false"
       aria-label={`Conversation with ${both}`}
-      className="pointer-events-auto relative mx-auto mt-4 flex max-h-[min(62vh,30rem)] w-full max-w-3xl flex-col rounded-xl border-2 border-ink/80 bg-surface shadow-[0_6px_0_0_rgba(0,0,0,0.25)]"
+      className="rpg-frame pointer-events-auto relative mx-auto mt-6 mb-2 flex max-h-[min(64vh,32rem)] w-full max-w-3xl flex-col text-ink"
     >
-      <span
-        data-testid="speaker"
-        className="absolute -top-3.5 left-4 rounded-md border-2 border-ink/80 bg-accent px-2.5 py-0.5 font-mono text-xs font-bold uppercase tracking-wide text-on-accent"
-      >
-        {question ? speaker : both}
-      </span>
-
-      <header className="flex items-center gap-2 border-b-2 border-ink/10 px-4 pt-4 pb-2.5">
-        <Avatar name={first.name} src={first.image_url} size={32} />
-        <Avatar name={second.name} src={second.image_url} size={32} />
-        <h2 className="min-w-0 flex-1 truncate text-xs text-muted">{both}</h2>
+      <NamePlate testId="speaker">{question ? speaker : both}</NamePlate>
+      <h2 className="sr-only">{both}</h2>
+      <div className="absolute -top-4 right-4 z-10 flex gap-2">
         <button
           type="button"
           onClick={() => setShowLog((open) => !open)}
           disabled={!state.messages.length}
           aria-pressed={showLog}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted hover:bg-raised disabled:opacity-40"
+          className={FRAME_BUTTON}
         >
-          <ScrollText size={13} aria-hidden="true" />
-          <span className="sr-only sm:not-sr-only">Log</span>
+          Log
         </button>
         <button
           type="button"
           onClick={startNewChat}
           disabled={state.isStreaming || !state.messages.length}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted hover:bg-raised disabled:opacity-40"
+          className={FRAME_BUTTON}
         >
-          <RotateCcw size={13} aria-hidden="true" />
-          <span className="sr-only sm:not-sr-only">New chat</span>
+          New chat
         </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="grid size-8 place-items-center rounded-md text-muted hover:bg-raised"
-        >
-          <X size={16} aria-hidden="true" />
+        <button type="button" onClick={onClose} className={FRAME_BUTTON}>
+          <span aria-hidden="true">✕</span>
           <span className="sr-only">Close (Escape)</span>
         </button>
-      </header>
-
-      <div className="min-h-32 flex-1 space-y-3 overflow-y-auto px-4 py-3">
-        {showLog ? (
-          <div className="space-y-4" aria-label="Conversation log">
-            {state.messages.map((message) => (
-              <MessageBubble
-                key={message.id}
-                message={message}
-                mentorName={(message.mentorId && names[message.mentorId]) || 'Mentor'}
-                mentorImage={message.mentorId === first.id ? first.image_url : second.image_url}
-              />
-            ))}
-          </div>
-        ) : !question ? (
-          <ul className="space-y-1.5 text-sm" aria-label="What they were saying">
-            {ambientLines.map((line) => (
-              <li key={`${line.mentorId}:${line.text}`}>
-                <span className="font-mono text-xs font-bold">
-                  {names[line.mentorId] ?? 'Mentor'}:
-                </span>{' '}
-                {line.text}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <>
-            <p className="line-clamp-3 whitespace-pre-wrap break-words font-mono text-xs text-muted">
-              <span className="font-bold text-ink">You:</span> {question.content}
-            </p>
-            {current?.failed ? (
-              <p role="alert" className="flex items-start gap-2 text-sm text-danger">
-                <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-                {current.content}
-              </p>
-            ) : (
-              <SpokenLine
-                shown={typewriter.shown}
-                thinking={!current || (streaming && current.content.length === 0)}
-                revealing={!typewriter.done || streaming}
-                finished={finished && hasNext}
-                onSkip={hurry}
-              />
-            )}
-            <p className="sr-only" aria-live="polite">
-              {finished && current && !current.failed ? `${speaker}: ${current.content}` : ''}
-            </p>
-          </>
-        )}
       </div>
 
-      <form onSubmit={submit} className="border-t-2 border-ink/10 p-3">
-        <div className="flex items-end gap-2">
+      <div className="flex min-h-0 flex-1 gap-4 px-5 pt-6 pb-3">
+        {/* Whoever is speaking: both faces until you have asked something. */}
+        <div className="flex shrink-0 flex-col gap-2">
+          {question ? (
+            <Portrait
+              name={speakerMentor.name}
+              portrait={portraits[speakerIndex]}
+              image={speakerMentor.image_url}
+              className="size-16 sm:size-24"
+            />
+          ) : (
+            mentors.map((mentor, i) => (
+              <Portrait
+                key={mentor.id}
+                name={mentor.name}
+                portrait={portraits[i]}
+                image={mentor.image_url}
+                className="size-12 sm:size-14"
+              />
+            ))
+          )}
+        </div>
+
+        <div className="min-h-28 min-w-0 flex-1 space-y-3 overflow-y-auto pr-1">
+          {showLog ? (
+            <ScriptLog
+              messages={state.messages}
+              nameFor={(message) => (message.mentorId && names[message.mentorId]) || 'Mentor'}
+            />
+          ) : !question ? (
+            <ul
+              className="space-y-2 font-pixel text-[1.0625rem]"
+              aria-label="What they were saying"
+            >
+              {ambientLines.map((line) => (
+                <li key={`${line.mentorId}:${line.text}`}>
+                  <span className="text-accent">{names[line.mentorId] ?? 'Mentor'} ▸</span>{' '}
+                  {line.text}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <>
+              <PlayerLine text={question.content} />
+              {current?.failed ? (
+                <p role="alert" className="flex items-start gap-2 font-pixel text-sm text-danger">
+                  <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                  {current.content}
+                </p>
+              ) : (
+                <SpokenLine
+                  shown={typewriter.shown}
+                  thinking={!current || (streaming && current.content.length === 0)}
+                  revealing={!typewriter.done || streaming}
+                  finished={finished && hasNext}
+                  onSkip={hurry}
+                />
+              )}
+              <p className="sr-only" aria-live="polite">
+                {finished && current && !current.failed ? `${speaker}: ${current.content}` : ''}
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+
+      <form onSubmit={submit} className="px-5 pb-4">
+        <div className="rpg-inset flex items-end gap-2 px-2 py-1">
+          <span aria-hidden="true" className="pb-2 font-pixel text-base text-accent">
+            ▶
+          </span>
           <label htmlFor="group-input" className="sr-only">
             Message {both}
           </label>
@@ -214,20 +227,20 @@ export function GroupDialogueBox({
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={onKeyDown}
             placeholder={`Say something to ${both}…`}
-            className="max-h-32 min-h-10 flex-1 resize-none rounded-lg border border-line bg-canvas px-3 py-2 text-sm outline-none focus:border-accent"
+            className="max-h-32 min-h-10 flex-1 resize-none bg-transparent py-2 font-pixel text-base outline-none placeholder:text-faint"
           />
           <button
             type="submit"
+            aria-label="Send"
             disabled={state.isStreaming || !draft.trim() || draft.length > MAX_MESSAGE_CHARS}
-            className="grid size-10 shrink-0 place-items-center rounded-lg bg-accent text-on-accent hover:bg-accent-hover disabled:opacity-40"
+            className="rpg-plate mb-1.5 h-7 shrink-0 bg-accent px-3 font-pixel text-sm text-on-accent hover:bg-accent-hover disabled:opacity-40"
           >
-            <SendHorizontal size={16} aria-hidden="true" />
-            <span className="sr-only">Send</span>
+            Say
           </button>
         </div>
-        <p className="mt-1.5 hidden font-mono text-[11px] text-faint sm:block">
-          Enter: send · Space: {finished && hasNext ? 'next speaker' : 'skip'} · Esc: leave
-        </p>
+        <KeyHints>
+          Enter: say · Space: {finished && hasNext ? 'next speaker' : 'skip'} · Esc: leave
+        </KeyHints>
       </form>
     </section>
   )

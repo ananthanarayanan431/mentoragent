@@ -445,6 +445,20 @@ export function drawCharacterSheet(look: Appearance): HTMLCanvasElement {
   return element
 }
 
+/** Portrait size in texture pixels: head and shoulders of a front-facing frame. */
+export const PORTRAIT_SIZE = CW
+
+/**
+ * A character's head and shoulders, facing you, for the dialogue box: the top of
+ * their standing frame, so the portrait is the same person you walked up to.
+ */
+export function drawPortrait(look: Appearance): HTMLCanvasElement {
+  const [element, ctx] = canvas(PORTRAIT_SIZE, PORTRAIT_SIZE)
+  // Drop the figure a little so the hair clears the top edge.
+  drawCharacter(ctx, look, 'down', 0, 0, 6)
+  return element
+}
+
 /** The frame index of `facing` at `frame` in a character sheet. */
 export function characterFrame(facing: Facing, frame: number): number {
   return FACINGS.indexOf(facing) * WALK_FRAMES + frame

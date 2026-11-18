@@ -23,6 +23,11 @@
   --ui-danger: oklch(0.52 0.19 25);
   --ui-danger-soft: oklch(0.96 0.03 25);
   --ui-positive: oklch(0.6 0.13 150);
+  /* The in-world dialogue: parchment in a dark wooden frame. */
+  --ui-scroll: oklch(0.965 0.028 88);
+  --ui-scroll-deep: oklch(0.925 0.04 82);
+  --ui-frame: oklch(0.33 0.045 55);
+  --ui-frame-light: oklch(0.58 0.08 62);
 }
 
 .dark {
@@ -41,6 +46,10 @@
   --ui-danger: oklch(0.72 0.15 22);
   --ui-danger-soft: oklch(0.29 0.06 22);
   --ui-positive: oklch(0.75 0.14 155);
+  --ui-scroll: oklch(0.25 0.018 62);
+  --ui-scroll-deep: oklch(0.21 0.016 62);
+  --ui-frame: oklch(0.13 0.012 60);
+  --ui-frame-light: oklch(0.46 0.06 65);
 }
 
 /* `inline` keeps the var() reference in the generated utility, so switching
@@ -61,8 +70,13 @@
   --color-danger: var(--ui-danger);
   --color-danger-soft: var(--ui-danger-soft);
   --color-positive: var(--ui-positive);
+  --color-scroll: var(--ui-scroll);
+  --color-scroll-deep: var(--ui-scroll-deep);
+  --color-frame: var(--ui-frame);
+  --color-frame-light: var(--ui-frame-light);
 
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-pixel: 'Pixelify Sans', ui-monospace, Menlo, monospace;
 
   --animate-blink: blink 1.2s ease-in-out infinite;
   --animate-rise: rise 0.28s ease-out both;
@@ -126,6 +140,48 @@
 }
 
 @layer components {
+  /* Pixel-art frames for the in-world dialogue. Box shadows on each side (not a
+     border) leave the corners notched, the way a sprite-drawn box looks. */
+  .rpg-frame {
+    background-color: var(--ui-scroll);
+    box-shadow:
+      0 -4px 0 0 var(--ui-frame),
+      0 4px 0 0 var(--ui-frame),
+      -4px 0 0 0 var(--ui-frame),
+      4px 0 0 0 var(--ui-frame),
+      inset 0 0 0 2px var(--ui-frame-light),
+      0 10px 0 0 rgb(0 0 0 / 0.28);
+  }
+  .rpg-plate {
+    box-shadow:
+      0 -2px 0 0 var(--ui-frame),
+      0 2px 0 0 var(--ui-frame),
+      -2px 0 0 0 var(--ui-frame),
+      2px 0 0 0 var(--ui-frame),
+      0 4px 0 0 rgb(0 0 0 / 0.25);
+  }
+  /* A sunken well: the portrait window and the text field. */
+  .rpg-inset {
+    background-color: var(--ui-scroll-deep);
+    box-shadow:
+      0 -2px 0 0 var(--ui-frame),
+      0 2px 0 0 var(--ui-frame),
+      -2px 0 0 0 var(--ui-frame),
+      2px 0 0 0 var(--ui-frame),
+      inset 0 2px 0 0 rgb(0 0 0 / 0.12);
+  }
+  .rpg-inset:focus-within {
+    box-shadow:
+      0 -2px 0 0 var(--ui-accent),
+      0 2px 0 0 var(--ui-accent),
+      -2px 0 0 0 var(--ui-accent),
+      2px 0 0 0 var(--ui-accent),
+      inset 0 2px 0 0 rgb(0 0 0 / 0.12);
+  }
+  .pixelated {
+    image-rendering: pixelated;
+  }
+
   /* Markdown coming back from a mentor. Tailwind's reset strips list markers
      and heading sizes, so the reply needs them restored. */
   .prose-reply {

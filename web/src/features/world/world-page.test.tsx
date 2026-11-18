@@ -24,6 +24,7 @@ const game = vi.hoisted(() => ({
 }))
 
 vi.mock('./game/create-game', () => ({
+  portraitFor: () => null,
   createGame: (
     _parent: HTMLElement,
     options: { bridge: WorldBridge; mentors: { id: string; name: string }[] },

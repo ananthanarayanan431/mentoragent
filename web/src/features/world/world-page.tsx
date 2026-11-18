@@ -83,6 +83,8 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
   const [friendship, setFriendship] = useState(loadFriendship)
   const [nearbyId, setNearbyId] = useState<string | null>(null)
   const [gameError, setGameError] = useState('')
+  /** Draws a mentor's sprite portrait for the dialogue; set once the game module loads. */
+  const [portraitFor, setPortraitFor] = useState<((id: string) => string | null) | null>(null)
   const [ready, setReady] = useState(false)
   const [notice, setNotice] = useState('')
   const ledger = useLedger()
@@ -109,8 +111,9 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
     } = { cancelled: false, game: null }
 
     import('./game/create-game')
-      .then(({ createGame }) => {
+      .then(({ createGame, portraitFor: drawPortraitFor }) => {
         if (live.cancelled) return
+        setPortraitFor(() => drawPortraitFor)
         live.game = createGame(parent, {
           mentors: firstRoster.current.map(({ id, name }) => ({ id, name })),
           bridge,
@@ -328,6 +331,7 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
               key={talkingTo.id}
               mentor={talkingTo}
               level={levelFor(friendship[talkingTo.id] ?? 0)}
+              portrait={portraitFor?.(talkingTo.id)}
               onClose={closeDialogue}
               onMessageSent={() => messageSent(talkingTo)}
             />
@@ -337,6 +341,7 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
           <div className="absolute inset-x-0 bottom-0 z-20 p-3">
             <GroupDialogueBox
               key={mode.mentorIds.join('+')}
+              portraits={group.map((mentor) => portraitFor?.(mentor.id) ?? null)}
               mentors={[group[0]!, group[1]!]}
               ambientId={mode.ambientId}
               ambientLines={mode.lines}

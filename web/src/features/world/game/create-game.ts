@@ -4,6 +4,8 @@
  */
 import * as Phaser from 'phaser'
 
+import { appearanceFor } from './appearance'
+import { drawPortrait } from './art'
 import { WorldScene, type WorldSceneOptions } from './world-scene'
 
 export function createGame(parent: HTMLElement, options: WorldSceneOptions): Phaser.Game {
@@ -22,4 +24,22 @@ export function createGame(parent: HTMLElement, options: WorldSceneOptions): Pha
     physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 } } },
     scene: new WorldScene(options),
   })
+}
+
+const portraits = new Map<string, string>()
+
+/**
+ * A mentor's portrait (their sprite's head and shoulders) as a PNG data URL, for
+ * the dialogue box. Cached per id; null where canvas is unavailable.
+ */
+export function portraitFor(id: string): string | null {
+  const cached = portraits.get(id)
+  if (cached) return cached
+  try {
+    const url = drawPortrait(appearanceFor(id)).toDataURL('image/png')
+    portraits.set(id, url)
+    return url
+  } catch {
+    return null
+  }
 }
