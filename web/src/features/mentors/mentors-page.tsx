@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { CreateMentorForm } from './create-mentor-form'
 import { MentorCard } from './mentor-card'
+import { PresetPicker } from './preset-picker'
 import { EmptyState, ErrorState, MentorCardSkeleton } from '@/components/state-views'
 import { clearConversation } from '@/features/chat/storage'
 import { addRandomMentor, ApiError, getMentorPool, listMentors, removeMentor } from '@/lib/api'
@@ -47,6 +48,14 @@ export function MentorsPage() {
       researching
         ? `${mentor.name} was created. We are searching the web for more about them and building their memory; this takes a few minutes.`
         : `${mentor.name} was created. Their memory is being built in the background.`,
+    )
+  }, [])
+
+  // The panel stays open, so several presets can be added in a row.
+  const presetAdded = useCallback((mentor: Mentor) => {
+    setMentors((current) => [...current, mentor])
+    setNotice(
+      `${mentor.name} joined from the presets. Their memory is being built from stored notes.`,
     )
   }, [])
 
@@ -125,6 +134,7 @@ export function MentorsPage() {
 
       {creating && (
         <div className="max-w-2xl">
+          <PresetPicker onAdded={presetAdded} />
           <CreateMentorForm onCreated={created} onCancel={() => setCreating(false)} />
         </div>
       )}

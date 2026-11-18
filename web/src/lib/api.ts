@@ -12,6 +12,7 @@ import type {
   MentorSources,
   MentorUpdate,
   PoolOut,
+  Preset,
 } from './types'
 
 /** An API call that failed, carrying a message fit to show the user. */
@@ -123,6 +124,17 @@ export function getMentorPool(signal?: AbortSignal): Promise<PoolOut> {
 /** Adds a random mentor from the pool; their memory builds in the background. */
 export function addRandomMentor(): Promise<Mentor> {
   return request<Mentor>(`${API_PREFIX}/mentors/random`, { method: 'POST' })
+}
+
+/** Famous mentors offered by name, with their background stored ahead of time. */
+export function listPresets(signal?: AbortSignal): Promise<Preset[]> {
+  return request<Preset[]>(`${API_PREFIX}/mentors/presets`, signal ? { signal } : {})
+}
+
+/** Adds a preset mentor; their memory builds from the stored notes in the background. */
+export function addPresetMentor(presetId: string): Promise<Mentor> {
+  const path = `${API_PREFIX}/mentors/presets/${encodeURIComponent(presetId)}`
+  return request<Mentor>(path, { method: 'POST' })
 }
 
 /** Creates a mentor from a name and sources; their memory builds in the background. */

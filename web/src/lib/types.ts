@@ -16,6 +16,7 @@ import type {
   MentorSources,
   MentorUpdate,
   PoolOut,
+  PresetOut,
 } from '@mentoragent/mentor-agent-contracts'
 
 export type {
@@ -27,6 +28,7 @@ export type {
   MentorUpdate,
   PoolOut,
 }
+export type Preset = PresetOut
 export type Mentor = MentorOut
 /** Two mentors chatting about your goal (overheard in the square). */
 export type AmbientChat = AmbientChatOut
