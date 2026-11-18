@@ -16,7 +16,7 @@ import {
 } from './ambient'
 
 function mentor(id: string, memory: Mentor['memory'] = 'ready'): Mentor {
-  return { id, name: id, expertise: 'e', perspective: 'p', style: 's', memory }
+  return { id, name: id, expertise: 'e', perspective: 'p', style: 's', in_square: true, memory }
 }
 
 describe('eligiblePairs', () => {

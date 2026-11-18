@@ -126,12 +126,22 @@ export function addRandomMentor(): Promise<Mentor> {
   return request<Mentor>(`${API_PREFIX}/mentors/random`, { method: 'POST' })
 }
 
+/** Brings a mentor into Mentor Square, or sends them out (they keep their memory). */
+export function setInSquare(mentorId: string, inSquare: boolean): Promise<Mentor> {
+  return request<Mentor>(mentorPath(mentorId, '/square'), {
+    method: inSquare ? 'PUT' : 'DELETE',
+  })
+}
+
 /** Famous mentors offered by name, with their background stored ahead of time. */
 export function listPresets(signal?: AbortSignal): Promise<Preset[]> {
   return request<Preset[]>(`${API_PREFIX}/mentors/presets`, signal ? { signal } : {})
 }
 
-/** Adds a preset mentor; their memory builds from the stored notes in the background. */
+/**
+ * Creates a preset mentor (outside the square until brought in); their memory builds
+ * from the stored notes in the background.
+ */
 export function addPresetMentor(presetId: string): Promise<Mentor> {
   const path = `${API_PREFIX}/mentors/presets/${encodeURIComponent(presetId)}`
   return request<Mentor>(path, { method: 'POST' })

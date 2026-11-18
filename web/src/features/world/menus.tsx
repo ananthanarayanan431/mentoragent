@@ -1,6 +1,9 @@
-import { List, Play, Settings, Tag } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { ArrowLeft, List, LogIn, LogOut, Play, Settings, Tag, Users } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
+
+import { ApiError } from '@/lib/api'
+import type { Mentor } from '@/lib/types'
 
 const CONTROLS: [string, string][] = [
   ['Arrows / WASD', 'Walk'],
@@ -130,9 +133,16 @@ interface PauseProps {
   labelsVisible: boolean
   onToggleLabels: () => void
   onResume: () => void
+  /** Opens the list of mentors to bring into the square or send out. */
+  onManageMentors: () => void
 }
 
-export function PauseMenu({ labelsVisible, onToggleLabels, onResume }: PauseProps) {
+export function PauseMenu({
+  labelsVisible,
+  onToggleLabels,
+  onResume,
+  onManageMentors,
+}: PauseProps) {
   const resumeRef = useAutoFocus<HTMLButtonElement>()
   return (
     <Panel label="Paused" onEscape={onResume}>
@@ -147,6 +157,14 @@ export function PauseMenu({ labelsVisible, onToggleLabels, onResume }: PauseProp
         >
           <Play size={15} aria-hidden="true" />
           Resume
+        </button>
+        <button
+          type="button"
+          onClick={onManageMentors}
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-line px-4 py-2 text-sm hover:bg-raised"
+        >
+          <Users size={15} aria-hidden="true" />
+          Mentors in the square
         </button>
         <button
           type="button"
@@ -172,6 +190,96 @@ export function PauseMenu({ labelsVisible, onToggleLabels, onResume }: PauseProp
           Goal and progress
         </Link>
       </div>
+    </Panel>
+  )
+}
+
+interface SquareMenuProps {
+  /** Every mentor you have, in the square or not. */
+  mentors: readonly Mentor[]
+  /** Brings a mentor in or sends them out; rejects with the reason it failed. */
+  onSetInSquare: (mentor: Mentor, inSquare: boolean) => Promise<void>
+  onBack: () => void
+}
+
+/** Who walks around the square: bring your mentors in or send them out. */
+export function SquareMenu({ mentors, onSetInSquare, onBack }: SquareMenuProps) {
+  const backRef = useAutoFocus<HTMLButtonElement>()
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const sorted = mentors.toSorted(
+    (a, b) => Number(b.in_square) - Number(a.in_square) || a.name.localeCompare(b.name),
+  )
+
+  async function toggle(mentor: Mentor) {
+    setBusy(mentor.id)
+    setError('')
+    try {
+      await onSetInSquare(mentor, !mentor.in_square)
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : 'That did not work; try again.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <Panel label="Mentors in the square" onEscape={onBack}>
+      <h2 className="font-pixel text-2xl font-bold uppercase tracking-wide">Mentors</h2>
+      <p className="text-sm text-muted">
+        Bring your mentors into the square or send them out. They keep their memory either way. New
+        mentors are made on the{' '}
+        <Link to="/mentors" className="text-accent underline underline-offset-2">
+          Mentors page
+        </Link>
+        .
+      </p>
+      <ul className="max-h-[45vh] space-y-1.5 overflow-y-auto text-left" aria-label="Your mentors">
+        {sorted.map((mentor) => (
+          <li
+            key={mentor.id}
+            className="flex items-center gap-3 rounded-lg border border-line px-3 py-2"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">{mentor.name}</span>
+              <span
+                className={`block font-pixel text-xs ${mentor.in_square ? 'text-positive' : 'text-faint'}`}
+              >
+                {mentor.in_square ? 'In the square' : 'Not here'}
+                {mentor.memory === 'building' ? ' · still reading up' : ''}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => void toggle(mentor)}
+              disabled={busy !== null}
+              aria-label={`${mentor.in_square ? 'Send out' : 'Bring in'}: ${mentor.name}`}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-xs hover:bg-raised disabled:opacity-50"
+            >
+              {mentor.in_square ? (
+                <LogOut size={13} aria-hidden="true" />
+              ) : (
+                <LogIn size={13} aria-hidden="true" />
+              )}
+              {busy === mentor.id ? '…' : mentor.in_square ? 'Send out' : 'Bring in'}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
+      <button
+        ref={backRef}
+        type="button"
+        onClick={onBack}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-line px-4 py-2 text-sm hover:bg-raised"
+      >
+        <ArrowLeft size={15} aria-hidden="true" />
+        Back
+      </button>
     </Panel>
   )
 }

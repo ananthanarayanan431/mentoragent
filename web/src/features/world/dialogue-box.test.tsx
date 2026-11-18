@@ -43,7 +43,14 @@ function spokenLine(): string {
   return document.querySelector('.prose-reply')?.textContent ?? ''
 }
 
-const ADA: Mentor = { id: 'ada', name: 'Ada', expertise: 'Engines', perspective: '', style: '' }
+const ADA: Mentor = {
+  id: 'ada',
+  name: 'Ada',
+  expertise: 'Engines',
+  perspective: '',
+  style: '',
+  in_square: true,
+}
 
 /** What was sent as real messages (not requests to speak first). */
 function chatMessages() {

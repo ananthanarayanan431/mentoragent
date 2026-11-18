@@ -34,6 +34,8 @@ export interface GameCommands {
   paused: { paused: boolean }
   /** A mentor joined the square during play (Add a mentor): they appear at the next spot. */
   addMentor: { id: string; name: string }
+  /** A mentor was sent out of the square: they leave at once, ending any visit. */
+  removeMentor: { id: string }
   /** The dialogue with this mentor closed: they go back to wandering. */
   endTalk: { mentorId: string }
   /** The player joined two mentors: this one (not the one walked up to) stops too. */

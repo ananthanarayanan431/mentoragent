@@ -29,6 +29,7 @@ const mentor = (id: string, name: string): Mentor => ({
   expertise: 'e',
   perspective: 'p',
   style: 's',
+  in_square: true,
   memory: 'ready',
 })
 const BUFFETT = mentor('buffett', 'Warren Buffett')

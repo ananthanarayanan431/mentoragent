@@ -1,4 +1,4 @@
-import { ArrowRight, MoreHorizontal, Trash2 } from 'lucide-react'
+import { ArrowRight, LogIn, LogOut, MoreHorizontal, Trash2 } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router'
 
@@ -10,9 +10,11 @@ interface Props {
   mentor: Mentor
   /** Removes the mentor; without it the card has no menu. Rejects with the reason it failed. */
   onRemove?: (mentor: Mentor) => Promise<void>
+  /** Brings the mentor into the square or sends them out; without it, no button. */
+  onSetInSquare?: (mentor: Mentor, inSquare: boolean) => Promise<void>
 }
 
-export function MentorCard({ mentor, onRemove }: Props) {
+export function MentorCard({ mentor, onRemove, onSetInSquare }: Props) {
   return (
     <div className="group relative flex flex-col rounded-2xl border border-line bg-surface transition-all hover:-translate-y-0.5 hover:border-line-strong hover:shadow-lg hover:shadow-black/5">
       <Link to={`/chat/${encodeURIComponent(mentor.id)}`} className="flex flex-1 flex-col p-5">
@@ -38,7 +40,59 @@ export function MentorCard({ mentor, onRemove }: Props) {
         </span>
       </Link>
 
+      {onSetInSquare && <SquareToggle mentor={mentor} onSetInSquare={onSetInSquare} />}
       {onRemove && <CardMenu mentor={mentor} onRemove={onRemove} />}
+    </div>
+  )
+}
+
+/** Whether the mentor walks around the square, and the button that changes it. */
+function SquareToggle({
+  mentor,
+  onSetInSquare,
+}: {
+  mentor: Mentor
+  onSetInSquare: (mentor: Mentor, inSquare: boolean) => Promise<void>
+}) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  async function toggle() {
+    setBusy(true)
+    setError('')
+    try {
+      await onSetInSquare(mentor, !mentor.in_square)
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : 'That did not work; try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-line px-5 py-3 text-sm">
+      <span className={mentor.in_square ? 'text-positive' : 'text-muted'}>
+        {mentor.in_square ? 'In the square' : 'Not in the square'}
+      </span>
+      <button
+        type="button"
+        onClick={() => void toggle()}
+        disabled={busy}
+        aria-label={`${mentor.in_square ? 'Send out' : 'Bring to the square'}: ${mentor.name}`}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 hover:bg-raised disabled:opacity-50"
+      >
+        {mentor.in_square ? (
+          <LogOut size={14} aria-hidden="true" />
+        ) : (
+          <LogIn size={14} aria-hidden="true" />
+        )}
+        {mentor.in_square ? 'Send out' : 'Bring to the square'}
+      </button>
+      {error && (
+        <p role="alert" className="text-xs text-danger">
+          {error}
+        </p>
+      )}
     </div>
   )
 }

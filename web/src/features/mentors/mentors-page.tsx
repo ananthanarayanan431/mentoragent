@@ -6,7 +6,14 @@ import { MentorCard } from './mentor-card'
 import { PresetPicker } from './preset-picker'
 import { EmptyState, ErrorState, MentorCardSkeleton } from '@/components/state-views'
 import { clearConversation } from '@/features/chat/storage'
-import { addRandomMentor, ApiError, getMentorPool, listMentors, removeMentor } from '@/lib/api'
+import {
+  addRandomMentor,
+  ApiError,
+  getMentorPool,
+  listMentors,
+  removeMentor,
+  setInSquare,
+} from '@/lib/api'
 import { API_BASE_URL } from '@/lib/config'
 import type { Mentor } from '@/lib/types'
 
@@ -46,17 +53,24 @@ export function MentorsPage() {
     setCreating(false)
     setNotice(
       researching
-        ? `${mentor.name} was created. We are searching the web for more about them and building their memory; this takes a few minutes.`
-        : `${mentor.name} was created. Their memory is being built in the background.`,
+        ? `${mentor.name} was created. We are searching the web for more about them and building their memory; this takes a few minutes. Bring them to the square from their card when you are ready.`
+        : `${mentor.name} was created. Their memory is being built in the background. Bring them to the square from their card when you are ready.`,
     )
   }, [])
 
-  // The panel stays open, so several presets can be added in a row.
-  const presetAdded = useCallback((mentor: Mentor) => {
+  // The panel stays open, so several presets can be created in a row.
+  const presetCreated = useCallback((mentor: Mentor) => {
     setMentors((current) => [...current, mentor])
     setNotice(
-      `${mentor.name} joined from the presets. Their memory is being built from stored notes.`,
+      `${mentor.name} was created from the presets and is building their memory from stored notes. They are not in the square yet: use "Bring to the square" on their card.`,
     )
+  }, [])
+
+  /** Rejects on failure so the card can show why. */
+  const setSquare = useCallback(async (mentor: Mentor, inSquare: boolean) => {
+    const updated = await setInSquare(mentor.id, inSquare)
+    setMentors((current) => current.map((m) => (m.id === updated.id ? updated : m)))
+    setNotice(inSquare ? `${mentor.name} is now in the square.` : `${mentor.name} left the square.`)
   }, [])
 
   useEffect(() => {
@@ -134,7 +148,7 @@ export function MentorsPage() {
 
       {creating && (
         <div className="max-w-2xl">
-          <PresetPicker onAdded={presetAdded} />
+          <PresetPicker onCreated={presetCreated} />
           <CreateMentorForm onCreated={created} onCancel={() => setCreating(false)} />
         </div>
       )}
@@ -167,7 +181,12 @@ export function MentorsPage() {
           (mentors.length ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {mentors.map((mentor) => (
-                <MentorCard key={mentor.id} mentor={mentor} onRemove={remove} />
+                <MentorCard
+                  key={mentor.id}
+                  mentor={mentor}
+                  onRemove={remove}
+                  onSetInSquare={setSquare}
+                />
               ))}
             </div>
           ) : (

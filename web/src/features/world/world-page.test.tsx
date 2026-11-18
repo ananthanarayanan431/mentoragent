@@ -9,8 +9,8 @@ import type { WorldBridge } from './world-bridge'
 import { WorldPage } from './world-page'
 
 const MENTORS: Mentor[] = [
-  { id: 'ada', name: 'Ada', expertise: 'Engines', perspective: '', style: '' },
-  { id: 'bob', name: 'Bob', expertise: 'Bridges', perspective: '', style: '' },
+  { id: 'ada', name: 'Ada', expertise: 'Engines', perspective: '', style: '', in_square: true },
+  { id: 'bob', name: 'Bob', expertise: 'Bridges', perspective: '', style: '', in_square: true },
 ]
 
 // The Phaser game is replaced by a stand-in that hands the test its bridge, so the
@@ -38,6 +38,7 @@ vi.mock('./game/create-game', () => ({
       'endTalk',
       'paused',
       'addMentor',
+      'removeMentor',
       'bubbles',
       'visit',
       'joinTalk',
@@ -53,6 +54,7 @@ const api = vi.hoisted(() => ({
   listLedger: vi.fn<() => Promise<LedgerLine[]>>(),
   deleteLedgerLine: vi.fn<(id: string) => Promise<void>>(),
   startAmbientChat: vi.fn<(ids: [string, string]) => Promise<AmbientChat>>(),
+  setInSquare: vi.fn<(id: string, inSquare: boolean) => Promise<Mentor>>(),
 }))
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
@@ -60,6 +62,7 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   listLedger: api.listLedger,
   deleteLedgerLine: api.deleteLedgerLine,
   startAmbientChat: api.startAmbientChat,
+  setInSquare: api.setInSquare,
 }))
 
 // No real socket in tests. A request to speak first is answered with silence, as
@@ -239,6 +242,38 @@ describe('WorldPage', () => {
     expect(lastInput()).toBe(true)
   })
 
+  it('starts with only the mentors in the square, and brings others in or sends them out', async () => {
+    const CARL: Mentor = { ...MENTORS[1]!, id: 'carl', name: 'Carl', in_square: false }
+    api.listMentors.mockResolvedValue([...MENTORS, CARL])
+    api.setInSquare.mockImplementation((id, inSquare) => {
+      const mentor = [...MENTORS, CARL].find((m) => m.id === id)!
+      return Promise.resolve({ ...mentor, in_square: inSquare })
+    })
+    const user = userEvent.setup()
+    await renderWorld()
+    expect(game.started.at(-1)?.map((m) => m.id)).toEqual(['ada', 'bob'])
+
+    await user.click(screen.getByRole('button', { name: /enter the square/i }))
+    fromGame((bridge) => bridge.events.emit('pause', {}))
+    await user.click(screen.getByRole('button', { name: /mentors in the square/i }))
+    expect(lastPaused()).toBe(true)
+
+    await user.click(screen.getByRole('button', { name: 'Bring in: Carl' }))
+    expect(api.setInSquare).toHaveBeenCalledWith('carl', true)
+    expect(game.commands).toContainEqual({
+      name: 'addMentor',
+      payload: { id: 'carl', name: 'Carl' },
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Send out: Ada' }))
+    expect(api.setInSquare).toHaveBeenCalledWith('ada', false)
+    expect(game.commands).toContainEqual({ name: 'removeMentor', payload: { id: 'ada' } })
+    expect(screen.getByRole('button', { name: 'Bring in: Ada' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(screen.getByRole('dialog', { name: 'Paused' })).toBeInTheDocument()
+  })
+
   it('offers a retry when the mentors cannot be loaded', async () => {
     api.listMentors.mockRejectedValueOnce(new Error('offline'))
     render(
@@ -268,6 +303,7 @@ describe('WorldPage', () => {
         expertise: '',
         perspective: '',
         style: '',
+        in_square: true,
       })),
     )
     await renderWorld()

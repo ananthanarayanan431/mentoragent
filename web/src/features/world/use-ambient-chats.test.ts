@@ -21,6 +21,7 @@ const MENTORS: Mentor[] = ['buffett', 'munger'].map((id) => ({
   expertise: 'e',
   perspective: 'p',
   style: 's',
+  in_square: true,
   memory: 'ready',
 }))
 const CHAT: AmbientChat = {

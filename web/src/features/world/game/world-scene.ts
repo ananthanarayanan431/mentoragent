@@ -488,6 +488,7 @@ export class WorldScene extends Phaser.Scene {
         for (const mentor of this.mentors) mentor.label.setVisible(visible)
       }),
       commands.on('addMentor', (mentor) => this.spawnMentor(mentor, true)),
+      commands.on('removeMentor', ({ id }) => this.despawnMentor(id)),
       commands.on('bubbles', ({ texts }) => {
         for (const mentor of this.mentors) mentor.bubbleText = texts[mentor.id] ?? ''
       }),
@@ -585,6 +586,26 @@ export class WorldScene extends Phaser.Scene {
     const velocity = { x: (vx / length) * PLAYER_SPEED, y: (vy / length) * PLAYER_SPEED }
     sprite.setVelocity(velocity.x, velocity.y)
     this.animate(this.player, velocity)
+  }
+
+  /** Takes a mentor out of the square: ends any visit, then drops their sprite and text. */
+  private despawnMentor(id: string): void {
+    const mentor = this.mentor(id)
+    if (!mentor) return
+    this.failVisit(mentor)
+    if (this.nearby === mentor) {
+      this.nearby = null
+      this.options.bridge.events.emit('nearby', { mentorId: null })
+    }
+    const sprite = mentor.sprite
+    for (const collider of this.physics.world.colliders.getActive()) {
+      if (collider.object1 === sprite || collider.object2 === sprite) collider.destroy()
+    }
+    sprite.destroy()
+    mentor.label.destroy()
+    mentor.bubble.destroy()
+    mentor.cloud.destroy()
+    this.mentors = this.mentors.filter((other) => other !== mentor)
   }
 
   private mentor(id: string): MentorActor | undefined {

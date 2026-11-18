@@ -24,6 +24,7 @@ const ADA: Mentor = {
   expertise: 'Engines',
   perspective: 'Machines can compose.',
   style: 'Precise.',
+  in_square: true,
 }
 
 function renderEditor(mentor: Mentor = ADA) {

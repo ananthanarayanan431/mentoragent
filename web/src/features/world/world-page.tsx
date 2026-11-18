@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ErrorState, Spinner } from '@/components/state-views'
-import { ApiError, listMentors } from '@/lib/api'
+import { ApiError, listMentors, setInSquare } from '@/lib/api'
 import { MEMORY_POLL_MS } from '@/lib/config'
 import type { Mentor } from '@/lib/types'
 import { joinableMeeting, type Meeting } from './ambient'
@@ -9,7 +9,7 @@ import { bubbleTexts } from './bubbles'
 import { DialogueBox } from './dialogue-box'
 import { GroupDialogueBox } from './group-dialogue-box'
 import { useMediaQuery } from '@/lib/use-media-query'
-import { PauseMenu, TitleScreen } from './menus'
+import { PauseMenu, SquareMenu, TitleScreen } from './menus'
 import { levelFor, loadFriendship, recordMessage } from './progress'
 import { useAmbientChats } from './use-ambient-chats'
 import { useLedger } from './use-ledger'
@@ -19,6 +19,8 @@ type Mode =
   | { kind: 'title' }
   | { kind: 'playing' }
   | { kind: 'paused' }
+  /** The pause menu's list of mentors to bring in or send out. */
+  | { kind: 'roster' }
   /** Talking with two mentors, joined while they were chatting. */
   | {
       kind: 'group'
@@ -92,8 +94,11 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
   const meetingRef = useRef<Meeting | null>(null)
   const { refreshSoon: refreshLedgerSoon } = ledger
   const labelsRef = useRef(labelsVisible)
-  // The game is built once from the first roster; later arrivals go through `addMentor`.
-  const firstRoster = useRef(initialMentors)
+  // The game is built once from the mentors in the square; later arrivals and
+  // departures go through `addMentor` and `removeMentor`.
+  const firstRoster = useRef(initialMentors.filter(inSquare))
+  const inGame = useRef(new Set(initialMentors.filter(inSquare).map((mentor) => mentor.id)))
+  const square = useMemo(() => mentors.filter(inSquare), [mentors])
   const touch = useMediaQuery('(pointer: coarse)')
   const byId = useMemo(() => new Map(mentors.map((mentor) => [mentor.id, mentor])), [mentors])
 
@@ -140,7 +145,10 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
     friendshipRef.current = friendship
   }, [mentors, friendship])
 
-  /** Adds mentors the game has not seen, and refreshes the rest (memory status). */
+  /**
+   * Refreshes mentors (memory status, in the square or not) and adds any new ones;
+   * then the game gains whoever came into the square and loses whoever left it.
+   */
   const mergeMentors = useCallback(
     (latest: Mentor[]) => {
       const current = mentorsRef.current
@@ -150,11 +158,29 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
       const next = [...current.map((mentor) => fresh.get(mentor.id) ?? mentor), ...arrivals]
       mentorsRef.current = next
       setMentors(next)
-      for (const mentor of arrivals) {
-        bridge.commands.emit('addMentor', { id: mentor.id, name: mentor.name })
+      for (const mentor of next) {
+        const here = inGame.current.has(mentor.id)
+        if (inSquare(mentor) && !here) {
+          inGame.current.add(mentor.id)
+          bridge.commands.emit('addMentor', { id: mentor.id, name: mentor.name })
+        } else if (!inSquare(mentor) && here) {
+          inGame.current.delete(mentor.id)
+          bridge.commands.emit('removeMentor', { id: mentor.id })
+        }
       }
     },
     [bridge],
+  )
+
+  /** The pause menu's Bring in / Send out; rejects so the menu can say why. */
+  const setSquare = useCallback(
+    async (mentor: Mentor, wanted: boolean) => {
+      mergeMentors([await setInSquare(mentor.id, wanted)])
+      setNotice(
+        wanted ? `${mentor.name} walks into the square.` : `${mentor.name} left the square.`,
+      )
+    },
+    [mergeMentors],
   )
 
   const building = mentors.some((mentor) => mentor.memory === 'building')
@@ -214,7 +240,9 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
   // The world stands still behind the title screen and the pause menu, but not during a
   // conversation: the other mentors keep strolling while the player talks.
   useEffect(() => {
-    bridge.commands.emit('paused', { paused: mode.kind === 'title' || mode.kind === 'paused' })
+    bridge.commands.emit('paused', {
+      paused: mode.kind === 'title' || mode.kind === 'paused' || mode.kind === 'roster',
+    })
   }, [bridge, mode, ready])
 
   // Now and then two mentors meet: about your goal if both advised you, otherwise a
@@ -223,7 +251,7 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
   const meeting = useAmbientChats({
     bridge,
     active: ready && mode.kind === 'playing',
-    mentors,
+    mentors: square,
   })
   useEffect(() => {
     meetingRef.current = meeting
@@ -315,7 +343,7 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
         )}
 
         {mode.kind === 'title' && ready && (
-          <TitleScreen mentorCount={mentors.length} onStart={() => setMode({ kind: 'playing' })} />
+          <TitleScreen mentorCount={square.length} onStart={() => setMode({ kind: 'playing' })} />
         )}
 
         {mode.kind === 'paused' && (
@@ -323,6 +351,15 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
             labelsVisible={labelsVisible}
             onToggleLabels={() => setLabelsVisible((visible) => !visible)}
             onResume={() => setMode({ kind: 'playing' })}
+            onManageMentors={() => setMode({ kind: 'roster' })}
+          />
+        )}
+
+        {mode.kind === 'roster' && (
+          <SquareMenu
+            mentors={mentors}
+            onSetInSquare={setSquare}
+            onBack={() => setMode({ kind: 'paused' })}
           />
         )}
 
@@ -371,4 +408,9 @@ function pixelFontReady(): Promise<void> {
   ]).then(() => undefined)
   const timeout = new Promise<void>((resolve) => setTimeout(resolve, 1500))
   return Promise.race([loaded, timeout]).catch(() => undefined)
+}
+
+/** Walking around the square (mentors stored before the flag existed are). */
+function inSquare(mentor: Mentor): boolean {
+  return mentor.in_square !== false
 }

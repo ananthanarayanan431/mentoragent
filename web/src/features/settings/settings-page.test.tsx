@@ -8,8 +8,8 @@ import type { LedgerLine, Mentor } from '@/lib/types'
 import { SettingsPage } from './settings-page'
 
 const MENTORS: Mentor[] = [
-  { id: 'ada', name: 'Ada', expertise: 'Engines', perspective: '', style: '' },
-  { id: 'bob', name: 'Bob', expertise: 'Bridges', perspective: '', style: '' },
+  { id: 'ada', name: 'Ada', expertise: 'Engines', perspective: '', style: '', in_square: true },
+  { id: 'bob', name: 'Bob', expertise: 'Bridges', perspective: '', style: '', in_square: true },
 ]
 
 const api = vi.hoisted(() => ({

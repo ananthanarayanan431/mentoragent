@@ -95,6 +95,33 @@ describe('MentorsPage', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Benjamin Graham joined')
   })
 
+  it('brings a mentor into the square from their card, and sends them out', async () => {
+    const outside = { ...mentor, in_square: false }
+    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>((url, init) => {
+      const body = url.endsWith('/square')
+        ? { ...mentor, in_square: init?.method === 'PUT' }
+        : url.endsWith('/mentors/pool')
+          ? { remaining: 0, total: 1 }
+          : [outside]
+      return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    renderPage()
+
+    expect(await screen.findByText('Not in the square')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Bring to the square: Ada Lovelace' }))
+    expect(await screen.findByText('In the square')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/mentors\/ada\/square$/),
+      expect.objectContaining({ method: 'PUT' }),
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Send out: Ada Lovelace' }))
+    expect(await screen.findByText('Not in the square')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Ada Lovelace left the square')
+  })
+
   it('creates a mentor from the form and lists them', async () => {
     const grace = { ...mentor, id: 'grace_hopper', name: 'Grace Hopper', memory: 'building' }
     vi.stubGlobal(
