@@ -326,7 +326,7 @@ export class WorldScene extends Phaser.Scene {
     const rng = seededRng(index + 1)
     const label = this.add
       .text(home.x, home.y, mentor.name, {
-        fontFamily: 'ui-monospace, Menlo, monospace',
+        fontFamily: '"Pixelify Sans", ui-monospace, Menlo, monospace',
         fontSize: '11px',
         color: '#fdfcf7',
         backgroundColor: '#1f2937cc',
@@ -337,7 +337,7 @@ export class WorldScene extends Phaser.Scene {
       .setVisible(this.labelsVisible)
     const bubble = this.add
       .text(home.x, home.y, '', {
-        fontFamily: 'ui-monospace, Menlo, monospace',
+        fontFamily: '"Pixelify Sans", ui-monospace, Menlo, monospace',
         fontSize: '10px',
         color: '#1f2937',
         padding: { x: 4, y: 3 },
@@ -384,7 +384,7 @@ export class WorldScene extends Phaser.Scene {
   private createPrompt(): void {
     this.prompt = this.add
       .text(0, 0, 'Space · Talk', {
-        fontFamily: 'ui-monospace, Menlo, monospace',
+        fontFamily: '"Pixelify Sans", ui-monospace, Menlo, monospace',
         fontSize: '11px',
         color: '#1f2937',
         backgroundColor: '#fef3c7',

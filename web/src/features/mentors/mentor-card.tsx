@@ -19,7 +19,7 @@ export function MentorCard({ mentor, onRemove }: Props) {
         <div className={`flex items-center gap-3 ${onRemove ? 'pr-8' : ''}`}>
           <Avatar name={mentor.name} src={mentor.image_url} size={48} />
           <div className="min-w-0">
-            <h2 className="truncate font-semibold tracking-tight">{mentor.name}</h2>
+            <h2 className="truncate font-semibold">{mentor.name}</h2>
             <p className="truncate text-sm text-muted">{mentor.expertise}</p>
           </div>
         </div>
@@ -28,7 +28,7 @@ export function MentorCard({ mentor, onRemove }: Props) {
           {mentor.perspective}
         </p>
 
-        <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-accent">
+        <span className="mt-4 inline-flex items-center gap-1.5 font-pixel text-sm text-accent">
           Start a conversation
           <ArrowRight
             size={15}

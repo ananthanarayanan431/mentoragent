@@ -100,8 +100,8 @@ export function TitleScreen({
   return (
     <Panel label="Mentor Square">
       <div className="space-y-2">
-        <p className="font-mono text-xs uppercase tracking-[0.3em] text-accent">MentorAgents</p>
-        <h1 className="font-mono text-3xl font-bold">Mentor Square</h1>
+        <p className="font-pixel text-xs uppercase tracking-[0.3em] text-accent">MentorAgents</p>
+        <h1 className="font-pixel text-3xl font-bold">Mentor Square</h1>
         <p className="text-sm text-muted">
           {mentorCount} {mentorCount === 1 ? 'mentor is' : 'mentors are'} strolling around the
           square. Walk up to one and ask them anything.
@@ -113,7 +113,7 @@ export function TitleScreen({
           ref={startRef}
           type="button"
           onClick={onStart}
-          className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 font-mono text-sm font-bold uppercase tracking-wide text-on-accent shadow-[0_3px_0_0_rgba(0,0,0,0.25)] hover:bg-accent-hover"
+          className="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 font-pixel text-sm font-bold uppercase tracking-wide text-on-accent shadow-[0_3px_0_0_rgba(0,0,0,0.25)] hover:bg-accent-hover"
         >
           <Play size={15} aria-hidden="true" />
           Enter the square
@@ -136,14 +136,14 @@ export function PauseMenu({ labelsVisible, onToggleLabels, onResume }: PauseProp
   const resumeRef = useAutoFocus<HTMLButtonElement>()
   return (
     <Panel label="Paused" onEscape={onResume}>
-      <h2 className="font-mono text-2xl font-bold uppercase tracking-wide">Paused</h2>
+      <h2 className="font-pixel text-2xl font-bold uppercase tracking-wide">Paused</h2>
       <Controls />
       <div className="flex flex-col gap-2">
         <button
           ref={resumeRef}
           type="button"
           onClick={onResume}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 font-mono text-sm font-bold uppercase text-on-accent hover:bg-accent-hover"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 font-pixel text-sm font-bold uppercase text-on-accent hover:bg-accent-hover"
         >
           <Play size={15} aria-hidden="true" />
           Resume

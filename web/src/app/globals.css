@@ -180,6 +180,20 @@
   }
   /* Pixelify Sans draws its fi and ff ligatures as odd glyphs ("first" reads
      "Arst"); spell every letter out. */
+  /* Headings and buttons everywhere use the square's pixel face; body text stays
+     Inter for reading (a button holding a sentence opts out with font-sans). */
+  h1,
+  h2,
+  h3,
+  h4,
+  button {
+    font-family: var(--font-pixel);
+    letter-spacing: 0.01em;
+    font-variant-ligatures: none;
+    font-feature-settings:
+      'liga' 0,
+      'clig' 0;
+  }
   .font-pixel {
     font-variant-ligatures: none;
     font-feature-settings:

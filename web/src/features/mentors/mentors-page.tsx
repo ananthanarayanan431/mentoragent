@@ -96,7 +96,7 @@ export function MentorsPage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
       <div className="max-w-2xl">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h1 className="text-3xl font-semibold sm:text-4xl">
           Where human expertise
           <br />
           meets <span className="text-accent">AI</span>
@@ -110,7 +110,7 @@ export function MentorsPage() {
             type="button"
             onClick={() => setCreating((open) => !open)}
             aria-expanded={creating}
-            className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent hover:bg-accent-hover"
+            className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 font-pixel text-sm font-semibold text-on-accent hover:bg-accent-hover"
           >
             <PenLine size={15} aria-hidden="true" />
             Create a mentor

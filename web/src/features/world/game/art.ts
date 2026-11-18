@@ -597,7 +597,7 @@ export function drawBuilding(building: Building): HTMLCanvasElement {
   }
 
   // Sign over the door: a framed board with the name.
-  ctx.font = 'bold 22px ui-monospace, Menlo, monospace'
+  ctx.font = '600 22px "Pixelify Sans", ui-monospace, Menlo, monospace'
   const textWidth = Math.ceil(ctx.measureText(building.label).width)
   const signWidth = textWidth + 32
   const signX = Math.round(width / 2 - signWidth / 2)

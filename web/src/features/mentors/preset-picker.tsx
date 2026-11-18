@@ -66,7 +66,7 @@ export function PresetPicker({ onAdded }: Props) {
       <div className="mt-5 space-y-4">
         {byCategory(presets).map(([category, group]) => (
           <section key={category} aria-label={`${category} presets`}>
-            <h3 className="text-xs font-semibold tracking-wider text-faint uppercase">
+            <h3 className="font-pixel text-xs font-semibold tracking-wider text-muted uppercase">
               {category}
             </h3>
             <ul className="mt-2 grid gap-2 sm:grid-cols-2">

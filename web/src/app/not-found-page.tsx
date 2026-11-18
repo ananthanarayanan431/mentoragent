@@ -11,7 +11,7 @@ export function NotFoundPage() {
         </p>
         <Link
           to="/mentors"
-          className="mt-6 inline-block rounded-full bg-accent px-4 py-2 text-sm font-medium text-on-accent transition-colors hover:bg-accent-hover"
+          className="mt-6 inline-block rounded-full bg-accent px-4 py-2 font-pixel text-sm font-semibold text-on-accent transition-colors hover:bg-accent-hover"
         >
           Back to all mentors
         </Link>

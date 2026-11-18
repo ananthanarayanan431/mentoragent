@@ -110,8 +110,9 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
       game: { destroy: (removeCanvas: boolean) => void } | null
     } = { cancelled: false, game: null }
 
-    import('./game/create-game')
-      .then(({ createGame, portraitFor: drawPortraitFor }) => {
+    // The game draws its labels in the pixel face onto canvas, once: load it first.
+    Promise.all([import('./game/create-game'), pixelFontReady()])
+      .then(([{ createGame, portraitFor: drawPortraitFor }]) => {
         if (live.cancelled) return
         setPortraitFor(() => drawPortraitFor)
         live.game = createGame(parent, {
@@ -298,7 +299,7 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
         <p
           role="status"
           aria-live="polite"
-          className={`absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-lg bg-ink px-3 py-2 text-center font-mono text-xs text-canvas shadow-lg transition-opacity ${
+          className={`absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-lg bg-ink px-3 py-2 text-center font-pixel text-xs text-canvas shadow-lg transition-opacity ${
             notice ? 'opacity-100' : 'opacity-0'
           }`}
         >
@@ -306,7 +307,7 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
         </p>
 
         {mode.kind === 'playing' && (
-          <p className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-md bg-black/55 px-3 py-1.5 font-mono text-xs text-white">
+          <p className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-md bg-black/55 px-3 py-1.5 font-pixel text-xs text-white">
             {touch
               ? 'Tap to walk · tap a mentor to talk'
               : 'Arrows/WASD walk · Space talk · Esc menu'}
@@ -355,4 +356,19 @@ function World({ mentors: initialMentors }: { mentors: Mentor[] }) {
       </div>
     </main>
   )
+}
+
+/**
+ * Resolves once the pixel font has loaded (or after a moment, or at once where the
+ * browser cannot tell), so canvas text drawn right after uses it.
+ */
+function pixelFontReady(): Promise<void> {
+  const fonts = typeof document === 'undefined' ? undefined : document.fonts
+  if (!fonts?.load) return Promise.resolve()
+  const loaded = Promise.all([
+    fonts.load('11px "Pixelify Sans"'),
+    fonts.load('600 22px "Pixelify Sans"'),
+  ]).then(() => undefined)
+  const timeout = new Promise<void>((resolve) => setTimeout(resolve, 1500))
+  return Promise.race([loaded, timeout]).catch(() => undefined)
 }

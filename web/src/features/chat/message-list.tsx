@@ -104,7 +104,7 @@ function ConversationStarters({
       <span className="mx-auto mb-4 grid size-11 place-items-center rounded-full bg-accent-soft text-accent">
         <Sparkles size={20} aria-hidden="true" />
       </span>
-      <h2 className="text-lg font-semibold tracking-tight">Ask {mentor.name} anything</h2>
+      <h2 className="text-lg font-semibold">Ask {mentor.name} anything</h2>
       <p className="mt-2 text-sm text-muted">
         Answers are drawn from {mentor.name}&rsquo;s own published work.
       </p>
@@ -115,7 +115,7 @@ function ConversationStarters({
               type="button"
               onClick={() => onPick(prompt)}
               disabled={disabled}
-              className="w-full rounded-xl border border-line bg-surface px-4 py-2.5 text-sm transition-colors hover:border-line-strong hover:bg-raised disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-xl border border-line bg-surface px-4 py-2.5 font-sans text-sm transition-colors hover:border-line-strong hover:bg-raised disabled:cursor-not-allowed disabled:opacity-50"
             >
               {prompt}
             </button>

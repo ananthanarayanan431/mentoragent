@@ -13,7 +13,7 @@ interface Props {
   onCancel: () => void
 }
 
-const LABEL = 'text-xs font-semibold uppercase tracking-wider text-faint'
+const LABEL = 'font-pixel text-xs font-semibold tracking-wider text-muted uppercase'
 const HINT = 'font-normal normal-case'
 const FIELD =
   'w-full rounded-lg border border-line bg-canvas px-3 py-2 outline-none focus:border-accent'
@@ -197,7 +197,7 @@ export function CreateMentorForm({ onCreated, onCancel }: Props) {
           <button
             type="submit"
             disabled={busy}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent hover:bg-accent-hover disabled:opacity-50"
+            className="rounded-lg bg-accent px-4 py-2 font-pixel text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
           >
             {busy ? 'Creating…' : 'Create mentor'}
           </button>

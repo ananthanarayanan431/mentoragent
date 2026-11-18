@@ -188,7 +188,7 @@ export function MentorEditor({ mentor, onChange, onRemoved }: Props) {
             ] as const
           ).map(([field, label, rows]) => (
             <label key={field} className="block space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wider text-faint">
+              <span className="font-pixel text-xs font-semibold tracking-wider text-muted uppercase">
                 {label}
               </span>
               <textarea
@@ -209,7 +209,7 @@ export function MentorEditor({ mentor, onChange, onRemoved }: Props) {
             ] as const
           ).map(([field, label]) => (
             <label key={field} className="block space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wider text-faint">
+              <span className="font-pixel text-xs font-semibold tracking-wider text-muted uppercase">
                 {label} <span className="font-normal normal-case">(https, one per line)</span>
               </span>
               <textarea
@@ -232,7 +232,7 @@ export function MentorEditor({ mentor, onChange, onRemoved }: Props) {
           <button
             type="submit"
             disabled={busy || !sources}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent hover:bg-accent-hover disabled:opacity-50"
+            className="rounded-lg bg-accent px-4 py-2 font-pixel text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50"
           >
             {busy ? 'Saving…' : 'Save changes'}
           </button>

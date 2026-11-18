@@ -17,7 +17,7 @@ export function MentorPanel({
       <div className="flex items-center gap-3">
         <Avatar name={mentor.name} src={mentor.image_url} size={52} />
         <div className="min-w-0">
-          <h2 className="truncate font-semibold tracking-tight">{mentor.name}</h2>
+          <h2 className="truncate font-semibold">{mentor.name}</h2>
           <p className="truncate text-sm text-muted">{mentor.expertise}</p>
         </div>
       </div>
@@ -40,7 +40,9 @@ export function MentorPanel({
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-faint">{label}</h3>
+      <h3 className="font-pixel text-xs font-semibold tracking-wider text-muted uppercase">
+        {label}
+      </h3>
       <p className="mt-1.5 text-sm leading-relaxed text-muted">{value}</p>
     </div>
   )
