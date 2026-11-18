@@ -28,6 +28,7 @@ class MentorOut(BaseModel):
     perspective: str
     style: str
     image_url: str | None = None
+    in_square: bool = Field(description="Walking around Mentor Square")
     memory: Literal["building", "ready", "failed"] | None = Field(
         default=None,
         description="Memory build status for mentors added or rebuilt through the API.",
@@ -107,8 +108,10 @@ class PresetOut(BaseModel):
     id: str
     name: str
     expertise: str
+    perspective: str
+    style: str
     category: str = Field(description="Group shown in the picker, e.g. Science or Cricket")
-    added: bool = Field(description="Already in the square")
+    added: bool = Field(description="Already created (in your mentors, in the square or not)")
 
 
 class PoolOut(BaseModel):

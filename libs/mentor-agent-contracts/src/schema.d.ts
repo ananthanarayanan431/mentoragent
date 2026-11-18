@@ -149,7 +149,8 @@ export interface paths {
          *     field left out. In the background the mentor is researched on the web (unless
          *     ``research`` is false), the persona and sources are completed, and the memory
          *     is built; poll the mentor until its memory is ``ready``. Chat is refused (409)
-         *     until then.
+         *     until then. The mentor starts outside the square: bring them in with
+         *     ``PUT /mentors/{id}/square``.
          */
         post: operations["create_mentor_api_v1_mentors_post"];
         delete?: never;
@@ -209,8 +210,9 @@ export interface paths {
         put?: never;
         /**
          * Add Preset Mentor
-         * @description Add a preset mentor and build their memory in the background from their stored
-         *     notes and Wikipedia; no web research. 404 for an unknown preset, 409 if already here.
+         * @description Create a preset mentor and build their memory in the background from their stored
+         *     notes and Wikipedia; no web research. They start outside the square: bring them in
+         *     with ``PUT /mentors/{id}/square``. 404 for an unknown preset, 409 if already created.
          */
         post: operations["add_preset_mentor_api_v1_mentors_presets__preset_id__post"];
         delete?: never;
@@ -307,6 +309,30 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mentors/{mentor_id}/square": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Bring Into Square
+         * @description Bring a mentor into Mentor Square.
+         */
+        put: operations["bring_into_square_api_v1_mentors__mentor_id__square_put"];
+        post?: never;
+        /**
+         * Send Out Of Square
+         * @description Send a mentor out of Mentor Square. They stay in your mentors, with their memory.
+         */
+        delete: operations["send_out_of_square_api_v1_mentors__mentor_id__square_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -543,6 +569,11 @@ export interface components {
             /** Image Url */
             image_url?: string | null;
             /**
+             * In Square
+             * @description Walking around Mentor Square
+             */
+            in_square: boolean;
+            /**
              * Memory
              * @description Memory build status for mentors added or rebuilt through the API.
              */
@@ -619,7 +650,7 @@ export interface components {
         PresetOut: {
             /**
              * Added
-             * @description Already in the square
+             * @description Already created (in your mentors, in the square or not)
              */
             added: boolean;
             /**
@@ -633,6 +664,10 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            /** Perspective */
+            perspective: string;
+            /** Style */
+            style: string;
         };
         /**
          * ResetMemoryResponse
@@ -1161,6 +1196,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MentorSources"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bring_into_square_api_v1_mentors__mentor_id__square_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mentor_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_out_of_square_api_v1_mentors__mentor_id__square_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mentor_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentorOut"];
                 };
             };
             /** @description Validation Error */

@@ -77,7 +77,7 @@ class MentorService:
         return await self.repository.insert_one(mentor)
 
     async def add_preset(self, presets: Sequence[PresetMentor], preset_id: str) -> MentorExtract:
-        """Add a preset mentor, with memory marked building.
+        """Add a preset mentor, with memory marked building, outside the square.
 
         Raises:
             PresetNotFoundError: If no preset has this id.
@@ -87,14 +87,16 @@ class MentorService:
         return await self.repository.insert_one(mentor)
 
     async def add_custom(self, fields: Mapping[str, Any]) -> MentorExtract:
-        """Add a mentor described by the user, with an id made from their name and
-        memory marked building.
+        """Add a mentor described by the user, with an id made from their name,
+        memory marked building, and outside the square until you bring them in.
 
         Args:
             fields: Every ``MentorExtract`` field except ``id`` and ``memory``.
         """
         mentor_id = new_mentor_id(str(fields["name"]), await self.repository.ids())
-        mentor = MentorExtract.model_validate({**fields, "id": mentor_id, "memory": "building"})
+        mentor = MentorExtract.model_validate(
+            {**fields, "id": mentor_id, "memory": "building", "in_square": False}
+        )
         return await self.repository.insert_one(mentor)
 
     async def update_mentor(self, mentor_id: str, changes: Mapping[str, Any]) -> MentorExtract:

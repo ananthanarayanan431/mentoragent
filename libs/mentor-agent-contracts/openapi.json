@@ -398,6 +398,11 @@
             ],
             "title": "Image Url"
           },
+          "in_square": {
+            "description": "Walking around Mentor Square",
+            "title": "In Square",
+            "type": "boolean"
+          },
           "memory": {
             "anyOf": [
               {
@@ -433,7 +438,8 @@
           "name",
           "expertise",
           "perspective",
-          "style"
+          "style",
+          "in_square"
         ],
         "title": "MentorOut",
         "type": "object"
@@ -663,7 +669,7 @@
         "description": "A preset mentor the \"Create a mentor\" panel offers by name.",
         "properties": {
           "added": {
-            "description": "Already in the square",
+            "description": "Already created (in your mentors, in the square or not)",
             "title": "Added",
             "type": "boolean"
           },
@@ -683,12 +689,22 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "perspective": {
+            "title": "Perspective",
+            "type": "string"
+          },
+          "style": {
+            "title": "Style",
+            "type": "string"
           }
         },
         "required": [
           "id",
           "name",
           "expertise",
+          "perspective",
+          "style",
           "category",
           "added"
         ],
@@ -1108,7 +1124,7 @@
         ]
       },
       "post": {
-        "description": "Add a mentor you describe: a name plus videos, web pages, PDFs or pasted text.\n\nReturns at once, with memory ``building`` and a placeholder for any persona\nfield left out. In the background the mentor is researched on the web (unless\n``research`` is false), the persona and sources are completed, and the memory\nis built; poll the mentor until its memory is ``ready``. Chat is refused (409)\nuntil then.",
+        "description": "Add a mentor you describe: a name plus videos, web pages, PDFs or pasted text.\n\nReturns at once, with memory ``building`` and a placeholder for any persona\nfield left out. In the background the mentor is researched on the web (unless\n``research`` is false), the persona and sources are completed, and the memory\nis built; poll the mentor until its memory is ``ready``. Chat is refused (409)\nuntil then. The mentor starts outside the square: bring them in with\n``PUT /mentors/{id}/square``.",
         "operationId": "create_mentor_api_v1_mentors_post",
         "requestBody": {
           "content": {
@@ -1213,7 +1229,7 @@
     },
     "/api/v1/mentors/presets/{preset_id}": {
       "post": {
-        "description": "Add a preset mentor and build their memory in the background from their stored\nnotes and Wikipedia; no web research. 404 for an unknown preset, 409 if already here.",
+        "description": "Create a preset mentor and build their memory in the background from their stored\nnotes and Wikipedia; no web research. They start outside the square: bring them in\nwith ``PUT /mentors/{id}/square``. 404 for an unknown preset, 409 if already created.",
         "operationId": "add_preset_mentor_api_v1_mentors_presets__preset_id__post",
         "parameters": [
           {
@@ -1520,6 +1536,100 @@
           }
         ],
         "summary": "Get Mentor Sources",
+        "tags": [
+          "mentors"
+        ]
+      }
+    },
+    "/api/v1/mentors/{mentor_id}/square": {
+      "delete": {
+        "description": "Send a mentor out of Mentor Square. They stay in your mentors, with their memory.",
+        "operationId": "send_out_of_square_api_v1_mentors__mentor_id__square_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mentor_id",
+            "required": true,
+            "schema": {
+              "title": "Mentor Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MentorOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Send Out Of Square",
+        "tags": [
+          "mentors"
+        ]
+      },
+      "put": {
+        "description": "Bring a mentor into Mentor Square.",
+        "operationId": "bring_into_square_api_v1_mentors__mentor_id__square_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mentor_id",
+            "required": true,
+            "schema": {
+              "title": "Mentor Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MentorOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Bring Into Square",
         "tags": [
           "mentors"
         ]

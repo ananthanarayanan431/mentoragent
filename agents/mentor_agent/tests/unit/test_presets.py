@@ -23,6 +23,7 @@ def test_takes_a_preset_ready_to_build() -> None:
     mentor = take_preset([_preset("a"), _preset("b")], "b", {"a"})
     assert mentor.id == "b"
     assert mentor.memory == "building"
+    assert mentor.in_square is False
     assert mentor.notes == ["Some background."]
     assert "category" not in mentor.model_dump()
 

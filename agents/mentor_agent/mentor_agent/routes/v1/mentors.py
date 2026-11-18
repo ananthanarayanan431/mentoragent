@@ -53,7 +53,8 @@ async def create_mentor(
     field left out. In the background the mentor is researched on the web (unless
     ``research`` is false), the persona and sources are completed, and the memory
     is built; poll the mentor until its memory is ``ready``. Chat is refused (409)
-    until then.
+    until then. The mentor starts outside the square: bring them in with
+    ``PUT /mentors/{id}/square``.
     """
     fields = body.model_dump(exclude={"research"})
     write: list[PersonaField] = [field for field in PERSONA_FIELDS if fields[field] is None]
@@ -98,7 +99,13 @@ async def mentor_presets(mentors: MentorServiceDep, presets: MentorPresetsDep) -
     here = await mentors.ids()
     return [
         PresetOut(
-            id=p.id, name=p.name, expertise=p.expertise, category=p.category, added=p.id in here
+            id=p.id,
+            name=p.name,
+            expertise=p.expertise,
+            perspective=p.perspective,
+            style=p.style,
+            category=p.category,
+            added=p.id in here,
         )
         for p in presets
     ]
@@ -116,8 +123,9 @@ async def add_preset_mentor(
     memory: MemoryBuilderDep,
     background: BackgroundTasks,
 ) -> MentorOut:
-    """Add a preset mentor and build their memory in the background from their stored
-    notes and Wikipedia; no web research. 404 for an unknown preset, 409 if already here.
+    """Create a preset mentor and build their memory in the background from their stored
+    notes and Wikipedia; no web research. They start outside the square: bring them in
+    with ``PUT /mentors/{id}/square``. 404 for an unknown preset, 409 if already created.
     """
     mentor = await mentors.add_preset(presets, preset_id)
     background.add_task(memory.rebuild, mentor.id)
@@ -128,6 +136,18 @@ async def add_preset_mentor(
 async def get_mentor(mentor_id: str, mentors: MentorServiceDep) -> MentorOut:
     """Return one mentor."""
     return MentorOut.from_extract(await mentors.get_mentor(mentor_id))
+
+
+@router.put("/{mentor_id}/square", dependencies=[Depends(require_api_key_in_production)])
+async def bring_into_square(mentor_id: str, mentors: MentorServiceDep) -> MentorOut:
+    """Bring a mentor into Mentor Square."""
+    return MentorOut.from_extract(await mentors.update_mentor(mentor_id, {"in_square": True}))
+
+
+@router.delete("/{mentor_id}/square", dependencies=[Depends(require_api_key_in_production)])
+async def send_out_of_square(mentor_id: str, mentors: MentorServiceDep) -> MentorOut:
+    """Send a mentor out of Mentor Square. They stay in your mentors, with their memory."""
+    return MentorOut.from_extract(await mentors.update_mentor(mentor_id, {"in_square": False}))
 
 
 @router.get("/{mentor_id}/sources")

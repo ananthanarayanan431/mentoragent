@@ -25,9 +25,10 @@ class PresetMentor(MentorExtract):
     category: str = Field(description="Group shown in the picker, e.g. Science or Cricket")
 
     def to_extract(self) -> MentorExtract:
-        """The mentor as stored in the square: no category, memory marked building."""
+        """The mentor as stored: no category, memory building, and outside the square
+        until you bring them in."""
         fields = self.model_dump(exclude={"category"})
-        return MentorExtract.model_validate({**fields, "memory": "building"})
+        return MentorExtract.model_validate({**fields, "memory": "building", "in_square": False})
 
 
 _PRESET_LIST = TypeAdapter(list[PresetMentor])

@@ -203,7 +203,9 @@ class InMemoryMentorService:
 
     async def add_custom(self, fields: Mapping[str, Any]) -> MentorExtract:
         mentor_id = new_mentor_id(str(fields["name"]), set(self.mentors))
-        mentor = MentorExtract.model_validate({**fields, "id": mentor_id, "memory": "building"})
+        mentor = MentorExtract.model_validate(
+            {**fields, "id": mentor_id, "memory": "building", "in_square": False}
+        )
         self.mentors[mentor.id] = mentor
         return mentor
 

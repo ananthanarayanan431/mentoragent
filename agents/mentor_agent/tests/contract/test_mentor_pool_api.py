@@ -270,6 +270,8 @@ def test_presets_are_listed_and_added_once(square: Square) -> None:
     body = response.json()
     assert body["name"] == "Newton"
     assert body["memory"] == "building"
+    # Created, but not in the square until you bring them in.
+    assert body["in_square"] is False
     # Built from the stored notes, after the response; no web research.
     assert square.memory.requested == ["newton"]
     assert square.enricher.calls == []
@@ -279,3 +281,29 @@ def test_presets_are_listed_and_added_once(square: Square) -> None:
     assert again.status_code == 409
     missing = square.client.post("/api/v1/mentors/presets/nobody")
     assert missing.status_code == 404
+
+
+def test_bring_a_mentor_into_the_square_and_send_them_out(square: Square) -> None:
+    created = square.client.post("/api/v1/mentors/presets/tendulkar").json()
+    assert created["in_square"] is False
+
+    url = "/api/v1/mentors/tendulkar/square"
+    brought = square.client.put(url)
+    assert brought.status_code == 200
+    assert brought.json()["in_square"] is True
+    assert square.client.get("/api/v1/mentors/tendulkar").json()["in_square"] is True
+
+    sent = square.client.delete(url)
+    assert sent.status_code == 200
+    assert sent.json()["in_square"] is False
+    # Still one of your mentors, just not walking around.
+    listed = {m["id"]: m["in_square"] for m in square.client.get("/api/v1/mentors").json()}
+    assert listed["tendulkar"] is False
+
+    assert square.client.put("/api/v1/mentors/nobody/square").status_code == 404
+
+
+def test_pool_mentors_join_the_square_and_custom_ones_wait(square: Square) -> None:
+    assert square.client.post("/api/v1/mentors/random").json()["in_square"] is True
+    custom = square.client.post("/api/v1/mentors", json={"name": "Grace Hopper"})
+    assert custom.json()["in_square"] is False
