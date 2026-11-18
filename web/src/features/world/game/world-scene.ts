@@ -33,6 +33,7 @@ import {
   TileKind,
   type WorldMap,
 } from './map'
+import { CLOUD_TRAIL_DROP, cloudShape } from './cloud'
 import { isForTheGame, oncePerEvent } from './keys'
 import { cellOf, findPath, startVisit, stepVisit, type VisitState } from './visits'
 import {
@@ -88,6 +89,8 @@ interface MentorActor extends Actor {
   label: Phaser.GameObjects.Text
   /** What they told you, shown over their head as the player walks past. */
   bubble: Phaser.GameObjects.Text
+  /** The thought cloud painted behind the bubble text. */
+  cloud: Phaser.GameObjects.Graphics
   /** The ledger text for the bubble; `saying` takes its place during a meeting. */
   bubbleText: string
   /** A line said in a meeting with another mentor, shown whatever the distance. */
@@ -325,12 +328,12 @@ export class WorldScene extends Phaser.Scene {
         fontFamily: 'ui-monospace, Menlo, monospace',
         fontSize: '10px',
         color: '#1f2937',
-        backgroundColor: '#fdfcf7',
-        padding: { x: 5, y: 3 },
+        padding: { x: 4, y: 3 },
       })
       .setOrigin(0.5, 1)
       .setResolution(2)
       .setVisible(false)
+    const cloud = this.add.graphics().setVisible(false)
 
     const added: MentorActor = {
       ...actor,
@@ -338,6 +341,7 @@ export class WorldScene extends Phaser.Scene {
       name: mentor.name,
       label,
       bubble,
+      cloud,
       bubbleText: '',
       saying: null,
       visit: null,
@@ -677,8 +681,10 @@ export class WorldScene extends Phaser.Scene {
       this.animate(mentor, step.velocity)
     }
     mentor.label.setPosition(sprite.x, sprite.y - CHARACTER_H / 2 + 2).setDepth(100_000)
-    // Above the name label (or where it would be), so the two never overlap.
-    mentor.bubble.setPosition(sprite.x, sprite.y - CHARACTER_H / 2 - 14).setDepth(100_001)
+    // Above the name label (or where it would be), with room for the cloud's trail.
+    const bubbleY = sprite.y - CHARACTER_H / 2 - 16 - CLOUD_TRAIL_DROP
+    mentor.cloud.setPosition(sprite.x, bubbleY).setDepth(100_001)
+    mentor.bubble.setPosition(sprite.x, bubbleY).setDepth(100_002)
   }
 
   /** A walkable way round trees, benches and the fountain, as cell centres. */
@@ -725,7 +731,10 @@ export class WorldScene extends Phaser.Scene {
       const at = this.feet(mentor)
       // A line said in a meeting shows whatever the distance; otherwise the ledger hint.
       const text = mentor.saying ?? mentor.bubbleText
-      if (mentor.bubble.text !== text) mentor.bubble.setText(text)
+      if (mentor.bubble.text !== text) {
+        mentor.bubble.setText(text)
+        paintCloud(mentor.cloud, mentor.bubble.width, mentor.bubble.height)
+      }
       const visible =
         mentor.saying !== null
           ? !mentor.talking
@@ -737,6 +746,7 @@ export class WorldScene extends Phaser.Scene {
               prompted: showPrompt && mentor === nearby,
             })
       mentor.bubble.setVisible(visible)
+      mentor.cloud.setVisible(visible)
     }
   }
 
@@ -768,4 +778,33 @@ function blankTileset(): HTMLCanvasElement {
   element.width = TILE * TILE_KIND_COUNT
   element.height = TILE
   return element
+}
+
+const CLOUD_FILL = 0xfdfcf7
+const CLOUD_EDGE = 0x1f2937
+const CLOUD_EDGE_WIDTH = 1.5
+
+/**
+ * Paints the thought cloud for a bubble of this size, relative to the bubble's
+ * bottom-centre. Every shape is filled in the edge colour slightly larger first,
+ * then in the fill colour, so overlapping puffs merge into one outlined cloud.
+ */
+function paintCloud(g: Phaser.GameObjects.Graphics, width: number, height: number): void {
+  g.clear()
+  if (width === 0) return
+  const { body, puffs, trail } = cloudShape(width, height)
+  for (const [color, grow] of [
+    [CLOUD_EDGE, CLOUD_EDGE_WIDTH],
+    [CLOUD_FILL, 0],
+  ] as const) {
+    g.fillStyle(color, 1)
+    g.fillRoundedRect(
+      body.x - grow,
+      body.y - grow,
+      body.w + grow * 2,
+      body.h + grow * 2,
+      body.radius,
+    )
+    for (const c of [...puffs, ...trail]) g.fillCircle(c.x, c.y, c.r + grow)
+  }
 }
