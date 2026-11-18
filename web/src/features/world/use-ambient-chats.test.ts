@@ -54,7 +54,7 @@ beforeEach(() => {
   vi.useFakeTimers()
   bridge = createWorldBridge()
   commands = []
-  for (const name of ['visit', 'say', 'endVisit'] as const) {
+  for (const name of ['visit', 'greet', 'say', 'endVisit'] as const) {
     bridge.commands.on(name, (payload) => commands.push({ name, payload }))
   }
   api.startAmbientChat.mockResolvedValue(CHAT)
@@ -181,7 +181,7 @@ describe('useAmbientChats', () => {
     ])
   })
 
-  it('lets them pass by when the last chat was under three minutes ago', async () => {
+  it('has them just say hello when the last chat was under three minutes ago', async () => {
     render()
     act(() => bridge.events.emit('encounter', { mentorIds: ['munger', 'buffett'] }))
     act(() => bridge.events.emit('met', { visitorId: 'munger', hostId: 'buffett' }))
@@ -191,6 +191,19 @@ describe('useAmbientChats', () => {
     act(() => bridge.events.emit('encounter', { mentorIds: ['buffett', 'munger'] }))
 
     expect(commands.filter((c) => c.name === 'visit')).toHaveLength(1)
+    expect(commands.at(-1)).toEqual({
+      name: 'greet',
+      payload: { visitorId: 'buffett', hostId: 'munger' },
+    })
+    expect(api.startAmbientChat).toHaveBeenCalledTimes(1)
+  })
+
+  it('has others say hello while a real chat is going on', () => {
+    render()
+    act(() => bridge.events.emit('encounter', { mentorIds: ['munger', 'buffett'] }))
+    act(() => bridge.events.emit('encounter', { mentorIds: ['buffett', 'munger'] }))
+
+    expect(commands.map((c) => c.name)).toEqual(['visit', 'greet'])
   })
 
   it('tries again soon after a meeting that came to nothing', async () => {

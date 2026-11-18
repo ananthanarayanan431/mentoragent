@@ -66,6 +66,8 @@ export interface WorldMap {
   playerSpawn: Cell
   /** Where mentors start, in order; the first mentor gets the first spot. */
   mentorSpawns: Cell[]
+  /** Spots mentors stroll between, spread over the whole square. */
+  places: Cell[]
 }
 
 const BUILDINGS: Building[] = [
@@ -111,30 +113,49 @@ const FLOWER_PATCHES: Rect[] = [
   { col: 2, row: 28, cols: 3, rows: 2 },
 ]
 
-/**
- * On the plaza just south of the fountain: every plaza mentor is in view on arrival,
- * even at desktop zoom, and none is close enough to talk to yet.
- */
+/** On the plaza just south of the fountain. */
 const PLAYER_SPAWN: Cell = { col: 21, row: 18 }
 
+/**
+ * Spread over the square's four corners from the first mentor on, so they do not
+ * all start in one spot. The first is on the plaza, a few steps from the player.
+ */
 const MENTOR_SPAWNS: Cell[] = [
   { col: 18, row: 13 },
-  { col: 25, row: 13 },
-  { col: 18, row: 18 },
-  { col: 25, row: 18 },
-  { col: 8, row: 11 },
   { col: 35, row: 11 },
   { col: 8, row: 19 },
-  { col: 35, row: 19 },
-  // Further out: by the buildings, the pond and the lanes.
-  { col: 12, row: 9 },
-  { col: 30, row: 9 },
-  { col: 14, row: 25 },
   { col: 26, row: 24 },
+  { col: 8, row: 11 },
+  { col: 35, row: 19 },
+  { col: 14, row: 25 },
+  { col: 30, row: 9 },
+  { col: 12, row: 9 },
   { col: 39, row: 16 },
   { col: 3, row: 16 },
   { col: 19, row: 4 },
   { col: 39, row: 28 },
+  { col: 25, row: 18 },
+  { col: 25, row: 13 },
+  { col: 18, row: 18 },
+]
+
+/** Where mentors go: doorsteps, the plaza, the pond, the gardens and the lanes. */
+const PLACES: Cell[] = [
+  { col: 7, row: 10 }, // library steps
+  { col: 36, row: 10 }, // market hall steps
+  { col: 8, row: 29 }, // café terrace
+  { col: 21, row: 13 }, // north of the fountain
+  { col: 23, row: 19 }, // south of the fountain
+  { col: 34, row: 29 }, // the pond's south shore
+  { col: 40, row: 24 }, // the pond's east bank
+  { col: 29, row: 13 }, // east garden
+  { col: 14, row: 20 }, // west garden
+  { col: 21, row: 4 }, // north lane
+  { col: 21, row: 27 }, // south lane
+  { col: 3, row: 16 }, // west end of the street
+  { col: 40, row: 16 }, // east end of the street
+  { col: 18, row: 8 }, // north meadow
+  { col: 15, row: 24 }, // south meadow
 ]
 
 function fill(tiles: TileKind[][], rect: Rect, kind: TileKind): void {
@@ -204,6 +225,7 @@ export function buildWorldMap(): WorldMap {
     fountain: FOUNTAIN,
     playerSpawn: PLAYER_SPAWN,
     mentorSpawns: MENTOR_SPAWNS,
+    places: PLACES,
   }
 }
 

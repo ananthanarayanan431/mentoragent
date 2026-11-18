@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   facingFor,
   facingTowards,
-  findEncounter,
+  findEncounters,
   MENTOR_SPEED_RATIO,
   mentorSpeed,
   nearestWithin,
@@ -15,29 +15,44 @@ import {
   type WanderConfig,
 } from './wander'
 
-const config: WanderConfig = { home: { x: 100, y: 100 }, radius: 50, speed: 40 }
+const start: Point = { x: 100, y: 100 }
+const places: Point[] = [start, { x: 400, y: 100 }, { x: 100, y: 400 }, { x: 400, y: 400 }]
+const config: WanderConfig = { places, spread: 20, speed: 40 }
 
 /** The first walk target a fresh wander picks with `seed`. */
 function firstTarget(seed: number): Point {
   const rng = seededRng(seed)
-  return stepWander(startWander(config.home, rng), config, config.home, 10_000, rng).state.target
+  return stepWander(startWander(start, rng), config, start, 10_000, rng).state.target
 }
 
+const near = (point: Point, place: Point, within: number) =>
+  Math.hypot(point.x - place.x, point.y - place.y) <= within + 1e-9
+
 describe('pickTarget', () => {
-  it('stays within the radius of home', () => {
+  it('heads for one of the places, never the one the mentor is already at', () => {
     const rng = seededRng(1)
+    const visited = new Set<number>()
     for (let i = 0; i < 500; i++) {
-      const target = pickTarget(config.home, config.radius, rng)
-      expect(Math.hypot(target.x - 100, target.y - 100)).toBeLessThanOrEqual(config.radius + 1e-9)
+      const target = pickTarget(places, config.spread, start, rng)
+      const index = places.findIndex((place) => near(target, place, config.spread))
+      expect(index).toBeGreaterThan(0)
+      visited.add(index)
     }
+    // Over time, every other place gets a visit: nobody stays in one corner.
+    expect([...visited].toSorted()).toEqual([1, 2, 3])
+  })
+
+  it('still moves when there is only one place', () => {
+    const target = pickTarget([start], 20, start, seededRng(2))
+    expect(near(target, start, 20)).toBe(true)
   })
 })
 
 describe('stepWander', () => {
   it('idles, then walks towards a target at the configured speed, then idles again', () => {
     const rng = seededRng(7)
-    let state = startWander(config.home, rng)
-    let position: Point = { ...config.home }
+    let state = startWander(start, rng)
+    let position: Point = { ...start }
 
     // Burn through the idle pause.
     let step = stepWander(state, config, position, 10_000, rng)
@@ -57,20 +72,22 @@ describe('stepWander', () => {
     }
     expect(step.state.mode).toBe('idle')
     expect(step.velocity).toEqual({ x: 0, y: 0 })
-    expect(Math.hypot(position.x - 100, position.y - 100)).toBeLessThanOrEqual(config.radius + 5)
+    // Arrived at another place, far from where the walk began.
+    expect(places.slice(1).some((place) => near(position, place, config.spread + 5))).toBe(true)
   })
 
   it('gives up on a walk when blocked by a wall', () => {
     const rng = seededRng(3)
-    const walking = stepWander(
-      startWander(config.home, rng),
-      config,
-      config.home,
-      10_000,
-      rng,
-    ).state
-    const step = stepWander(walking, config, config.home, 16, rng, true)
+    const walking = stepWander(startWander(start, rng), config, start, 10_000, rng).state
+    const step = stepWander(walking, config, start, 16, rng, true)
     expect(step.state.mode).toBe('idle')
+  })
+
+  it('allows long walks across the square, in proportion to the distance', () => {
+    const rng = seededRng(5)
+    const step = stepWander(startWander(start, rng), config, start, 10_000, rng)
+    const distance = Math.hypot(step.state.target.x - start.x, step.state.target.y - start.y)
+    expect(step.state.timer).toBeGreaterThan((distance / config.speed) * 1000)
   })
 
   it('is reproducible with the same seed', () => {
@@ -94,9 +111,9 @@ describe('stepWander along a route', () => {
 
   it('walks the route waypoint by waypoint', () => {
     const rng = seededRng(7)
-    let step = stepWander(startWander(config.home, rng), routed, config.home, 10_000, rng)
+    let step = stepWander(startWander(start, rng), routed, start, 10_000, rng)
     expect(step.state.mode).toBe('walk')
-    step = stepWander(step.state, routed, config.home, 16, rng)
+    step = stepWander(step.state, routed, start, 16, rng)
     // Heading for the corner first: straight up.
     expect(step.velocity.x).toBeCloseTo(0)
     expect(step.velocity.y).toBeLessThan(0)
@@ -106,10 +123,19 @@ describe('stepWander along a route', () => {
     expect(step.state.waypoints).toEqual([step.state.target])
   })
 
-  it('stays put a little longer when there is no way to the target', () => {
+  it('tries other targets before giving up when one cannot be reached', () => {
+    const rng = seededRng(7)
+    let calls = 0
+    const once: WanderConfig = { ...config, route: (_from, to) => (++calls === 1 ? null : [to]) }
+    const step = stepWander(startWander(start, rng), once, start, 10_000, rng)
+    expect(step.state.mode).toBe('walk')
+    expect(calls).toBe(2)
+  })
+
+  it('stays put a little longer when there is no way anywhere', () => {
     const rng = seededRng(7)
     const blocked: WanderConfig = { ...config, route: () => null }
-    const step = stepWander(startWander(config.home, rng), blocked, config.home, 10_000, rng)
+    const step = stepWander(startWander(start, rng), blocked, start, 10_000, rng)
     expect(step.state.mode).toBe('idle')
     expect(step.state.timer).toBeGreaterThan(0)
   })
@@ -120,13 +146,16 @@ function at(id: string, x: number, y = 0) {
   return { id, x, y }
 }
 
-describe('findEncounter', () => {
-  it('finds two mentors who walk close past each other', () => {
-    expect(findEncounter([at('a', 0), at('b', 100), at('c', 120)], 30)).toEqual(['b', 'c'])
+describe('findEncounters', () => {
+  it('lists every pair close enough to notice each other, nearest first', () => {
+    expect(findEncounters([at('a', 0), at('b', 100), at('c', 120), at('d', 70)], 35)).toEqual([
+      ['b', 'c'],
+      ['b', 'd'],
+    ])
   })
 
-  it('is null when everyone keeps their distance', () => {
-    expect(findEncounter([at('a', 0), at('b', 100)], 30)).toBeNull()
+  it('is empty when everyone keeps their distance', () => {
+    expect(findEncounters([at('a', 0), at('b', 100)], 30)).toEqual([])
   })
 })
 

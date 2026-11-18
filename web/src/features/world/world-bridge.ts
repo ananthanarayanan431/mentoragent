@@ -17,7 +17,7 @@ export interface GameEvents {
   ready: Record<string, never>
   /** The scene could not build the world (the page shows an error instead of a spinner). */
   failed: { message: string }
-  /** Two roaming mentors came close to each other; they may stop and chat. */
+  /** Two strolling mentors noticed each other; the first may walk over to the second. */
   encounter: { mentorIds: [string, string] }
   /** The visitor reached the host: both stand face to face, ready to talk. */
   met: { visitorId: string; hostId: string }
@@ -42,6 +42,8 @@ export interface GameCommands {
   bubbles: { texts: Record<string, string> }
   /** Send `visitorId` walking over to `hostId`; answered with `met` or `visitFailed`. */
   visit: { visitorId: string; hostId: string }
+  /** Send `visitorId` over to `hostId` for a quick hello the game plays by itself. */
+  greet: { visitorId: string; hostId: string }
   /** Show a line over a mentor in a meeting (replacing the other's line). */
   say: { mentorId: string; text: string }
   /** The meeting is over: both clear their lines and wander again. */

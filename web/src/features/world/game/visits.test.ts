@@ -14,6 +14,7 @@ function mapOf(rows: string[]): WorldMap {
     fountain: { col: 0, row: 0, cols: 0, rows: 0 },
     playerSpawn: { col: 0, row: 0 },
     mentorSpawns: [],
+    places: [],
   }
 }
 

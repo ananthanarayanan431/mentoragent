@@ -16,6 +16,10 @@ import {
 
 const map = buildWorldMap()
 
+/** Which quarter of the square a cell is in. */
+const corner = ({ col, row }: { col: number; row: number }) =>
+  `${col < MAP_COLS / 2 ? 'west' : 'east'}-${row < MAP_ROWS / 2 ? 'north' : 'south'}`
+
 describe('world map', () => {
   it('is a full grid of known tile kinds', () => {
     expect(map.tiles).toHaveLength(MAP_ROWS)
@@ -39,12 +43,26 @@ describe('world map', () => {
     }
   })
 
-  it('starts the player out of talking reach of every mentor, but within a few steps', () => {
-    for (const spawn of map.mentorSpawns.slice(0, 4)) {
-      const tiles = Math.hypot(spawn.col - map.playerSpawn.col, spawn.row - map.playerSpawn.row)
-      expect(tiles).toBeGreaterThan(2)
-      expect(tiles).toBeLessThan(7)
+  it('starts the player out of talking reach of every mentor, the first a few steps away', () => {
+    const tiles = (spawn: { col: number; row: number }) =>
+      Math.hypot(spawn.col - map.playerSpawn.col, spawn.row - map.playerSpawn.row)
+    for (const spawn of map.mentorSpawns) expect(tiles(spawn)).toBeGreaterThan(2)
+    expect(tiles(map.mentorSpawns[0]!)).toBeLessThan(7)
+  })
+
+  it('spreads the first four mentors over the four corners of the square', () => {
+    expect(new Set(map.mentorSpawns.slice(0, 4).map(corner)).size).toBe(4)
+  })
+
+  it('has places to stroll to all over the square, each one reachable', () => {
+    const reachable = reachableFrom(map, map.playerSpawn)
+    for (const place of map.places) {
+      expect({ place, reachable: reachable.has(`${place.col},${place.row}`) }).toEqual({
+        place,
+        reachable: true,
+      })
     }
+    expect(new Set(map.places.map(corner)).size).toBe(4)
   })
 
   it('lets the player reach every mentor spawn', () => {

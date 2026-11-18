@@ -34,12 +34,13 @@ import {
   type WorldMap,
 } from './map'
 import { CLOUD_TRAIL_DROP, cloudShape } from './cloud'
+import { greetingLineMs, greetingLines, type GreetingLine } from './greetings'
 import { isForTheGame, oncePerEvent } from './keys'
 import { cellOf, findPath, startVisit, stepVisit, type VisitState } from './visits'
 import {
   facingFor,
   facingTowards,
-  findEncounter,
+  findEncounters,
   mentorSpeed,
   nearestWithin,
   seededRng,
@@ -64,12 +65,16 @@ export interface WorldSceneOptions {
 
 const PLAYER_SPEED = 150
 const MENTOR_SPEED = mentorSpeed(PLAYER_SPEED)
-/** How far from their spot a mentor roams: far enough to cross paths with others. */
-const WANDER_RADIUS = TILE * 9
-/** Two free mentors this close (feet to feet) have bumped into each other. */
-const ENCOUNTER_REACH = TILE * 1.5
-/** The same two mentors report bumping into each other at most this often. */
-const ENCOUNTER_REPEAT_MS = 15_000
+/** How far from a place (the library steps, the pond...) a mentor's stroll may end. */
+const PLACE_SPREAD = TILE * 1.5
+/** Two free mentors this close (feet to feet) notice each other; one may walk over. */
+const NOTICE_REACH = TILE * 5
+/** The same two mentors report noticing each other at most this often. */
+const ENCOUNTER_REPEAT_MS = 45_000
+/** After a meeting, a mentor strolls on this long before stopping for anyone else. */
+const SOCIAL_REST_MS = 12_000
+/** A pause between the two lines of a greeting. */
+const GREETING_GAP_MS = 250
 /** How close (feet to feet) the player must be to talk. */
 const TALK_REACH = TILE * 1.8
 /** How close the player must be to see what a mentor told them. */
@@ -98,16 +103,20 @@ interface MentorActor extends Actor {
   /** Walking to another mentor, waiting for one, or meeting one; null when free. */
   visit: Visit | null
   wander: WanderState
-  home: Point
+  /** Scene time from which they may stop for another mentor again. */
+  sociableAt: number
   rng: Rng
   talking: boolean
   lastPosition: Point
 }
 
 type Visit =
-  | { role: 'visitor'; otherId: string; walk: VisitState }
+  /** Walking over; `greeting` is a quick hello the scene plays, not a real chat. */
+  | { role: 'visitor'; otherId: string; walk: VisitState; greeting: boolean }
   | { role: 'host'; otherId: string }
   | { role: 'meeting'; otherId: string }
+  /** The visitor's side of a greeting: plays the lines, then lets both go. */
+  | { role: 'greeting'; otherId: string; lines: GreetingLine[]; index: number; msLeft: number }
 
 /** Already talking to the player or in another visit (or not here at all). */
 function busy(mentor: MentorActor | undefined): boolean {
@@ -124,6 +133,8 @@ export class WorldScene extends Phaser.Scene {
   private map!: WorldMap
   private player!: Actor
   private mentors: MentorActor[] = []
+  /** Where mentors stroll to, as pixel points. */
+  private places: Point[] = []
   private blockers: Phaser.Tilemaps.TilemapLayer[] = []
   private labelsVisible: boolean
   private keys!: MoveKeys
@@ -159,6 +170,7 @@ export class WorldScene extends Phaser.Scene {
 
     try {
       this.map = buildWorldMap()
+      this.places = this.map.places.map(cellCenter)
       const blockers = this.createTerrain()
       this.createPlayer(blockers)
       this.createMentors(blockers)
@@ -345,7 +357,7 @@ export class WorldScene extends Phaser.Scene {
       bubbleText: '',
       saying: null,
       visit: null,
-      home,
+      sociableAt: 0,
       rng,
       wander: startWander(home, rng),
       talking: false,
@@ -479,7 +491,8 @@ export class WorldScene extends Phaser.Scene {
       commands.on('bubbles', ({ texts }) => {
         for (const mentor of this.mentors) mentor.bubbleText = texts[mentor.id] ?? ''
       }),
-      commands.on('visit', ({ visitorId, hostId }) => this.startVisit(visitorId, hostId)),
+      commands.on('visit', ({ visitorId, hostId }) => this.startVisit(visitorId, hostId, false)),
+      commands.on('greet', ({ visitorId, hostId }) => this.startVisit(visitorId, hostId, true)),
       commands.on('say', ({ mentorId, text }) => {
         const speaker = this.mentor(mentorId)
         if (!speaker?.visit) return
@@ -578,8 +591,11 @@ export class WorldScene extends Phaser.Scene {
     return this.mentors.find((mentor) => mentor.id === id)
   }
 
-  /** Sends one mentor walking over to another; `visitFailed` when it cannot start. */
-  private startVisit(visitorId: string, hostId: string): void {
+  /**
+   * Sends one mentor walking over to another; `visitFailed` when it cannot start.
+   * A greeting plays a quick hello on arrival instead of waiting for React.
+   */
+  private startVisit(visitorId: string, hostId: string, greeting: boolean): void {
     const visitor = this.mentor(visitorId)
     const host = this.mentor(hostId)
     const walk =
@@ -590,7 +606,7 @@ export class WorldScene extends Phaser.Scene {
       this.options.bridge.events.emit('visitFailed', { visitorId, hostId })
       return
     }
-    visitor.visit = { role: 'visitor', otherId: hostId, walk }
+    visitor.visit = { role: 'visitor', otherId: hostId, walk, greeting }
     host.visit = { role: 'host', otherId: visitorId }
   }
 
@@ -598,7 +614,8 @@ export class WorldScene extends Phaser.Scene {
   private leaveVisit(mentor: MentorActor): void {
     mentor.visit = null
     mentor.saying = null
-    mentor.wander = startWander(mentor.home, mentor.rng)
+    mentor.sociableAt = this.time.now + SOCIAL_REST_MS
+    mentor.wander = startWander(this.feet(mentor), mentor.rng)
   }
 
   /** Gives a visit up for both mentors and tells React. */
@@ -633,9 +650,17 @@ export class WorldScene extends Phaser.Scene {
         this.animate(mentor, step.velocity)
         return
       }
-      mentor.visit = { role: 'meeting', otherId: other.id }
       other.visit = { role: 'meeting', otherId: mentor.id }
-      this.options.bridge.events.emit('met', { visitorId: mentor.id, hostId: other.id })
+      if (visit.greeting) {
+        const lines = greetingLines(mentor.name, other.name, mentor.rng)
+        mentor.visit = { role: 'greeting', otherId: other.id, lines, index: -1, msLeft: 0 }
+      } else {
+        mentor.visit = { role: 'meeting', otherId: other.id }
+        this.options.bridge.events.emit('met', { visitorId: mentor.id, hostId: other.id })
+      }
+    } else if (visit.role === 'greeting') {
+      this.updateGreeting(mentor, other, visit, delta)
+      if (!mentor.visit) return
     }
     sprite.setVelocity(0, 0)
     if (
@@ -645,6 +670,32 @@ export class WorldScene extends Phaser.Scene {
       mentor.facing = facingTowards(this.feet(mentor), this.feet(other))
     }
     this.animate(mentor, { x: 0, y: 0 })
+  }
+
+  /** Shows the greeting's lines in turn over the speaker; then both stroll on. */
+  private updateGreeting(
+    mentor: MentorActor,
+    other: MentorActor,
+    visit: Extract<Visit, { role: 'greeting' }>,
+    delta: number,
+  ): void {
+    const msLeft = visit.msLeft - delta
+    if (msLeft > 0) {
+      mentor.visit = { ...visit, msLeft }
+      return
+    }
+    const index = visit.index + 1
+    const line = visit.lines[index]
+    if (!line) {
+      this.leaveVisit(mentor)
+      this.leaveVisit(other)
+      return
+    }
+    const speaker = line.speaker === 'visitor' ? mentor : other
+    const listener = speaker === mentor ? other : mentor
+    listener.saying = null
+    speaker.saying = line.text
+    mentor.visit = { ...visit, index, msLeft: greetingLineMs(line.text) + GREETING_GAP_MS }
   }
 
   private updateMentor(mentor: MentorActor, delta: number): void {
@@ -665,8 +716,8 @@ export class WorldScene extends Phaser.Scene {
       const step = stepWander(
         mentor.wander,
         {
-          home: mentor.home,
-          radius: WANDER_RADIUS,
+          places: this.places,
+          spread: PLACE_SPREAD,
           speed: MENTOR_SPEED,
           route: (from, to) => this.route(from, to),
         },
@@ -693,21 +744,30 @@ export class WorldScene extends Phaser.Scene {
     return path ? path.map(cellCenter) : null
   }
 
-  /** Tells React when two roaming mentors pass close by; they may stop and chat. */
+  /**
+   * Tells React when two free mentors notice each other while strolling; React has
+   * one walk over, for a real chat or a quick hello. Each pair at most every
+   * `ENCOUNTER_REPEAT_MS`, and nobody just out of a meeting.
+   */
   private updateEncounters(): void {
+    const now = this.time.now
     const free = this.mentors
-      .filter((mentor) => !mentor.talking && !mentor.visit)
+      .filter((mentor) => !mentor.talking && !mentor.visit && now >= mentor.sociableAt)
       .map((mentor) => {
         const feet = this.feet(mentor)
         return { id: mentor.id, x: feet.x, y: feet.y }
       })
-    const pair = findEncounter(free, ENCOUNTER_REACH)
-    if (!pair) return
-    const key = pair.toSorted().join('+')
-    const now = this.time.now
-    if (now - (this.encounters.get(key) ?? -Infinity) < ENCOUNTER_REPEAT_MS) return
-    this.encounters.set(key, now)
-    this.options.bridge.events.emit('encounter', { mentorIds: pair })
+    for (const pair of findEncounters(free, NOTICE_REACH)) {
+      const key = pair.toSorted().join('+')
+      if (now - (this.encounters.get(key) ?? -Infinity) < ENCOUNTER_REPEAT_MS) continue
+      this.encounters.set(key, now)
+      // Who walks over to whom is a coin toss.
+      const [a, b] = pair
+      this.options.bridge.events.emit('encounter', {
+        mentorIds: Math.random() < 0.5 ? [a, b] : [b, a],
+      })
+      return
+    }
   }
 
   private updateNearby(): void {

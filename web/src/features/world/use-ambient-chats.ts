@@ -26,8 +26,9 @@ interface Options {
 
 /**
  * Now and then, while the square is played and the tab is visible, sends a mentor
- * over to another, plays their chat as bubbles (about your goal if both advised you,
+ * over to another (when two notice each other, or on a timer as a fallback), plays their chat as bubbles (about your goal if both advised you,
  * a short hello otherwise; never longer than `MAX_TALK_MS`), and lets them go.
+ * Mentors who notice each other between real chats get a quick hello the game plays.
  * Nothing runs otherwise: no request, no timer.
  */
 export function useAmbientChats({
@@ -138,9 +139,16 @@ export function useAmbientChats({
     })
     const offEncounter = bridge.events.on('encounter', ({ mentorIds }) => {
       if (!state.running) return
-      if (state.meeting && state.meeting.endedAt === null) return
-      if (state.now() < state.encountersFrom) return
-      if (!eligiblePairs(state.mentors).some((pair) => samePair(pair, mentorIds))) return
+      const canChat =
+        !(state.meeting && state.meeting.endedAt === null) &&
+        state.now() >= state.encountersFrom &&
+        eligiblePairs(state.mentors).some((pair) => samePair(pair, mentorIds))
+      if (!canChat) {
+        // No real chat now (one is on, or too soon after the last): still, one walks
+        // over and they say hello before strolling on.
+        bridge.commands.emit('greet', { visitorId: mentorIds[0], hostId: mentorIds[1] })
+        return
+      }
       // A chance meeting replaces the next planned one.
       for (const timer of state.timers) clearTimeout(timer)
       state.timers.clear()

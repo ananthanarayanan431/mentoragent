@@ -1,7 +1,8 @@
 /**
- * How a mentor roams the square: pause a moment, pick a target, walk there (round
- * obstacles, when given a route), pause again. Pure functions over plain state; the
- * scene applies the velocity.
+ * How a mentor roams the square: pause a moment, pick one of the square's places
+ * (the library steps, the pond, the café...), walk there round obstacles, pause
+ * again. Mentors are not tied to one corner: over time each of them visits them all.
+ * Pure functions over plain state; the scene applies the velocity.
  */
 
 export interface Point {
@@ -28,9 +29,10 @@ export interface WanderState {
 }
 
 export interface WanderConfig {
-  home: Point
-  /** Furthest a target can be from home, in pixels. */
-  radius: number
+  /** Where mentors like to go; each walk heads for one of these (never empty). */
+  places: readonly Point[]
+  /** How far from the chosen place the actual target may be, in pixels. */
+  spread: number
   /** Walking speed, pixels per second. */
   speed: number
   /**
@@ -41,24 +43,67 @@ export interface WanderConfig {
 }
 
 const ARRIVED_PX = 4
-const MIN_IDLE_MS = 1200
-const MAX_IDLE_MS = 4000
-/** A walk that takes longer than this is blocked by something; stop and pick again. */
-const MAX_WALK_MS = 10_000
+const MIN_IDLE_MS = 600
+const MAX_IDLE_MS = 2500
+/** Targets to try (some land in a hedge or the pond) before standing a while. */
+const TARGET_TRIES = 6
+/** A walk may take this many times its plain walking time before it counts as stuck. */
+const WALK_SLACK = 2
+const WALK_GRACE_MS = 3000
 
-export function startWander(home: Point, rng: Rng): WanderState {
-  return { mode: 'idle', target: home, waypoints: [], timer: idleTime(rng) }
+export function startWander(position: Point, rng: Rng): WanderState {
+  return { mode: 'idle', target: position, waypoints: [], timer: idleTime(rng) }
 }
 
 function idleTime(rng: Rng): number {
   return MIN_IDLE_MS + rng() * (MAX_IDLE_MS - MIN_IDLE_MS)
 }
 
-/** A random point within `radius` of `home`, uniform over the disc. */
-export function pickTarget(home: Point, radius: number, rng: Rng): Point {
+/** A random point within `radius` of `center`, uniform over the disc. */
+function nearPoint(center: Point, radius: number, rng: Rng): Point {
   const angle = rng() * Math.PI * 2
   const distance = Math.sqrt(rng()) * radius
-  return { x: home.x + Math.cos(angle) * distance, y: home.y + Math.sin(angle) * distance }
+  return { x: center.x + Math.cos(angle) * distance, y: center.y + Math.sin(angle) * distance }
+}
+
+/**
+ * A point near one of `places`, chosen at random but never the place the mentor is
+ * already at (when there is another), so every walk goes somewhere new.
+ */
+export function pickTarget(
+  places: readonly Point[],
+  spread: number,
+  position: Point,
+  rng: Rng,
+): Point {
+  const nearest = nearestIndex(places, position)
+  const others = places.length > 1 ? places.filter((_, index) => index !== nearest) : places
+  const place = others[Math.min(others.length - 1, Math.floor(rng() * others.length))]!
+  return nearPoint(place, spread, rng)
+}
+
+function nearestIndex(places: readonly Point[], position: Point): number {
+  let best = -1
+  let bestDistance = Infinity
+  places.forEach((place, index) => {
+    const distance = Math.hypot(place.x - position.x, place.y - position.y)
+    if (distance < bestDistance) {
+      best = index
+      bestDistance = distance
+    }
+  })
+  return best
+}
+
+/** Length of the walk from `from` through `waypoints`, in pixels. */
+function walkLength(from: Point, waypoints: readonly Point[]): number {
+  let length = 0
+  let at = from
+  for (const point of waypoints) {
+    length += Math.hypot(point.x - at.x, point.y - at.y)
+    at = point
+  }
+  return length
 }
 
 export interface WanderStep {
@@ -90,14 +135,23 @@ export function stepWander(
   if (state.mode === 'idle') {
     const timer = state.timer - deltaMs
     if (timer > 0) return { state: { ...state, timer }, velocity: still }
-    const wanted = pickTarget(config.home, config.radius, rng)
-    const waypoints = config.route ? config.route(position, wanted) : [wanted]
-    // No way there (inside a hedge, across water): stand a while and try another.
-    if (!waypoints?.length) return rest()
-    return {
-      state: { mode: 'walk', target: waypoints.at(-1)!, waypoints, timer: MAX_WALK_MS },
-      velocity: still,
+    for (let attempt = 0; attempt < TARGET_TRIES; attempt += 1) {
+      const wanted = pickTarget(config.places, config.spread, position, rng)
+      const waypoints = config.route ? config.route(position, wanted) : [wanted]
+      // No way there (inside a hedge, across water): try another.
+      if (!waypoints?.length) continue
+      const walkMs = (walkLength(position, waypoints) / config.speed) * 1000
+      return {
+        state: {
+          mode: 'walk',
+          target: waypoints.at(-1)!,
+          waypoints,
+          timer: walkMs * WALK_SLACK + WALK_GRACE_MS,
+        },
+        velocity: still,
+      }
     }
+    return rest()
   }
 
   const timer = state.timer - deltaMs
@@ -153,21 +207,23 @@ export function nearestWithin<T extends Point>(
 }
 
 /**
- * Two mentors who have come within `reach` of each other while roaming (the first
- * such pair), or null. They may stop and chat.
+ * Every two mentors within `reach` of each other (close enough to notice one
+ * another), nearest pairs first. One of them may walk over and say hello.
  */
-export function findEncounter<T extends Point & { id: string }>(
+export function findEncounters<T extends Point & { id: string }>(
   mentors: readonly T[],
   reach: number,
-): [string, string] | null {
+): [string, string][] {
+  const pairs: { ids: [string, string]; distance: number }[] = []
   for (let i = 0; i < mentors.length; i += 1) {
     for (let j = i + 1; j < mentors.length; j += 1) {
       const a = mentors[i]!
       const b = mentors[j]!
-      if (Math.hypot(a.x - b.x, a.y - b.y) <= reach) return [a.id, b.id]
+      const distance = Math.hypot(a.x - b.x, a.y - b.y)
+      if (distance <= reach) pairs.push({ ids: [a.id, b.id], distance })
     }
   }
-  return null
+  return pairs.toSorted((x, y) => x.distance - y.distance).map((pair) => pair.ids)
 }
 
 /** A small seeded generator (mulberry32), so wandering is reproducible in tests. */
