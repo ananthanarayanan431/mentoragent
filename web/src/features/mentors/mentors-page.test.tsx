@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -37,6 +37,9 @@ function renderPage() {
 }
 
 afterEach(() => vi.unstubAllGlobals())
+
+const inSquare = () => screen.getByRole('region', { name: /^In the square/ })
+const outsideSection = () => screen.getByRole('region', { name: /^Not in the square/ })
 
 describe('MentorsPage', () => {
   it('shows a loading status before the mentors arrive', () => {
@@ -109,16 +112,23 @@ describe('MentorsPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    expect(await screen.findByText('Not in the square')).toBeInTheDocument()
+    expect(
+      await within(await screen.findByRole('region', { name: /^Not in the square/ })).findByText(
+        'Ada Lovelace',
+      ),
+    ).toBeInTheDocument()
+    expect(within(inSquare()).queryByText('Ada Lovelace')).not.toBeInTheDocument()
+
     await user.click(screen.getByRole('button', { name: 'Bring to the square: Ada Lovelace' }))
-    expect(await screen.findByText('In the square')).toBeInTheDocument()
+    expect(await within(inSquare()).findByText('Ada Lovelace')).toBeInTheDocument()
+    expect(within(outsideSection()).queryByText('Ada Lovelace')).not.toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringMatching(/\/mentors\/ada\/square$/),
       expect.objectContaining({ method: 'PUT' }),
     )
 
     await user.click(screen.getByRole('button', { name: 'Send out: Ada Lovelace' }))
-    expect(await screen.findByText('Not in the square')).toBeInTheDocument()
+    expect(await within(outsideSection()).findByText('Ada Lovelace')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Ada Lovelace left the square')
   })
 

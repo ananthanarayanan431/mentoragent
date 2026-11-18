@@ -1,5 +1,5 @@
 import { Library, PenLine, UserPlus, Users } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
 
 import { CreateMentorForm } from './create-mentor-form'
 import { MentorCard } from './mentor-card'
@@ -196,15 +196,23 @@ export function MentorsPage() {
 
         {status === 'ready' &&
           (mentors.length ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {mentors.map((mentor) => (
-                <MentorCard
-                  key={mentor.id}
-                  mentor={mentor}
-                  onRemove={remove}
-                  onSetInSquare={setSquare}
-                />
-              ))}
+            <div className="space-y-10">
+              <MentorSection
+                title="In the square"
+                description="Wandering Mentor Square, ready to talk."
+                empty="Nobody is in the square. Bring a mentor in from the list below."
+                mentors={mentors.filter((m) => m.in_square)}
+                onRemove={remove}
+                onSetInSquare={setSquare}
+              />
+              <MentorSection
+                title="Not in the square"
+                description="Sent out or not yet brought in. They keep their memory; bring them back any time."
+                empty="Everyone is in the square. Mentors you send out wait here."
+                mentors={mentors.filter((m) => !m.in_square)}
+                onRemove={remove}
+                onSetInSquare={setSquare}
+              />
             </div>
           ) : (
             <EmptyState
@@ -215,5 +223,51 @@ export function MentorsPage() {
           ))}
       </div>
     </main>
+  )
+}
+
+interface SectionProps {
+  title: string
+  description: string
+  /** Shown when this section has nobody in it. */
+  empty: string
+  mentors: Mentor[]
+  onRemove: (mentor: Mentor) => Promise<void>
+  onSetInSquare: (mentor: Mentor, inSquare: boolean) => Promise<void>
+}
+
+/** One group of mentor cards, with a heading and a count. */
+function MentorSection({
+  title,
+  description,
+  empty,
+  mentors,
+  onRemove,
+  onSetInSquare,
+}: SectionProps) {
+  const headingId = useId()
+  return (
+    <section aria-labelledby={headingId}>
+      <h2 id={headingId} className="font-pixel text-lg font-semibold">
+        {title} <span className="text-muted">({mentors.length})</span>
+      </h2>
+      <p className="mt-1 text-sm text-muted">{description}</p>
+      {mentors.length ? (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {mentors.map((mentor) => (
+            <MentorCard
+              key={mentor.id}
+              mentor={mentor}
+              onRemove={onRemove}
+              onSetInSquare={onSetInSquare}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 rounded-xl border border-dashed border-line px-4 py-6 text-sm text-muted">
+          {empty}
+        </p>
+      )}
+    </section>
   )
 }
