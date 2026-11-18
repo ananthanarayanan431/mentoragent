@@ -46,3 +46,11 @@ marketing-video/work/footage/
 marketing-video/work/frames/
 marketing-video/work/*.png
 marketing-video/work/*.wav
+
+# LinkedIn square cut intermediates (rebuild with brag-output/work scripts)
+brag-output/work/*
+!brag-output/work/harness.mjs
+!brag-output/work/overlay.mjs
+!brag-output/work/scenes.mjs
+!brag-output/work/music.py
+brag-output/brag.mp4
